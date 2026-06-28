@@ -1,0 +1,10 @@
+{
+  "name": "ADSUM Espace Membre",
+  "short_name": "ADSUM",
+  "description": "Carte de membre numerique et QR signe.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#101218",
+  "theme_color": "#101218",
+  "icons": []
+}
