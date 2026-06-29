@@ -5,42 +5,22 @@ import { Activites } from "./components/Activites.js";
 import { Carte } from "./components/Carte.js";
 import { Historique } from "./components/Historique.js";
 import { Login } from "./components/Login.js";
-import { QrCard } from "./components/QrCard.js";
 import { TabBar, type TabId } from "./components/TabBar.js";
 
-type Mode = "login" | "preview" | "app";
-
 export function App(): JSX.Element {
-  const [mode, setMode] = useState<Mode>("login");
   const [token, setToken] = useState<string | null>(null);
   const [profile, setProfile] = useState<MembreProfile | null>(null);
   const [tab, setTab] = useState<TabId>("carte");
 
   const onAuth = useCallback(async (jwt: string) => {
-    setToken(jwt);
     setProfile(await getMembreProfile(jwt));
-    setMode("app");
+    setToken(jwt);
   }, []);
 
-  if (mode === "login") {
+  if (!token) {
     return (
       <Shell>
-        <Login onAuth={onAuth} onPreview={() => setMode("preview")} />
-      </Shell>
-    );
-  }
-
-  if (mode === "preview" || !token) {
-    return (
-      <Shell>
-        <header className="topbar">
-          <span className="topbar-title">Ma carte</span>
-          <span className="pill">apercu</span>
-        </header>
-        <main className="screen">
-          <QrCard matricule="ADS-000001" membreId={crypto.randomUUID()} verifie preview />
-        </main>
-        <TabBar active="carte" onChange={() => undefined} />
+        <Login onAuth={onAuth} />
       </Shell>
     );
   }

@@ -4,10 +4,9 @@ import { ApiError, login } from "../api.js";
 
 interface LoginProps {
   onAuth: (token: string) => void;
-  onPreview: () => void;
 }
 
-export function Login({ onAuth, onPreview }: LoginProps): JSX.Element {
+export function Login({ onAuth }: LoginProps): JSX.Element {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -44,9 +43,7 @@ export function Login({ onAuth, onPreview }: LoginProps): JSX.Element {
           {busy ? "Connexion..." : "Se connecter"}
         </button>
       </form>
-      <button type="button" className="btn btn-ghost" onClick={onPreview}>
-        Voir un apercu de la carte
-      </button>
+      <p className="login-note">Acces reserve aux membres authentifies.</p>
     </div>
   );
 }
