@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import QRCode from "qrcode";
+import { useEffect, useRef, useState } from "react";
 
 import { type MembreProfile, getQrToken } from "../api.js";
 import { QrCard } from "./QrCard.js";
@@ -10,6 +11,7 @@ const REFRESH_MS = 60_000;
 export function Carte({ token, profile }: { token: string; profile: MembreProfile | null }): JSX.Element {
   const [serverToken, setServerToken] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -42,7 +44,50 @@ export function Carte({ token, profile }: { token: string; profile: MembreProfil
         preview={false}
         serverToken={serverToken}
       />
+      <button type="button" className="btn btn-ghost" onClick={() => setFullscreen(true)} disabled={!serverToken}>
+        Afficher en plein ecran
+      </button>
       {note && <p className="card-hint">{note}</p>}
+      {fullscreen && serverToken && (
+        <FullscreenQr
+          token={serverToken}
+          matricule={profile?.matricule ?? "ADS-000000"}
+          onClose={() => setFullscreen(false)}
+        />
+      )}
     </>
+  );
+}
+
+function FullscreenQr({
+  token,
+  matricule,
+  onClose,
+}: {
+  token: string;
+  matricule: string;
+  onClose: () => void;
+}): JSX.Element {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (canvasRef.current) {
+      void QRCode.toCanvas(canvasRef.current, token, {
+        width: 300,
+        margin: 2,
+        color: { dark: "#000000", light: "#ffffff" },
+      });
+    }
+  }, [token]);
+
+  return (
+    <div className="fs-qr" role="dialog" aria-label="QR plein ecran" onClick={onClose}>
+      <p className="fs-qr-hint">Luminosite maximale recommandee</p>
+      <canvas ref={canvasRef} width={300} height={300} aria-label="QR signe du membre" />
+      <p className="fs-qr-id">{matricule}</p>
+      <button type="button" className="btn btn-primary fs-qr-close" onClick={onClose}>
+        Fermer
+      </button>
+    </div>
   );
 }

@@ -124,3 +124,22 @@ body {
 .tab-glyph { font-size: 20px; }
 .tab-label { font-size: 11px; }
 .tab-active { color: var(--adsum-brand-300); }
+
+/* Notifications bell + screen */
+.bell { background: none; border: none; color: var(--adsum-brand-300); font-size: 18px; cursor: pointer; }
+.notif { align-items: center; }
+.notif-unread { border-color: var(--adsum-brand-400); }
+.list-sub.faint { color: var(--adsum-faint); font-size: 12px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--adsum-brand-400); flex-shrink: 0; }
+
+/* Fullscreen QR */
+.fs-qr {
+  position: fixed; inset: 0; z-index: 50;
+  background: #fff; color: #101218;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  padding: 24px;
+}
+.fs-qr canvas { width: 300px; height: 300px; }
+.fs-qr-hint { color: #5b6275; font-size: 13px; margin: 0; }
+.fs-qr-id { font-family: var(--adsum-font-mono); font-size: 18px; letter-spacing: 1px; margin: 0; }
+.fs-qr-close { max-width: 220px; }
