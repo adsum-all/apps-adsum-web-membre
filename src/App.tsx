@@ -1,6 +1,9 @@
 import { useCallback, useState } from "react";
 
-import { apiBaseUrl, getMe, type Me } from "./api.js";
+import { type MembreProfile, getMembreProfile } from "./api.js";
+import { Activites } from "./components/Activites.js";
+import { Carte } from "./components/Carte.js";
+import { Historique } from "./components/Historique.js";
 import { Login } from "./components/Login.js";
 import { QrCard } from "./components/QrCard.js";
 import { TabBar, type TabId } from "./components/TabBar.js";
@@ -9,12 +12,13 @@ type Mode = "login" | "preview" | "app";
 
 export function App(): JSX.Element {
   const [mode, setMode] = useState<Mode>("login");
-  const [me, setMe] = useState<Me | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [profile, setProfile] = useState<MembreProfile | null>(null);
   const [tab, setTab] = useState<TabId>("carte");
 
-  const onAuth = useCallback(async (token: string) => {
-    const profile = await getMe(token);
-    setMe(profile);
+  const onAuth = useCallback(async (jwt: string) => {
+    setToken(jwt);
+    setProfile(await getMembreProfile(jwt));
     setMode("app");
   }, []);
 
@@ -26,22 +30,31 @@ export function App(): JSX.Element {
     );
   }
 
-  const preview = mode === "preview";
-  const membreId = me?.membre_id ?? crypto.randomUUID();
+  if (mode === "preview" || !token) {
+    return (
+      <Shell>
+        <header className="topbar">
+          <span className="topbar-title">Ma carte</span>
+          <span className="pill">apercu</span>
+        </header>
+        <main className="screen">
+          <QrCard matricule="ADS-000001" membreId={crypto.randomUUID()} verifie preview />
+        </main>
+        <TabBar active="carte" onChange={() => undefined} />
+      </Shell>
+    );
+  }
 
   return (
     <Shell>
       <header className="topbar">
-        <span className="topbar-title">{tab === "carte" ? "Ma carte" : tabTitle(tab)}</span>
-        {preview && <span className="pill">apercu</span>}
+        <span className="topbar-title">{tabTitle(tab)}</span>
       </header>
       <main className="screen">
-        {tab === "carte" && (
-          <QrCard matricule="ADS-000001" membreId={membreId} verifie={true} preview={preview} />
-        )}
-        {tab === "activites" && <Empty title="Activites" note="Vos activites et sessions en ligne s'afficheront ici, depuis l'API." />}
-        {tab === "historique" && <Empty title="Historique" note="Votre historique de presence, en lecture seule et trace a l'audit." />}
-        {tab === "profil" && <Profil me={me} preview={preview} />}
+        {tab === "carte" && <Carte token={token} profile={profile} />}
+        {tab === "activites" && <Activites token={token} />}
+        {tab === "historique" && <Historique token={token} />}
+        {tab === "profil" && <Profil profile={profile} />}
       </main>
       <TabBar active={tab} onChange={setTab} />
     </Shell>
@@ -60,28 +73,36 @@ function tabTitle(tab: TabId): string {
   return { carte: "Ma carte", activites: "Activites", historique: "Historique", profil: "Profil" }[tab];
 }
 
-function Empty({ title, note }: { title: string; note: string }): JSX.Element {
-  return (
-    <div className="empty">
-      <div className="empty-glyph" aria-hidden="true">◌</div>
-      <h2>{title}</h2>
-      <p>{note}</p>
-    </div>
-  );
-}
+function Profil({ profile }: { profile: MembreProfile | null }): JSX.Element {
+  const fullName =
+    profile && (profile.prenoms || profile.nom)
+      ? `${profile.prenoms ?? ""} ${profile.nom ?? ""}`.trim()
+      : (profile?.email ?? "Membre ADSUM");
+  const initials = fullName.slice(0, 2).toUpperCase();
 
-function Profil({ me, preview }: { me: Me | null; preview: boolean }): JSX.Element {
   return (
     <div className="profil">
-      <div className="avatar" aria-hidden="true">MA</div>
-      <h2>{me?.email ?? "Membre ADSUM"}</h2>
-      <p className="profil-role">{me ? `Compte ${me.role}` : preview ? "Apercu hors connexion" : ""}</p>
+      <div className="avatar" aria-hidden="true">{initials}</div>
+      <h2>{fullName}</h2>
+      <p className="profil-role">{profile ? profile.matricule : ""}</p>
       <ul className="profil-list">
-        <li>Identite verifiee</li>
-        <li>Securite et connexions</li>
-        <li>Parametres, langue, RGPD</li>
+        <li>
+          <span>Commission</span>
+          <strong>{profile?.commission ?? "-"}</strong>
+        </li>
+        <li>
+          <span>Statut</span>
+          <strong>{profile?.statut ?? "-"}</strong>
+        </li>
+        <li>
+          <span>Identite</span>
+          <strong>{profile?.verifie ? "Verifiee" : "En attente"}</strong>
+        </li>
+        <li>
+          <span>Courriel</span>
+          <strong>{profile?.email ?? "-"}</strong>
+        </li>
       </ul>
-      <p className="profil-api">API : {apiBaseUrl()}</p>
     </div>
   );
 }

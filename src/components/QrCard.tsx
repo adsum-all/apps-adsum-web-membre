@@ -2,27 +2,33 @@ import { generateKeyPair, signQrToken } from "@adsum/qr";
 import QRCode from "qrcode";
 import { useEffect, useRef, useState } from "react";
 
-// The member digital card with a real Ed25519 signed QR. In production the QR is
-// signed by the server; here it is signed in the browser for the live preview,
-// with a real generated member id (no fictional personal data).
+// The member digital card. When logged in, the QR holds the real token signed by
+// the server (prop serverToken). In the offline preview, it is signed in the
+// browser with a freshly generated key, with no fictional personal data.
 
 interface QrCardProps {
   matricule: string;
   membreId: string;
   verifie: boolean;
   preview: boolean;
+  serverToken?: string | null;
 }
 
-export function QrCard({ matricule, membreId, verifie, preview }: QrCardProps): JSX.Element {
+export function QrCard({ matricule, membreId, verifie, preview, serverToken }: QrCardProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [token] = useState(() => {
+  const [previewToken] = useState(() => {
     const kp = generateKeyPair();
     return signQrToken({ membreId, jetonId: crypto.randomUUID(), versionCle: 1, privateKey: kp.privateKey });
   });
+  const token = serverToken ?? previewToken;
 
   useEffect(() => {
     if (canvasRef.current) {
-      void QRCode.toCanvas(canvasRef.current, token, { width: 220, margin: 1, color: { dark: "#101218", light: "#ffffff" } });
+      void QRCode.toCanvas(canvasRef.current, token, {
+        width: 220,
+        margin: 1,
+        color: { dark: "#101218", light: "#ffffff" },
+      });
     }
   }, [token]);
 
@@ -42,9 +48,11 @@ export function QrCard({ matricule, membreId, verifie, preview }: QrCardProps): 
         </span>
       </div>
       <p className="card-hint">
-        {preview
-          ? "Apercu : QR signe Ed25519 (en production il est signe par le serveur). Presentez-le au controleur."
-          : "Presentez ce code au controleur a l'entree."}
+        {serverToken
+          ? "QR signe par le serveur, valable quelques minutes. Presentez-le au controleur."
+          : preview
+            ? "Apercu : QR signe Ed25519 dans le navigateur. En production il est signe par le serveur."
+            : "Presentez ce code au controleur a l'entree."}
       </p>
     </div>
   );
