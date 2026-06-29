@@ -52,6 +52,15 @@ export interface QrToken {
   key_version: number;
 }
 
+export interface NotificationItem {
+  id: string;
+  type: string | null;
+  titre: string | null;
+  corps: string | null;
+  lu: boolean;
+  cree_le: string | null;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -102,6 +111,10 @@ export function getHistorique(token: string): Promise<PresenceOut[]> {
 
 export function getQrToken(token: string): Promise<QrToken> {
   return authedGet<QrToken>("/api/v1/membres/me/qr", token, "QR indisponible");
+}
+
+export function getNotifications(token: string): Promise<NotificationItem[]> {
+  return authedGet<NotificationItem[]>("/api/v1/membres/me/notifications", token, "Notifications indisponibles");
 }
 
 export function apiBaseUrl(): string {

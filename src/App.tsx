@@ -5,12 +5,14 @@ import { Activites } from "./components/Activites.js";
 import { Carte } from "./components/Carte.js";
 import { Historique } from "./components/Historique.js";
 import { Login } from "./components/Login.js";
+import { Notifications } from "./components/Notifications.js";
 import { TabBar, type TabId } from "./components/TabBar.js";
 
 export function App(): JSX.Element {
   const [token, setToken] = useState<string | null>(null);
   const [profile, setProfile] = useState<MembreProfile | null>(null);
   const [tab, setTab] = useState<TabId>("carte");
+  const [notifOpen, setNotifOpen] = useState(false);
 
   const onAuth = useCallback(async (jwt: string) => {
     setProfile(await getMembreProfile(jwt));
@@ -28,15 +30,35 @@ export function App(): JSX.Element {
   return (
     <Shell>
       <header className="topbar">
-        <span className="topbar-title">{tabTitle(tab)}</span>
+        <span className="topbar-title">{notifOpen ? "Notifications" : tabTitle(tab)}</span>
+        <button
+          type="button"
+          className="bell"
+          aria-label={notifOpen ? "Fermer les notifications" : "Notifications"}
+          onClick={() => setNotifOpen((v) => !v)}
+        >
+          {notifOpen ? "Fermer" : "◉"}
+        </button>
       </header>
       <main className="screen">
-        {tab === "carte" && <Carte token={token} profile={profile} />}
-        {tab === "activites" && <Activites token={token} />}
-        {tab === "historique" && <Historique token={token} />}
-        {tab === "profil" && <Profil profile={profile} />}
+        {notifOpen ? (
+          <Notifications token={token} />
+        ) : (
+          <>
+            {tab === "carte" && <Carte token={token} profile={profile} />}
+            {tab === "activites" && <Activites token={token} />}
+            {tab === "historique" && <Historique token={token} />}
+            {tab === "profil" && <Profil profile={profile} />}
+          </>
+        )}
       </main>
-      <TabBar active={tab} onChange={setTab} />
+      <TabBar
+        active={tab}
+        onChange={(t) => {
+          setNotifOpen(false);
+          setTab(t);
+        }}
+      />
     </Shell>
   );
 }
