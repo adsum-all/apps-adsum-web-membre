@@ -98,8 +98,19 @@ body {
 .profil h2 { margin: 16px 0 2px; font-size: 18px; word-break: break-word; }
 .profil-role { color: var(--adsum-mut); margin: 0 0 18px; }
 .profil-list { list-style: none; padding: 0; margin: 0 0 18px; display: flex; flex-direction: column; gap: 2px; }
-.profil-list li { padding: 14px 12px; border: 1px solid var(--adsum-line); border-radius: var(--adsum-radius-md); background: var(--adsum-panel); font-size: 14px; }
+.profil-list li { padding: 14px 12px; border: 1px solid var(--adsum-line); border-radius: var(--adsum-radius-md); background: var(--adsum-panel); font-size: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.profil-list li span { color: var(--adsum-mut); }
+.profil-list li strong { color: var(--adsum-ink); text-align: right; word-break: break-word; text-transform: capitalize; }
 .profil-api { color: var(--adsum-faint); font-size: 12px; font-family: var(--adsum-font-mono); word-break: break-all; }
+
+/* Data lists (activites, historique) */
+.list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.list-item { padding: 14px; border: 1px solid var(--adsum-line); border-radius: var(--adsum-radius-md); background: var(--adsum-panel); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.list-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.list-main strong { color: var(--adsum-ink); font-size: 15px; word-break: break-word; }
+.list-sub { color: var(--adsum-mut); font-size: 13px; text-transform: capitalize; }
+.list-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+.list-place { color: var(--adsum-faint); font-size: 12px; }
 
 /* Tab bar */
 .tabbar {
