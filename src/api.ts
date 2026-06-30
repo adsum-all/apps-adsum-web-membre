@@ -127,14 +127,41 @@ async function authedGet<T>(path: string, token: string, onError: string): Promi
   return (await res.json()) as T;
 }
 
-export async function login(email: string, password: string): Promise<string> {
+export interface LoginResult {
+  token: string;
+  doitChangerMdp: boolean;
+}
+
+export async function login(email: string, password: string): Promise<LoginResult> {
   const res = await fetch(`${BASE}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
   if (!res.ok) {
-    throw new ApiError(res.status === 401 ? "Identifiants invalides" : "Service indisponible", res.status);
+    const message =
+      res.status === 401
+        ? "Identifiants invalides ou mot de passe temporaire expiré"
+        : "Service indisponible";
+    throw new ApiError(message, res.status);
+  }
+  const data = (await res.json()) as { access_token: string; doit_changer_mdp?: boolean };
+  return { token: data.access_token, doitChangerMdp: Boolean(data.doit_changer_mdp) };
+}
+
+export async function premiereConnexion(
+  email: string,
+  mdpTemporaire: string,
+  nouveauMdp: string,
+  codeOtp: string,
+): Promise<string> {
+  const res = await fetch(`${BASE}/api/v1/auth/premiere-connexion`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, mdp_temporaire: mdpTemporaire, nouveau_mdp: nouveauMdp, code_otp: codeOtp }),
+  });
+  if (!res.ok) {
+    throw new ApiError(res.status === 400 ? "Code ou mot de passe invalide" : "Validation impossible", res.status);
   }
   const data = (await res.json()) as { access_token: string };
   return data.access_token;
