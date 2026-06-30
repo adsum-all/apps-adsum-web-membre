@@ -164,6 +164,13 @@ export function getNotifications(token: string): Promise<NotificationItem[]> {
   return authedGet<NotificationItem[]>("/api/v1/membres/me/notifications", token, "Notifications indisponibles");
 }
 
+export async function markNotificationsRead(token: string): Promise<void> {
+  await fetch(`${BASE}/api/v1/membres/me/notifications/lire`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
 export function getRecensement(token: string): Promise<Recensement | null> {
   return authedGet<Recensement | null>("/api/v1/membres/me/recensement", token, "Recensement indisponible");
 }

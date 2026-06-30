@@ -1,4 +1,6 @@
-import { getNotifications } from "../api.js";
+import { useState } from "react";
+
+import { getNotifications, markNotificationsRead } from "../api.js";
 import { formatDateTime } from "../format.js";
 import { useResource } from "../useResource.js";
 
@@ -19,6 +21,7 @@ export function Notifications({
   onRecensement?: () => void;
 }): JSX.Element {
   const { data, loading, error } = useResource(() => getNotifications(token), [token]);
+  const [allRead, setAllRead] = useState(false);
 
   if (loading) return <div className="empty"><p>Chargement des notifications...</p></div>;
   if (error) return <div className="empty"><p>{error}</p></div>;
@@ -31,26 +34,45 @@ export function Notifications({
     );
   }
 
+  const hasUnread = !allRead && data.some((n) => !n.lu);
+
   return (
-    <ul className="list">
-      {data.map((n) => {
-        const target = targetOf(n.titre, n.type);
-        const onClick = target === "document" ? onDocument : target === "recensement" ? onRecensement : undefined;
-        return (
-          <li
-            key={n.id}
-            className={`list-item notif ${n.lu ? "" : "notif-unread"} ${onClick ? "row-tap" : ""}`}
-            onClick={onClick}
-          >
-            <div className="list-main">
-              <strong>{n.titre ?? "Notification"}</strong>
-              <span className="list-sub">{n.corps ?? ""}</span>
-              <span className="list-sub faint">{formatDateTime(n.cree_le)}</span>
-            </div>
-            {!n.lu && <span className="dot" aria-label="non lu" />}
-          </li>
-        );
-      })}
-    </ul>
+    <>
+      <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 2px 10px" }}>
+        <button
+          type="button"
+          className="login-link"
+          disabled={!hasUnread}
+          style={{ opacity: hasUnread ? 1 : 0.5 }}
+          onClick={() => {
+            setAllRead(true);
+            void markNotificationsRead(token);
+          }}
+        >
+          Tout marquer lu
+        </button>
+      </div>
+      <ul className="list">
+        {data.map((n) => {
+          const target = targetOf(n.titre, n.type);
+          const onClick = target === "document" ? onDocument : target === "recensement" ? onRecensement : undefined;
+          const unread = !allRead && !n.lu;
+          return (
+            <li
+              key={n.id}
+              className={`list-item notif ${unread ? "notif-unread" : ""} ${onClick ? "row-tap" : ""}`}
+              onClick={onClick}
+            >
+              <div className="list-main">
+                <strong>{n.titre ?? "Notification"}</strong>
+                <span className="list-sub">{n.corps ?? ""}</span>
+                <span className="list-sub faint">{formatDateTime(n.cree_le)}</span>
+              </div>
+              {unread && <span className="dot" aria-label="non lu" />}
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }
