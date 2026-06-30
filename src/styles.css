@@ -143,3 +143,10 @@ body {
 .fs-qr-hint { color: #5b6275; font-size: 13px; margin: 0; }
 .fs-qr-id { font-family: var(--adsum-font-mono); font-size: 18px; letter-spacing: 1px; margin: 0; }
 .fs-qr-close { max-width: 220px; }
+
+/* Recensement */
+.recensement { padding: 24px 6px; }
+.recensement h2 { margin: 0 0 8px; }
+.recensement .muted { display: block; margin-bottom: 18px; font-size: 14px; }
+.check-row { display: flex; align-items: center; gap: 12px; padding: 14px 12px; margin-bottom: 10px; border: 1px solid var(--adsum-line); border-radius: var(--adsum-radius-md); background: var(--adsum-panel); font-size: 14px; }
+.check-row input { width: 18px; height: 18px; }
