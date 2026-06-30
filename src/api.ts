@@ -44,6 +44,7 @@ export interface MembreProfile {
   patriarche: string | null;
   coordination: string | null;
   coordinateur: string | null;
+  champs_deverrouilles: string[];
 }
 
 export interface EvenementOut {
@@ -347,7 +348,10 @@ async function authedPatch<T>(path: string, token: string, body: unknown, onErro
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
 
-export function updateProfil(token: string, fields: ProfilFields): Promise<{ ok: boolean }> {
+export function updateProfil(
+  token: string,
+  fields: ProfilFields,
+): Promise<{ ok: boolean; pending_validation?: boolean; champs?: string[]; updated?: string[] }> {
   return authedPatch("/api/v1/membres/me/profil", token, fields, "Mise a jour impossible");
 }
 
