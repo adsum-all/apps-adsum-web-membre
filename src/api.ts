@@ -82,6 +82,23 @@ export interface Recensement {
   deja_repondu: boolean;
 }
 
+export interface DocumentItem {
+  id: string;
+  type: string | null;
+  statut: string;
+  demande_le: string | null;
+  recu_le: string | null;
+  traite_le: string | null;
+}
+
+export interface EngagementItem {
+  id: string;
+  type: string | null;
+  version: string;
+  signe: boolean;
+  signe_le: string | null;
+}
+
 export interface NotificationItem {
   id: string;
   type: string | null;
@@ -149,6 +166,14 @@ export function getNotifications(token: string): Promise<NotificationItem[]> {
 
 export function getRecensement(token: string): Promise<Recensement | null> {
   return authedGet<Recensement | null>("/api/v1/membres/me/recensement", token, "Recensement indisponible");
+}
+
+export function getDocuments(token: string): Promise<DocumentItem[]> {
+  return authedGet<DocumentItem[]>("/api/v1/membres/me/documents", token, "Dossier indisponible");
+}
+
+export function getEngagements(token: string): Promise<EngagementItem[]> {
+  return authedGet<EngagementItem[]>("/api/v1/membres/me/engagements", token, "Engagements indisponibles");
 }
 
 export async function submitRecensement(

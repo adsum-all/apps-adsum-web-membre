@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import { type MembreProfile, getMembreProfile } from "./api.js";
 import { Activites } from "./components/Activites.js";
 import { Carte } from "./components/Carte.js";
+import { Dossier } from "./components/Dossier.js";
 import { Historique } from "./components/Historique.js";
 import { Login } from "./components/Login.js";
 import { Notifications } from "./components/Notifications.js";
@@ -15,6 +16,7 @@ export function App(): JSX.Element {
   const [tab, setTab] = useState<TabId>("carte");
   const [notifOpen, setNotifOpen] = useState(false);
   const [recensementOpen, setRecensementOpen] = useState(false);
+  const [dossierOpen, setDossierOpen] = useState(false);
 
   const onAuth = useCallback(async (jwt: string) => {
     setProfile(await getMembreProfile(jwt));
@@ -33,10 +35,23 @@ export function App(): JSX.Element {
     <Shell>
       <header className="topbar">
         <span className="topbar-title">
-          {recensementOpen ? "Recensement" : notifOpen ? "Notifications" : tabTitle(tab)}
+          {recensementOpen
+            ? "Recensement"
+            : dossierOpen
+              ? "Mon dossier"
+              : notifOpen
+                ? "Notifications"
+                : tabTitle(tab)}
         </span>
-        {recensementOpen ? (
-          <button type="button" className="bell" onClick={() => setRecensementOpen(false)}>
+        {recensementOpen || dossierOpen ? (
+          <button
+            type="button"
+            className="bell"
+            onClick={() => {
+              setRecensementOpen(false);
+              setDossierOpen(false);
+            }}
+          >
             Fermer
           </button>
         ) : (
@@ -53,6 +68,8 @@ export function App(): JSX.Element {
       <main className="screen">
         {recensementOpen ? (
           <Recensement token={token} />
+        ) : dossierOpen ? (
+          <Dossier token={token} />
         ) : notifOpen ? (
           <Notifications token={token} />
         ) : (
@@ -60,7 +77,13 @@ export function App(): JSX.Element {
             {tab === "carte" && <Carte token={token} profile={profile} />}
             {tab === "activites" && <Activites token={token} />}
             {tab === "historique" && <Historique token={token} />}
-            {tab === "profil" && <Profil profile={profile} onRecensement={() => setRecensementOpen(true)} />}
+            {tab === "profil" && (
+              <Profil
+                profile={profile}
+                onRecensement={() => setRecensementOpen(true)}
+                onDossier={() => setDossierOpen(true)}
+              />
+            )}
           </>
         )}
       </main>
@@ -69,6 +92,7 @@ export function App(): JSX.Element {
         onChange={(t) => {
           setNotifOpen(false);
           setRecensementOpen(false);
+          setDossierOpen(false);
           setTab(t);
         }}
       />
@@ -121,9 +145,11 @@ function Row({ label, value }: { label: string; value: string }): JSX.Element {
 function Profil({
   profile,
   onRecensement,
+  onDossier,
 }: {
   profile: MembreProfile | null;
   onRecensement: () => void;
+  onDossier: () => void;
 }): JSX.Element {
   const fullName =
     profile && (profile.prenoms || profile.nom)
@@ -186,6 +212,9 @@ function Profil({
         <Row label="Telephone" value={profile?.telephone ?? "-"} />
       </ul>
 
+      <button type="button" className="btn btn-ghost btn-block" onClick={onDossier}>
+        Mon dossier (documents, engagements)
+      </button>
       <button type="button" className="btn btn-ghost btn-block" onClick={onRecensement}>
         Recensement annuel
       </button>
