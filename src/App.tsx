@@ -88,6 +88,36 @@ function tabTitle(tab: TabId): string {
   return { carte: "Ma carte", activites: "Activites", historique: "Historique", profil: "Profil" }[tab];
 }
 
+const ENGAGEMENT_LABELS: Record<string, string> = {
+  membre_simple: "Membre simple",
+  nouveau_engage: "Nouvel engage",
+  aspirant: "Aspirant",
+  engage: "Engage",
+  berger: "Berger",
+  responsable: "Responsable",
+};
+
+const MATRIMONIAL_LABELS: Record<string, string> = {
+  celibataire: "Celibataire",
+  en_couple: "En couple",
+  marie: "Marie(e)",
+};
+
+function pretty(value: string | null | undefined): string {
+  if (!value) return "-";
+  const mapped = value.replace(/_/g, " ");
+  return mapped.charAt(0).toUpperCase() + mapped.slice(1);
+}
+
+function Row({ label, value }: { label: string; value: string }): JSX.Element {
+  return (
+    <li>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </li>
+  );
+}
+
 function Profil({
   profile,
   onRecensement,
@@ -100,31 +130,63 @@ function Profil({
       ? `${profile.prenoms ?? ""} ${profile.nom ?? ""}`.trim()
       : (profile?.email ?? "Membre ADSUM");
   const initials = fullName.slice(0, 2).toUpperCase();
+  const engagement = profile?.type_membre ? (ENGAGEMENT_LABELS[profile.type_membre] ?? pretty(profile.type_membre)) : "-";
+  const matrimonial = profile?.situation_matrimoniale
+    ? (MATRIMONIAL_LABELS[profile.situation_matrimoniale] ?? pretty(profile.situation_matrimoniale))
+    : "-";
+  const marriage = profile?.type_mariage ? ` (${pretty(profile.type_mariage)})` : "";
 
   return (
     <div className="profil">
-      <div className="avatar" aria-hidden="true">{initials}</div>
-      <h2>{fullName}</h2>
-      <p className="profil-role">{profile ? profile.matricule : ""}</p>
+      <div className="profil-head">
+        <div className="avatar" aria-hidden="true">
+          {initials}
+        </div>
+        <h2>{fullName}</h2>
+        <p className="profil-role">{profile?.matricule ?? ""}</p>
+      </div>
+
+      <p className="section-title profil-group">Identite ecclesiale</p>
       <ul className="profil-list">
-        <li>
-          <span>Commission</span>
-          <strong>{profile?.commission ?? "-"}</strong>
-        </li>
-        <li>
-          <span>Statut</span>
-          <strong>{profile?.statut ?? "-"}</strong>
-        </li>
-        <li>
-          <span>Identite</span>
-          <strong>{profile?.verifie ? "Verifiee" : "En attente"}</strong>
-        </li>
-        <li>
-          <span>Courriel</span>
-          <strong>{profile?.email ?? "-"}</strong>
-        </li>
+        <Row label="Tribu" value={profile?.tribu ?? "-"} />
+        <Row label="Patriarche" value={profile?.patriarche ?? "-"} />
+        <Row label="Niveau d'engagement" value={engagement} />
+        <Row label="Promotion" value={profile?.promotion ?? "-"} />
+        <Row label="Cheminement" value={pretty(profile?.cheminement_pastoral)} />
       </ul>
-      <button type="button" className="btn btn-ghost" onClick={onRecensement}>
+
+      <p className="section-title profil-group">Organisation</p>
+      <ul className="profil-list">
+        <Row label="Commission" value={profile?.commission ?? "-"} />
+        <Row label="Intendance" value={profile?.intendance ?? "-"} />
+        <Row label="Coordination" value={profile?.coordination ?? "-"} />
+        <Row label="Coordinateur" value={profile?.coordinateur ?? "-"} />
+      </ul>
+
+      <p className="section-title profil-group">Vie personnelle</p>
+      <ul className="profil-list">
+        <Row label="Situation" value={matrimonial + marriage} />
+        <Row label="Profession" value={profile?.profession ?? "-"} />
+        <Row label="Niveau d'etudes" value={profile?.niveau_etudes ?? "-"} />
+        <Row label="Ville" value={profile?.ville ?? "-"} />
+      </ul>
+
+      <p className="section-title profil-group">Sacrements</p>
+      <div className="sacrement-row">
+        <span className={`chip ${profile?.baptise ? "" : "chip-off"}`}>Baptise</span>
+        <span className={`chip ${profile?.confirme ? "" : "chip-off"}`}>Confirme</span>
+        <span className={`chip ${profile?.premiere_communion ? "" : "chip-off"}`}>1re communion</span>
+      </div>
+
+      <p className="section-title profil-group">Compte</p>
+      <ul className="profil-list">
+        <Row label="Identite" value={profile?.verifie ? "Verifiee" : "En attente"} />
+        <Row label="Statut" value={pretty(profile?.statut)} />
+        <Row label="Courriel" value={profile?.email ?? "-"} />
+        <Row label="Telephone" value={profile?.telephone ?? "-"} />
+      </ul>
+
+      <button type="button" className="btn btn-ghost btn-block" onClick={onRecensement}>
         Recensement annuel
       </button>
     </div>

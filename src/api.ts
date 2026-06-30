@@ -21,7 +21,29 @@ export interface MembreProfile {
   photo_url: string | null;
   statut: string;
   verifie: boolean;
+  genre: string | null;
+  date_naissance: string | null;
+  pays: string | null;
+  ville: string | null;
+  date_entree: string | null;
+  cheminement_pastoral: string | null;
+  statut_administratif: string | null;
+  type_membre: string | null;
+  promotion: string | null;
+  situation_matrimoniale: string | null;
+  type_mariage: string | null;
+  profession: string | null;
+  niveau_etudes: string | null;
+  baptise: boolean | null;
+  confirme: boolean | null;
+  premiere_communion: boolean | null;
   commission: string | null;
+  intendance: string | null;
+  berger: string | null;
+  tribu: string | null;
+  patriarche: string | null;
+  coordination: string | null;
+  coordinateur: string | null;
 }
 
 export interface EvenementOut {
