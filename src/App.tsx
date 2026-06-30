@@ -6,6 +6,7 @@ import { Carte } from "./components/Carte.js";
 import { Historique } from "./components/Historique.js";
 import { Login } from "./components/Login.js";
 import { Notifications } from "./components/Notifications.js";
+import { Recensement } from "./components/Recensement.js";
 import { TabBar, type TabId } from "./components/TabBar.js";
 
 export function App(): JSX.Element {
@@ -13,6 +14,7 @@ export function App(): JSX.Element {
   const [profile, setProfile] = useState<MembreProfile | null>(null);
   const [tab, setTab] = useState<TabId>("carte");
   const [notifOpen, setNotifOpen] = useState(false);
+  const [recensementOpen, setRecensementOpen] = useState(false);
 
   const onAuth = useCallback(async (jwt: string) => {
     setProfile(await getMembreProfile(jwt));
@@ -30,25 +32,35 @@ export function App(): JSX.Element {
   return (
     <Shell>
       <header className="topbar">
-        <span className="topbar-title">{notifOpen ? "Notifications" : tabTitle(tab)}</span>
-        <button
-          type="button"
-          className="bell"
-          aria-label={notifOpen ? "Fermer les notifications" : "Notifications"}
-          onClick={() => setNotifOpen((v) => !v)}
-        >
-          {notifOpen ? "Fermer" : "◉"}
-        </button>
+        <span className="topbar-title">
+          {recensementOpen ? "Recensement" : notifOpen ? "Notifications" : tabTitle(tab)}
+        </span>
+        {recensementOpen ? (
+          <button type="button" className="bell" onClick={() => setRecensementOpen(false)}>
+            Fermer
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="bell"
+            aria-label={notifOpen ? "Fermer les notifications" : "Notifications"}
+            onClick={() => setNotifOpen((v) => !v)}
+          >
+            {notifOpen ? "Fermer" : "◉"}
+          </button>
+        )}
       </header>
       <main className="screen">
-        {notifOpen ? (
+        {recensementOpen ? (
+          <Recensement token={token} />
+        ) : notifOpen ? (
           <Notifications token={token} />
         ) : (
           <>
             {tab === "carte" && <Carte token={token} profile={profile} />}
             {tab === "activites" && <Activites token={token} />}
             {tab === "historique" && <Historique token={token} />}
-            {tab === "profil" && <Profil profile={profile} />}
+            {tab === "profil" && <Profil profile={profile} onRecensement={() => setRecensementOpen(true)} />}
           </>
         )}
       </main>
@@ -56,6 +68,7 @@ export function App(): JSX.Element {
         active={tab}
         onChange={(t) => {
           setNotifOpen(false);
+          setRecensementOpen(false);
           setTab(t);
         }}
       />
@@ -75,7 +88,13 @@ function tabTitle(tab: TabId): string {
   return { carte: "Ma carte", activites: "Activites", historique: "Historique", profil: "Profil" }[tab];
 }
 
-function Profil({ profile }: { profile: MembreProfile | null }): JSX.Element {
+function Profil({
+  profile,
+  onRecensement,
+}: {
+  profile: MembreProfile | null;
+  onRecensement: () => void;
+}): JSX.Element {
   const fullName =
     profile && (profile.prenoms || profile.nom)
       ? `${profile.prenoms ?? ""} ${profile.nom ?? ""}`.trim()
@@ -105,6 +124,9 @@ function Profil({ profile }: { profile: MembreProfile | null }): JSX.Element {
           <strong>{profile?.email ?? "-"}</strong>
         </li>
       </ul>
+      <button type="button" className="btn btn-ghost" onClick={onRecensement}>
+        Recensement annuel
+      </button>
     </div>
   );
 }

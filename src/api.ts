@@ -52,6 +52,14 @@ export interface QrToken {
   key_version: number;
 }
 
+export interface Recensement {
+  id: string;
+  annee: number;
+  statut: string;
+  ouvert: boolean;
+  deja_repondu: boolean;
+}
+
 export interface NotificationItem {
   id: string;
   type: string | null;
@@ -115,6 +123,24 @@ export function getQrToken(token: string): Promise<QrToken> {
 
 export function getNotifications(token: string): Promise<NotificationItem[]> {
   return authedGet<NotificationItem[]>("/api/v1/membres/me/notifications", token, "Notifications indisponibles");
+}
+
+export function getRecensement(token: string): Promise<Recensement | null> {
+  return authedGet<Recensement | null>("/api/v1/membres/me/recensement", token, "Recensement indisponible");
+}
+
+export async function submitRecensement(
+  token: string,
+  reponse: { confirme_engagement: boolean; infos_a_jour: boolean; reaccepte_engagements: boolean },
+): Promise<void> {
+  const res = await fetch(`${BASE}/api/v1/membres/me/recensement`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(reponse),
+  });
+  if (!res.ok) {
+    throw new ApiError(res.status === 401 ? "Session expiree" : "Envoi impossible", res.status);
+  }
 }
 
 export function apiBaseUrl(): string {
