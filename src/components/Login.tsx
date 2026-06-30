@@ -2,8 +2,15 @@ import { useState } from "react";
 
 import { ApiError, login } from "../api.js";
 
+export interface AuthContext {
+  token: string;
+  doitChangerMdp: boolean;
+  email: string;
+  motDePasse: string;
+}
+
 interface LoginProps {
-  onAuth: (token: string) => void;
+  onAuth: (ctx: AuthContext) => void;
   onForgot?: () => void;
 }
 
@@ -18,7 +25,8 @@ export function Login({ onAuth, onForgot }: LoginProps): JSX.Element {
     setBusy(true);
     setError(null);
     try {
-      onAuth(await login(email, password));
+      const res = await login(email, password);
+      onAuth({ token: res.token, doitChangerMdp: res.doitChangerMdp, email, motDePasse: password });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Erreur reseau");
     } finally {

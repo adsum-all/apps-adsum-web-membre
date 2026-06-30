@@ -13,7 +13,8 @@ import { Forgot } from "./components/Forgot.js";
 import { Historique } from "./components/Historique.js";
 import { Identite } from "./components/Identite.js";
 import { Infos } from "./components/Infos.js";
-import { Login } from "./components/Login.js";
+import { type AuthContext, Login } from "./components/Login.js";
+import { PremiereConnexion } from "./components/PremiereConnexion.js";
 import { Notifications } from "./components/Notifications.js";
 import { Recensement } from "./components/Recensement.js";
 import { Secu } from "./components/Secu.js";
@@ -62,8 +63,9 @@ export function App(): JSX.Element {
   const [detailItem, setDetailItem] = useState<PresenceOut | null>(null);
   const [activeEvent, setActiveEvent] = useState<EvenementOut | null>(null);
   const [authView, setAuthView] = useState<"login" | "forgot">("login");
+  const [firstLogin, setFirstLogin] = useState<AuthContext | null>(null);
 
-  const onAuth = useCallback((jwt: string) => {
+  const enter = useCallback((jwt: string) => {
     // Show the app immediately; load the profile in the background so the first
     // paint does not wait on a second round trip (the card fills in when ready).
     setToken(jwt);
@@ -72,12 +74,39 @@ export function App(): JSX.Element {
       .catch(() => undefined);
   }, []);
 
+  const onAuth = useCallback(
+    (ctx: AuthContext) => {
+      if (ctx.doitChangerMdp) {
+        setFirstLogin(ctx);
+        return;
+      }
+      enter(ctx.token);
+    },
+    [enter],
+  );
+
   const logout = useCallback(() => {
     setToken(null);
     setProfile(null);
     setView(null);
+    setFirstLogin(null);
     setTab("carte");
   }, []);
+
+  if (firstLogin) {
+    return (
+      <Shell>
+        <PremiereConnexion
+          email={firstLogin.email}
+          motDePasseTemporaire={firstLogin.motDePasse}
+          onDone={(jwt) => {
+            setFirstLogin(null);
+            enter(jwt);
+          }}
+        />
+      </Shell>
+    );
+  }
 
   if (!token) {
     return (
