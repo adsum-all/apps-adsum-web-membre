@@ -611,3 +611,6 @@ body {
   background: var(--adsum-ok-bg);
   color: var(--adsum-ok);
 }
+
+.row-tap { cursor: pointer; }
+.row-tap:active { transform: scale(0.99); }
