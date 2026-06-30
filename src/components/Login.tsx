@@ -27,8 +27,11 @@ export function Login({ onAuth }: LoginProps): JSX.Element {
 
   return (
     <div className="login">
+      <div className="login-logo" aria-hidden="true">
+        A
+      </div>
       <div className="login-brand">ADSUM</div>
-      <p className="login-sub">Espace membre</p>
+      <p className="login-sub">Espace membre, votre carte dans le telephone</p>
       <form onSubmit={submit} className="login-form">
         <label>
           <span>Courriel</span>
@@ -39,11 +42,13 @@ export function Login({ onAuth }: LoginProps): JSX.Element {
           <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </label>
         {error && <p className="login-error">{error}</p>}
-        <button type="submit" className="btn btn-primary" disabled={busy}>
+        <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
           {busy ? "Connexion..." : "Se connecter"}
         </button>
+        <button type="button" className="login-link">
+          Mot de passe oublie ?
+        </button>
       </form>
-      <p className="login-note">Acces reserve aux membres authentifies.</p>
     </div>
   );
 }
