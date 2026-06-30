@@ -304,6 +304,112 @@ export function resetPassword(email: string, code: string, nouveau: string): Pro
   return publicPost<void>("/api/v1/auth/reset-password", { email, code, nouveau }, "Reinitialisation impossible");
 }
 
+export interface RefItem {
+  id: string;
+  nom: string;
+  patriarche?: string | null;
+}
+
+export function getReference(token: string, kind: string): Promise<RefItem[]> {
+  return authedGet<RefItem[]>(`/api/v1/reference/${kind}`, token, "Liste indisponible");
+}
+
+export interface ProfilFields {
+  prenoms?: string;
+  nom?: string;
+  telephone?: string;
+  date_naissance?: string;
+  genre?: string;
+  pays?: string;
+  ville?: string;
+  commission_id?: string;
+  intendance_id?: string;
+  tribu_id?: string;
+  groupe?: string;
+  profession?: string;
+  niveau_etudes?: string;
+  situation_matrimoniale?: string;
+  type_mariage?: string;
+  baptise?: boolean;
+  confirme?: boolean;
+  premiere_communion?: boolean;
+}
+
+async function authedPatch<T>(path: string, token: string, body: unknown, onError: string): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new ApiError(res.status === 401 ? "Session expiree" : onError, res.status);
+  }
+  return (res.status === 204 ? undefined : await res.json()) as T;
+}
+
+export function updateProfil(token: string, fields: ProfilFields): Promise<{ ok: boolean }> {
+  return authedPatch("/api/v1/membres/me/profil", token, fields, "Mise a jour impossible");
+}
+
+export interface InscriptionStatut {
+  statut: string;
+  motif_refus: string | null;
+  soumis_le: string | null;
+  decision_le: string | null;
+  verifie: boolean;
+}
+
+export function getInscription(token: string): Promise<InscriptionStatut> {
+  return authedGet<InscriptionStatut>("/api/v1/membres/me/inscription", token, "Statut indisponible");
+}
+
+export function soumettreInscription(token: string): Promise<unknown> {
+  return authedPost("/api/v1/membres/me/inscription/soumettre", token, {}, "Soumission impossible");
+}
+
+/** Upload a file to a private bucket via a server-issued signed URL, return the stored path. */
+async function uploadViaSignedUrl(uploadUrl: string, file: File): Promise<void> {
+  const put = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": file.type || "application/octet-stream", "x-upsert": "true" },
+    body: file,
+  });
+  if (!put.ok) throw new ApiError("Televersement impossible", put.status);
+}
+
+export async function uploadPhoto(token: string, file: File): Promise<void> {
+  const signed = await authedPost<{ upload_url: string; path: string }>(
+    "/api/v1/membres/me/photo/upload-url",
+    token,
+    {},
+    "Upload indisponible",
+  );
+  await uploadViaSignedUrl(signed.upload_url, file);
+  await authedPost<void>("/api/v1/membres/me/photo/confirm", token, { path: signed.path }, "Confirmation impossible");
+}
+
+export async function uploadDocument(token: string, type: string, file: File): Promise<string> {
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const signed = await authedPost<{ upload_url: string; path: string }>(
+    "/api/v1/membres/me/documents/upload-url",
+    token,
+    { type, ext },
+    "Upload indisponible",
+  );
+  await uploadViaSignedUrl(signed.upload_url, file);
+  const res = await authedPost<{ id: string }>(
+    "/api/v1/membres/me/documents/confirm",
+    token,
+    { type, path: signed.path, nom_fichier: file.name, mime: file.type },
+    "Confirmation impossible",
+  );
+  return res.id;
+}
+
+export function getPhotoUrl(token: string): Promise<{ url: string | null }> {
+  return authedGet<{ url: string | null }>("/api/v1/membres/me/photo", token, "Photo indisponible");
+}
+
 export async function submitRecensement(
   token: string,
   reponse: { confirme_engagement: boolean; infos_a_jour: boolean; reaccepte_engagements: boolean },

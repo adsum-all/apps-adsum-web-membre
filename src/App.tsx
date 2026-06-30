@@ -1,7 +1,15 @@
 import { useCallback, useState } from "react";
 
-import { type EvenementOut, type MembreProfile, type PresenceOut, getMembreProfile } from "./api.js";
+import {
+  type EvenementOut,
+  type InscriptionStatut,
+  type MembreProfile,
+  type PresenceOut,
+  getInscription,
+  getMembreProfile,
+} from "./api.js";
 import { T } from "./proto.js";
+import { CompleterProfil } from "./components/CompleterProfil.js";
 import { Activites } from "./components/Activites.js";
 import { Carte } from "./components/Carte.js";
 import { DetailPresence } from "./components/DetailPresence.js";
@@ -64,15 +72,26 @@ export function App(): JSX.Element {
   const [activeEvent, setActiveEvent] = useState<EvenementOut | null>(null);
   const [authView, setAuthView] = useState<"login" | "forgot">("login");
   const [firstLogin, setFirstLogin] = useState<AuthContext | null>(null);
+  const [inscription, setInscription] = useState<InscriptionStatut | null>(null);
 
-  const enter = useCallback((jwt: string) => {
-    // Show the app immediately; load the profile in the background so the first
-    // paint does not wait on a second round trip (the card fills in when ready).
-    setToken(jwt);
-    void getMembreProfile(jwt)
-      .then(setProfile)
-      .catch(() => undefined);
+  const refreshInscription = useCallback((jwt: string) => {
+    void getInscription(jwt)
+      .then(setInscription)
+      .catch(() => setInscription({ statut: "approuve", motif_refus: null, soumis_le: null, decision_le: null, verifie: true }));
   }, []);
+
+  const enter = useCallback(
+    (jwt: string) => {
+      // Show the app immediately; load the profile in the background so the first
+      // paint does not wait on a second round trip (the card fills in when ready).
+      setToken(jwt);
+      refreshInscription(jwt);
+      void getMembreProfile(jwt)
+        .then(setProfile)
+        .catch(() => undefined);
+    },
+    [refreshInscription],
+  );
 
   const onAuth = useCallback(
     (ctx: AuthContext) => {
@@ -90,6 +109,7 @@ export function App(): JSX.Element {
     setProfile(null);
     setView(null);
     setFirstLogin(null);
+    setInscription(null);
     setTab("carte");
   }, []);
 
@@ -116,6 +136,37 @@ export function App(): JSX.Element {
         ) : (
           <Login onAuth={onAuth} onForgot={() => setAuthView("forgot")} />
         )}
+      </Shell>
+    );
+  }
+
+  // Registration gating: a member whose dossier is not yet approved sees the
+  // completion form or the tracking screen, not the full app.
+  const st = inscription?.statut;
+  if (st === "incomplet" || st === "modification_demandee") {
+    return (
+      <Shell>
+        <header className="topbar">
+          <span className="topbar-title">Inscription</span>
+          <button type="button" className="bell" onClick={logout} aria-label="Quitter">
+            ⏻
+          </button>
+        </header>
+        <main className="screen">
+          <CompleterProfil
+            token={token}
+            profile={profile}
+            motif={inscription?.motif_refus}
+            onSubmitted={() => refreshInscription(token)}
+          />
+        </main>
+      </Shell>
+    );
+  }
+  if (st === "soumis" || st === "en_revue" || st === "refuse") {
+    return (
+      <Shell>
+        <InscriptionAttente statut={st} motif={inscription?.motif_refus} onLogout={logout} />
       </Shell>
     );
   }
@@ -273,6 +324,66 @@ function Shell({ children }: { children: React.ReactNode }): JSX.Element {
   return (
     <div className="phone">
       <div className="phone-inner">{children}</div>
+    </div>
+  );
+}
+
+function InscriptionAttente({
+  statut,
+  motif,
+  onLogout,
+}: {
+  statut: string;
+  motif?: string | null;
+  onLogout: () => void;
+}): JSX.Element {
+  const refuse = statut === "refuse";
+  const steps = [
+    { key: "soumis", label: "Dossier soumis" },
+    { key: "en_revue", label: "En cours d'examen" },
+    { key: "decision", label: refuse ? "Refusé" : "Décision finale" },
+  ];
+  const reached = refuse ? 3 : statut === "en_revue" ? 2 : 1;
+  return (
+    <div className="login" style={{ justifyContent: "flex-start", paddingTop: 48 }}>
+      <div
+        className="login-logo"
+        aria-hidden="true"
+        style={{ background: refuse ? "linear-gradient(140deg,#c0392b,#922b21)" : undefined }}
+      >
+        {refuse ? "!" : "⏳"}
+      </div>
+      <div style={{ fontFamily: T.fd, fontWeight: 700, fontSize: 21, textAlign: "center" }}>
+        {refuse ? "Inscription refusée" : "Inscription en cours d'examen"}
+      </div>
+      <p className="login-sub">
+        {refuse
+          ? "Votre dossier n'a pas été validé. Vous pouvez contacter l'administration."
+          : "Votre dossier a été soumis. L'administration l'examine. Vous serez notifié(e) de la décision."}
+      </p>
+      <div style={{ margin: "10px 0 18px" }}>
+        {steps.map((s, i) => {
+          const done = i + 1 < reached;
+          const active = i + 1 === reached;
+          const color = refuse && i === 2 ? T.dng : done ? T.ok : active ? T.b600 : T.line;
+          return (
+            <div key={s.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 2px" }}>
+              <div style={{ width: 26, height: 26, borderRadius: 13, background: color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>
+                {done ? "✓" : i + 1}
+              </div>
+              <span style={{ fontSize: 13.5, fontWeight: active ? 600 : 400, color: active || done ? T.ink : T.mut }}>{s.label}</span>
+            </div>
+          );
+        })}
+      </div>
+      {refuse && motif && (
+        <p style={{ background: "#fae9e7", border: "1px solid #e0a59c", borderRadius: 11, padding: 12, fontSize: 12.5, color: "#922b21" }}>
+          Motif : {motif}
+        </p>
+      )}
+      <button type="button" className="btn btn-ghost btn-block" onClick={onLogout} style={{ marginTop: 14 }}>
+        Se déconnecter
+      </button>
     </div>
   );
 }
