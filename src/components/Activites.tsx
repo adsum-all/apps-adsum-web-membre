@@ -1,9 +1,15 @@
-import { getEvenements } from "../api.js";
+import { type EvenementOut, getEvenements } from "../api.js";
 import { formatDateTime } from "../format.js";
 import { useResource } from "../useResource.js";
 
 // Upcoming and ongoing events for the member, fetched live from the API.
-export function Activites({ token }: { token: string }): JSX.Element {
+export function Activites({
+  token,
+  onJoin,
+}: {
+  token: string;
+  onJoin?: (evenement: EvenementOut) => void;
+}): JSX.Element {
   const { data, loading, error } = useResource(() => getEvenements(token), [token]);
 
   if (loading) return <Centered text="Chargement des activites..." />;
@@ -15,17 +21,24 @@ export function Activites({ token }: { token: string }): JSX.Element {
   return (
     <ul className="list">
       {data.map((e) => (
-        <li key={e.id} className="list-item">
-          <div className="list-main">
-            <strong>{e.titre}</strong>
-            <span className="list-sub">{formatDateTime(e.debut)}</span>
+        <li key={e.id} className="list-item" style={{ flexDirection: "column", alignItems: "stretch", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <div className="list-main">
+              <strong>{e.titre}</strong>
+              <span className="list-sub">{formatDateTime(e.debut)}</span>
+            </div>
+            <div className="list-meta">
+              {e.lieu && <span className="list-place">{e.lieu}</span>}
+              <span className={`badge ${e.session_ouverte ? "badge-ok" : "badge-mut"}`}>
+                {e.session_ouverte ? "Session ouverte" : `Volet ${e.volet}`}
+              </span>
+            </div>
           </div>
-          <div className="list-meta">
-            {e.lieu && <span className="list-place">{e.lieu}</span>}
-            <span className={`badge ${e.session_ouverte ? "badge-ok" : "badge-mut"}`}>
-              {e.session_ouverte ? "Session ouverte" : `Volet ${e.volet}`}
-            </span>
-          </div>
+          {e.session_ouverte && onJoin && (
+            <button type="button" className="btn btn-primary btn-block" onClick={() => onJoin(e)}>
+              ▶ Rejoindre la session
+            </button>
+          )}
         </li>
       ))}
     </ul>

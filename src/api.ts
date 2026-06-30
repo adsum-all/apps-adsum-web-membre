@@ -176,6 +176,39 @@ export function getEngagements(token: string): Promise<EngagementItem[]> {
   return authedGet<EngagementItem[]>("/api/v1/membres/me/engagements", token, "Engagements indisponibles");
 }
 
+async function authedPost<T>(path: string, token: string, body: unknown, onError: string): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new ApiError(res.status === 400 ? "Requete invalide" : res.status === 401 ? "Session expiree" : onError, res.status);
+  }
+  return (res.status === 204 ? undefined : await res.json()) as T;
+}
+
+export function changePassword(token: string, ancien: string, nouveau: string): Promise<void> {
+  return authedPost<void>("/api/v1/membres/me/change-password", token, { ancien, nouveau }, "Changement impossible");
+}
+
+export function acceptEngagement(token: string, type: string): Promise<EngagementItem> {
+  return authedPost<EngagementItem>("/api/v1/membres/me/engagements/accepter", token, { type }, "Signature impossible");
+}
+
+export function submitDocument(token: string, type: string, libelle?: string): Promise<DocumentItem> {
+  return authedPost<DocumentItem>("/api/v1/membres/me/documents", token, { type, libelle }, "Envoi impossible");
+}
+
+export function participer(token: string, evenementId: string, note?: number, commentaire?: string): Promise<void> {
+  return authedPost<void>(
+    "/api/v1/membres/me/participation",
+    token,
+    { evenement_id: evenementId, note, commentaire },
+    "Validation impossible",
+  );
+}
+
 export async function submitRecensement(
   token: string,
   reponse: { confirme_engagement: boolean; infos_a_jour: boolean; reaccepte_engagements: boolean },
