@@ -1,9 +1,15 @@
-import { getHistorique } from "../api.js";
+import { type PresenceOut, getHistorique } from "../api.js";
 import { formatDateTime } from "../format.js";
 import { useResource } from "../useResource.js";
 
 // The member attendance history, read-only and traced to the audit, fetched live.
-export function Historique({ token }: { token: string }): JSX.Element {
+export function Historique({
+  token,
+  onSelect,
+}: {
+  token: string;
+  onSelect?: (presence: PresenceOut) => void;
+}): JSX.Element {
   const { data, loading, error } = useResource(() => getHistorique(token), [token]);
 
   if (loading) return <Centered text="Chargement de l'historique..." />;
@@ -15,7 +21,11 @@ export function Historique({ token }: { token: string }): JSX.Element {
   return (
     <ul className="list">
       {data.map((p) => (
-        <li key={p.evenement_id} className="list-item">
+        <li
+          key={p.evenement_id}
+          className={`list-item ${onSelect ? "row-tap" : ""}`}
+          onClick={onSelect ? () => onSelect(p) : undefined}
+        >
           <div className="list-main">
             <strong>{p.evenement_titre}</strong>
             <span className="list-sub">{formatDateTime(p.arrivee ?? p.debut)}</span>

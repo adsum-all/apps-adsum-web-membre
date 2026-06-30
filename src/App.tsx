@@ -1,14 +1,25 @@
 import { useCallback, useState } from "react";
 
-import { type MembreProfile, getMembreProfile } from "./api.js";
+import { type MembreProfile, type PresenceOut, getMembreProfile } from "./api.js";
 import { Activites } from "./components/Activites.js";
 import { Carte } from "./components/Carte.js";
+import { DetailPresence } from "./components/DetailPresence.js";
 import { Dossier } from "./components/Dossier.js";
 import { Historique } from "./components/Historique.js";
+import { Identite } from "./components/Identite.js";
 import { Login } from "./components/Login.js";
 import { Notifications } from "./components/Notifications.js";
 import { Recensement } from "./components/Recensement.js";
+import { Suivi } from "./components/Suivi.js";
 import { TabBar, type TabId } from "./components/TabBar.js";
+
+type ViewId = "identite" | "suivi" | "detail";
+
+const VIEW_TITLES: Record<ViewId, string> = {
+  identite: "Mon identité",
+  suivi: "Suivi de mon dossier",
+  detail: "Détail de la présence",
+};
 
 export function App(): JSX.Element {
   const [token, setToken] = useState<string | null>(null);
@@ -17,6 +28,8 @@ export function App(): JSX.Element {
   const [notifOpen, setNotifOpen] = useState(false);
   const [recensementOpen, setRecensementOpen] = useState(false);
   const [dossierOpen, setDossierOpen] = useState(false);
+  const [view, setView] = useState<ViewId | null>(null);
+  const [detailItem, setDetailItem] = useState<PresenceOut | null>(null);
 
   const onAuth = useCallback(async (jwt: string) => {
     setProfile(await getMembreProfile(jwt));
@@ -35,15 +48,31 @@ export function App(): JSX.Element {
     <Shell>
       <header className="topbar">
         <span className="topbar-title">
-          {recensementOpen
-            ? "Recensement"
-            : dossierOpen
-              ? "Mon dossier"
-              : notifOpen
-                ? "Notifications"
-                : tabTitle(tab)}
+          {view
+            ? VIEW_TITLES[view]
+            : recensementOpen
+              ? "Recensement"
+              : dossierOpen
+                ? "Mon dossier"
+                : notifOpen
+                  ? "Notifications"
+                  : tabTitle(tab)}
         </span>
-        {recensementOpen || dossierOpen ? (
+        {view ? (
+          <button
+            type="button"
+            className="bell"
+            onClick={() => {
+              if (view === "detail" || view === "suivi") {
+                setView(view === "detail" ? null : "identite");
+              } else {
+                setView(null);
+              }
+            }}
+          >
+            Fermer
+          </button>
+        ) : recensementOpen || dossierOpen ? (
           <button
             type="button"
             className="bell"
@@ -66,7 +95,21 @@ export function App(): JSX.Element {
         )}
       </header>
       <main className="screen">
-        {recensementOpen ? (
+        {view === "identite" ? (
+          <Identite
+            token={token}
+            profile={profile}
+            onEngagements={() => {
+              setView(null);
+              setDossierOpen(true);
+            }}
+            onSuivi={() => setView("suivi")}
+          />
+        ) : view === "suivi" ? (
+          <Suivi token={token} profile={profile} />
+        ) : view === "detail" && detailItem ? (
+          <DetailPresence presence={detailItem} />
+        ) : recensementOpen ? (
           <Recensement token={token} />
         ) : dossierOpen ? (
           <Dossier token={token} />
@@ -76,12 +119,21 @@ export function App(): JSX.Element {
           <>
             {tab === "carte" && <Carte token={token} profile={profile} />}
             {tab === "activites" && <Activites token={token} />}
-            {tab === "historique" && <Historique token={token} />}
+            {tab === "historique" && (
+              <Historique
+                token={token}
+                onSelect={(p) => {
+                  setDetailItem(p);
+                  setView("detail");
+                }}
+              />
+            )}
             {tab === "profil" && (
               <Profil
                 profile={profile}
                 onRecensement={() => setRecensementOpen(true)}
                 onDossier={() => setDossierOpen(true)}
+                onIdentite={() => setView("identite")}
               />
             )}
           </>
@@ -93,6 +145,7 @@ export function App(): JSX.Element {
           setNotifOpen(false);
           setRecensementOpen(false);
           setDossierOpen(false);
+          setView(null);
           setTab(t);
         }}
       />
@@ -146,10 +199,12 @@ function Profil({
   profile,
   onRecensement,
   onDossier,
+  onIdentite,
 }: {
   profile: MembreProfile | null;
   onRecensement: () => void;
   onDossier: () => void;
+  onIdentite: () => void;
 }): JSX.Element {
   const fullName =
     profile && (profile.prenoms || profile.nom)
@@ -212,6 +267,9 @@ function Profil({
         <Row label="Telephone" value={profile?.telephone ?? "-"} />
       </ul>
 
+      <button type="button" className="btn btn-ghost btn-block" onClick={onIdentite}>
+        Mon identité (validation, pièces)
+      </button>
       <button type="button" className="btn btn-ghost btn-block" onClick={onDossier}>
         Mon dossier (documents, engagements)
       </button>
