@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 
 import { type EvenementOut, type MembreProfile, type PresenceOut, getMembreProfile } from "./api.js";
+import { T } from "./proto.js";
 import { Activites } from "./components/Activites.js";
 import { Carte } from "./components/Carte.js";
 import { DetailPresence } from "./components/DetailPresence.js";
@@ -10,6 +11,7 @@ import { Engage } from "./components/Engage.js";
 import { Forgot } from "./components/Forgot.js";
 import { Historique } from "./components/Historique.js";
 import { Identite } from "./components/Identite.js";
+import { Infos } from "./components/Infos.js";
 import { Login } from "./components/Login.js";
 import { Notifications } from "./components/Notifications.js";
 import { Recensement } from "./components/Recensement.js";
@@ -28,7 +30,8 @@ type ViewId =
   | "settings"
   | "secu"
   | "session"
-  | "sent";
+  | "sent"
+  | "infos";
 
 const VIEW_TITLES: Record<ViewId, string> = {
   identite: "Mon identité",
@@ -40,6 +43,7 @@ const VIEW_TITLES: Record<ViewId, string> = {
   secu: "Sécurité & connexions",
   session: "Session en cours",
   sent: "Participation",
+  infos: "Mes informations",
 };
 
 const HIDE_CHROME: ViewId[] = ["session", "sent"];
@@ -145,6 +149,8 @@ export function App(): JSX.Element {
           <Document token={token} onSent={() => setView("suivi")} />
         ) : view === "settings" ? (
           <Settings token={token} profile={profile} onLogout={logout} />
+        ) : view === "infos" ? (
+          <Infos profile={profile} onDemande={() => setView("document")} />
         ) : view === "secu" ? (
           <Secu token={token} onSettings={() => setView("settings")} />
         ) : view === "session" && activeEvent ? (
@@ -205,6 +211,7 @@ export function App(): JSX.Element {
                 onIdentite={() => setView("identite")}
                 onSecu={() => setView("secu")}
                 onSettings={() => setView("settings")}
+                onInfos={() => setView("infos")}
               />
             )}
           </>
@@ -239,33 +246,58 @@ function tabTitle(tab: TabId): string {
   return { carte: "Ma carte", activites: "Activites", historique: "Historique", profil: "Profil" }[tab];
 }
 
-const ENGAGEMENT_LABELS: Record<string, string> = {
-  membre_simple: "Membre simple",
-  nouveau_engage: "Nouvel engage",
-  aspirant: "Aspirant",
-  engage: "Engage",
-  berger: "Berger",
-  responsable: "Responsable",
-};
-
-const MATRIMONIAL_LABELS: Record<string, string> = {
-  celibataire: "Celibataire",
-  en_couple: "En couple",
-  marie: "Marie(e)",
-};
-
-function pretty(value: string | null | undefined): string {
-  if (!value) return "-";
-  const mapped = value.replace(/_/g, " ");
-  return mapped.charAt(0).toUpperCase() + mapped.slice(1);
-}
-
-function Row({ label, value }: { label: string; value: string }): JSX.Element {
+function NavRow({
+  glyph,
+  title,
+  subtitle,
+  onClick,
+  accent,
+}: {
+  glyph: string;
+  title: string;
+  subtitle: string;
+  onClick: () => void;
+  accent?: boolean;
+}): JSX.Element {
   return (
-    <li>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </li>
+    <div
+      onClick={onClick}
+      className="tap"
+      style={{
+        background: accent ? T.okbg : T.surf,
+        border: `1px solid ${accent ? T.ok : T.line}`,
+        borderRadius: 14,
+        padding: "12px 13px",
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        marginBottom: 9,
+      }}
+    >
+      <div
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 10,
+          flexShrink: 0,
+          background: accent ? T.ok : "#eaeefb",
+          color: accent ? "#fff" : T.b600,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 16,
+        }}
+      >
+        {glyph}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: accent ? T.ok : T.ink }}>{title}</div>
+        <div style={{ fontSize: 10.5, color: T.mut, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {subtitle}
+        </div>
+      </div>
+      <span style={{ color: T.faint, fontSize: 18 }}>›</span>
+    </div>
   );
 }
 
@@ -276,6 +308,7 @@ function Profil({
   onIdentite,
   onSecu,
   onSettings,
+  onInfos,
 }: {
   profile: MembreProfile | null;
   onRecensement: () => void;
@@ -283,83 +316,62 @@ function Profil({
   onIdentite: () => void;
   onSecu: () => void;
   onSettings: () => void;
+  onInfos: () => void;
 }): JSX.Element {
   const fullName =
     profile && (profile.prenoms || profile.nom)
       ? `${profile.prenoms ?? ""} ${profile.nom ?? ""}`.trim()
       : (profile?.email ?? "Membre ADSUM");
   const initials = fullName.slice(0, 2).toUpperCase();
-  const engagement = profile?.type_membre ? (ENGAGEMENT_LABELS[profile.type_membre] ?? pretty(profile.type_membre)) : "-";
-  const matrimonial = profile?.situation_matrimoniale
-    ? (MATRIMONIAL_LABELS[profile.situation_matrimoniale] ?? pretty(profile.situation_matrimoniale))
-    : "-";
-  const marriage = profile?.type_mariage ? ` (${pretty(profile.type_mariage)})` : "";
+  const verified = profile?.verifie ?? false;
+  const since = profile?.date_entree ? new Date(profile.date_entree).getFullYear() : null;
 
   return (
-    <div className="profil">
+    <div className="profil" style={{ padding: "10px 2px 14px" }}>
       <div className="profil-head">
         <div className="avatar" aria-hidden="true">
           {initials}
         </div>
-        <h2>{fullName}</h2>
-        <p className="profil-role">{profile?.matricule ?? ""}</p>
+        <h2 style={{ marginBottom: 4 }}>{fullName}</h2>
+        <p className="profil-role" style={{ marginBottom: 8 }}>
+          {profile?.matricule ?? ""}
+        </p>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            padding: "4px 11px",
+            borderRadius: 20,
+            background: verified ? T.okbg : T.warnbg,
+            color: verified ? T.ok : T.warn,
+          }}
+        >
+          {verified ? "● Identité vérifiée" : "● En attente de vérification"}
+        </span>
       </div>
 
-      <p className="section-title profil-group">Identite ecclesiale</p>
-      <ul className="profil-list">
-        <Row label="Tribu" value={profile?.tribu ?? "-"} />
-        <Row label="Patriarche" value={profile?.patriarche ?? "-"} />
-        <Row label="Niveau d'engagement" value={engagement} />
-        <Row label="Promotion" value={profile?.promotion ?? "-"} />
-        <Row label="Cheminement" value={pretty(profile?.cheminement_pastoral)} />
-      </ul>
-
-      <p className="section-title profil-group">Organisation</p>
-      <ul className="profil-list">
-        <Row label="Commission" value={profile?.commission ?? "-"} />
-        <Row label="Intendance" value={profile?.intendance ?? "-"} />
-        <Row label="Coordination" value={profile?.coordination ?? "-"} />
-        <Row label="Coordinateur" value={profile?.coordinateur ?? "-"} />
-      </ul>
-
-      <p className="section-title profil-group">Vie personnelle</p>
-      <ul className="profil-list">
-        <Row label="Situation" value={matrimonial + marriage} />
-        <Row label="Profession" value={profile?.profession ?? "-"} />
-        <Row label="Niveau d'etudes" value={profile?.niveau_etudes ?? "-"} />
-        <Row label="Ville" value={profile?.ville ?? "-"} />
-      </ul>
-
-      <p className="section-title profil-group">Sacrements</p>
-      <div className="sacrement-row">
-        <span className={`chip ${profile?.baptise ? "" : "chip-off"}`}>Baptise</span>
-        <span className={`chip ${profile?.confirme ? "" : "chip-off"}`}>Confirme</span>
-        <span className={`chip ${profile?.premiere_communion ? "" : "chip-off"}`}>1re communion</span>
+      <div style={{ background: T.surf, border: `1px solid ${T.line}`, borderRadius: 14, overflow: "hidden", margin: "4px 0 16px" }}>
+        {[
+          ["Commission", profile?.commission ?? "-"],
+          ["Tribu", profile?.tribu ?? "-"],
+          ["Membre depuis", since ? String(since) : "-"],
+        ].map(([label, value], i) => (
+          <div
+            key={label}
+            style={{ display: "flex", justifyContent: "space-between", padding: "12px 14px", borderBottom: i < 2 ? `1px solid ${T.line}` : "none" }}
+          >
+            <span style={{ fontSize: 12.5, color: T.mut }}>{label}</span>
+            <span style={{ fontSize: 12.5, fontWeight: 600 }}>{value}</span>
+          </div>
+        ))}
       </div>
 
-      <p className="section-title profil-group">Compte</p>
-      <ul className="profil-list">
-        <Row label="Identite" value={profile?.verifie ? "Verifiee" : "En attente"} />
-        <Row label="Statut" value={pretty(profile?.statut)} />
-        <Row label="Courriel" value={profile?.email ?? "-"} />
-        <Row label="Telephone" value={profile?.telephone ?? "-"} />
-      </ul>
-
-      <button type="button" className="btn btn-ghost btn-block" onClick={onIdentite}>
-        Mon identité (validation, pièces)
-      </button>
-      <button type="button" className="btn btn-ghost btn-block" onClick={onDossier}>
-        Mon dossier (documents, engagements)
-      </button>
-      <button type="button" className="btn btn-ghost btn-block" onClick={onSecu}>
-        Sécurité &amp; connexions
-      </button>
-      <button type="button" className="btn btn-ghost btn-block" onClick={onSettings}>
-        Paramètres &amp; sécurité
-      </button>
-      <button type="button" className="btn btn-ghost btn-block" onClick={onRecensement}>
-        Recensement annuel
-      </button>
+      <NavRow glyph="✓" title="Mon identité" subtitle="Pièces & validation d'identité" onClick={onIdentite} accent={verified} />
+      <NavRow glyph="≣" title="Mes informations" subtitle="Détails & demande de modification" onClick={onInfos} />
+      <NavRow glyph="🗎" title="Mon dossier" subtitle="Documents, engagements, suivi" onClick={onDossier} />
+      <NavRow glyph="🔒" title="Sécurité & connexions" subtitle="Mot de passe, 2FA, sessions" onClick={onSecu} />
+      <NavRow glyph="⚙" title="Paramètres" subtitle="Langue, notifications, RGPD" onClick={onSettings} />
+      <NavRow glyph="↻" title="Recensement annuel" subtitle="Confirmer mon engagement" onClick={onRecensement} />
     </div>
   );
 }
