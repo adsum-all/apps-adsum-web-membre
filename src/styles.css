@@ -13,6 +13,7 @@ body {
 }
 
 .phone {
+  min-height: 100vh;
   min-height: 100dvh;
   display: grid;
   place-items: center;
@@ -24,6 +25,7 @@ body {
 .phone-inner {
   width: 100%;
   max-width: 420px;
+  min-height: 96vh;
   min-height: min(880px, 96dvh);
   background: var(--adsum-bg);
   border: 1px solid #cfd4dd;

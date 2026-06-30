@@ -4,7 +4,7 @@
   "description": "Carte de membre numerique et QR signe.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#101218",
-  "theme_color": "#101218",
+  "background_color": "#eef1f6",
+  "theme_color": "#2a4fad",
   "icons": []
 }
