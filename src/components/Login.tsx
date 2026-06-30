@@ -4,9 +4,10 @@ import { ApiError, login } from "../api.js";
 
 interface LoginProps {
   onAuth: (token: string) => void;
+  onForgot?: () => void;
 }
 
-export function Login({ onAuth }: LoginProps): JSX.Element {
+export function Login({ onAuth, onForgot }: LoginProps): JSX.Element {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +46,7 @@ export function Login({ onAuth }: LoginProps): JSX.Element {
         <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
           {busy ? "Connexion..." : "Se connecter"}
         </button>
-        <button type="button" className="login-link">
+        <button type="button" className="login-link" onClick={onForgot}>
           Mot de passe oublie ?
         </button>
       </form>
