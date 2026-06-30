@@ -7,6 +7,7 @@ import { Carte } from "./components/Carte.js";
 import { DetailPresence } from "./components/DetailPresence.js";
 import { Document } from "./components/Document.js";
 import { Dossier } from "./components/Dossier.js";
+import { Demandes } from "./components/Demandes.js";
 import { Engage } from "./components/Engage.js";
 import { Forgot } from "./components/Forgot.js";
 import { Historique } from "./components/Historique.js";
@@ -31,7 +32,8 @@ type ViewId =
   | "secu"
   | "session"
   | "sent"
-  | "infos";
+  | "infos"
+  | "demandes";
 
 const VIEW_TITLES: Record<ViewId, string> = {
   identite: "Mon identité",
@@ -44,6 +46,7 @@ const VIEW_TITLES: Record<ViewId, string> = {
   session: "Session en cours",
   sent: "Participation",
   infos: "Mes informations",
+  demandes: "Mes demandes",
 };
 
 const HIDE_CHROME: ViewId[] = ["session", "sent"];
@@ -150,7 +153,9 @@ export function App(): JSX.Element {
         ) : view === "settings" ? (
           <Settings token={token} profile={profile} onLogout={logout} />
         ) : view === "infos" ? (
-          <Infos profile={profile} onDemande={() => setView("document")} />
+          <Infos profile={profile} onDemande={() => setView("demandes")} />
+        ) : view === "demandes" ? (
+          <Demandes token={token} />
         ) : view === "secu" ? (
           <Secu token={token} onSettings={() => setView("settings")} />
         ) : view === "session" && activeEvent ? (
@@ -212,6 +217,7 @@ export function App(): JSX.Element {
                 onSecu={() => setView("secu")}
                 onSettings={() => setView("settings")}
                 onInfos={() => setView("infos")}
+                onDemandes={() => setView("demandes")}
               />
             )}
           </>
@@ -309,6 +315,7 @@ function Profil({
   onSecu,
   onSettings,
   onInfos,
+  onDemandes,
 }: {
   profile: MembreProfile | null;
   onRecensement: () => void;
@@ -317,6 +324,7 @@ function Profil({
   onSecu: () => void;
   onSettings: () => void;
   onInfos: () => void;
+  onDemandes: () => void;
 }): JSX.Element {
   const fullName =
     profile && (profile.prenoms || profile.nom)
@@ -368,6 +376,7 @@ function Profil({
 
       <NavRow glyph="✓" title="Mon identité" subtitle="Pièces & validation d'identité" onClick={onIdentite} accent={verified} />
       <NavRow glyph="≣" title="Mes informations" subtitle="Détails & demande de modification" onClick={onInfos} />
+      <NavRow glyph="✉" title="Mes demandes" subtitle="Messagerie avec l'administration" onClick={onDemandes} />
       <NavRow glyph="🗎" title="Mon dossier" subtitle="Documents, engagements, suivi" onClick={onDossier} />
       <NavRow glyph="🔒" title="Sécurité & connexions" subtitle="Mot de passe, 2FA, sessions" onClick={onSecu} />
       <NavRow glyph="⚙" title="Paramètres" subtitle="Langue, notifications, RGPD" onClick={onSettings} />

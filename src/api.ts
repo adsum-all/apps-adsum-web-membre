@@ -232,6 +232,47 @@ export function requestOtp(email: string, purpose: string): Promise<{ ok: boolea
   return publicPost("/api/v1/auth/request-otp", { email, purpose }, "Envoi du code impossible");
 }
 
+export interface DemandeMessage {
+  id: string;
+  auteur_type: "membre" | "staff";
+  auteur_nom: string | null;
+  corps: string;
+  cree_le: string | null;
+}
+
+export interface Demande {
+  id: string;
+  type: string;
+  sujet: string;
+  champ_concerne: string | null;
+  statut: string;
+  cree_le: string | null;
+  nb_messages: number;
+}
+
+export interface DemandeDetail extends Demande {
+  messages: DemandeMessage[];
+}
+
+export function getDemandes(token: string): Promise<Demande[]> {
+  return authedGet<Demande[]>("/api/v1/membres/me/demandes", token, "Demandes indisponibles");
+}
+
+export function getDemande(token: string, id: string): Promise<DemandeDetail> {
+  return authedGet<DemandeDetail>(`/api/v1/membres/me/demandes/${id}`, token, "Demande indisponible");
+}
+
+export function createDemande(
+  token: string,
+  input: { type: string; sujet: string; champ_concerne?: string; message: string },
+): Promise<DemandeDetail> {
+  return authedPost<DemandeDetail>("/api/v1/membres/me/demandes", token, input, "Creation impossible");
+}
+
+export function sendDemandeMessage(token: string, id: string, corps: string): Promise<DemandeMessage> {
+  return authedPost<DemandeMessage>(`/api/v1/membres/me/demandes/${id}/messages`, token, { corps }, "Envoi impossible");
+}
+
 export function resetPassword(email: string, code: string, nouveau: string): Promise<void> {
   return publicPost<void>("/api/v1/auth/reset-password", { email, code, nouveau }, "Reinitialisation impossible");
 }
