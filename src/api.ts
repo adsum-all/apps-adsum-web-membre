@@ -209,6 +209,26 @@ export function participer(token: string, evenementId: string, note?: number, co
   );
 }
 
+async function publicPost<T>(path: string, body: unknown, onError: string): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new ApiError(res.status === 400 ? "Code ou requete invalide" : onError, res.status);
+  }
+  return (res.status === 204 ? undefined : await res.json()) as T;
+}
+
+export function requestOtp(email: string, purpose: string): Promise<{ ok: boolean; sent: boolean; provider: string }> {
+  return publicPost("/api/v1/auth/request-otp", { email, purpose }, "Envoi du code impossible");
+}
+
+export function resetPassword(email: string, code: string, nouveau: string): Promise<void> {
+  return publicPost<void>("/api/v1/auth/reset-password", { email, code, nouveau }, "Reinitialisation impossible");
+}
+
 export async function submitRecensement(
   token: string,
   reponse: { confirme_engagement: boolean; infos_a_jour: boolean; reaccepte_engagements: boolean },

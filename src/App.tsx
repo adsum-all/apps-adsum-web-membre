@@ -7,6 +7,7 @@ import { DetailPresence } from "./components/DetailPresence.js";
 import { Document } from "./components/Document.js";
 import { Dossier } from "./components/Dossier.js";
 import { Engage } from "./components/Engage.js";
+import { Forgot } from "./components/Forgot.js";
 import { Historique } from "./components/Historique.js";
 import { Identite } from "./components/Identite.js";
 import { Login } from "./components/Login.js";
@@ -53,6 +54,7 @@ export function App(): JSX.Element {
   const [view, setView] = useState<ViewId | null>(null);
   const [detailItem, setDetailItem] = useState<PresenceOut | null>(null);
   const [activeEvent, setActiveEvent] = useState<EvenementOut | null>(null);
+  const [authView, setAuthView] = useState<"login" | "forgot">("login");
 
   const onAuth = useCallback((jwt: string) => {
     // Show the app immediately; load the profile in the background so the first
@@ -73,7 +75,11 @@ export function App(): JSX.Element {
   if (!token) {
     return (
       <Shell>
-        <Login onAuth={onAuth} />
+        {authView === "forgot" ? (
+          <Forgot onBack={() => setAuthView("login")} onDone={() => setAuthView("login")} />
+        ) : (
+          <Login onAuth={onAuth} onForgot={() => setAuthView("forgot")} />
+        )}
       </Shell>
     );
   }
