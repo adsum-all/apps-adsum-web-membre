@@ -93,6 +93,10 @@ export function App(): JSX.Element {
     [refreshInscription],
   );
 
+  const reloadProfile = useCallback(() => {
+    if (token) void getMembreProfile(token).then(setProfile).catch(() => undefined);
+  }, [token]);
+
   const onAuth = useCallback(
     (ctx: AuthContext) => {
       if (ctx.doitChangerMdp) {
@@ -233,7 +237,7 @@ export function App(): JSX.Element {
         ) : view === "settings" ? (
           <Settings token={token} profile={profile} onLogout={logout} />
         ) : view === "infos" ? (
-          <Infos profile={profile} onDemande={() => setView("demandes")} />
+          <Infos token={token} profile={profile} onDemande={() => setView("demandes")} onProfileChange={reloadProfile} />
         ) : view === "demandes" ? (
           <Demandes token={token} />
         ) : view === "secu" ? (

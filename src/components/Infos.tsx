@@ -1,5 +1,6 @@
 import { type MembreProfile } from "../api.js";
 import { T } from "../proto.js";
+import { ModifierChamps } from "./ModifierChamps.js";
 
 const ENGAGEMENT: Record<string, string> = {
   membre_simple: "Membre simple",
@@ -42,7 +43,18 @@ function Row({ label, value, last }: { label: string; value: string; last?: bool
   );
 }
 
-export function Infos({ profile, onDemande }: { profile: MembreProfile | null; onDemande: () => void }): JSX.Element {
+export function Infos({
+  token,
+  profile,
+  onDemande,
+  onProfileChange,
+}: {
+  token: string | null;
+  profile: MembreProfile | null;
+  onDemande: () => void;
+  onProfileChange: () => void;
+}): JSX.Element {
+  const unlocked = (profile?.champs_deverrouilles ?? []).length > 0;
   const engagement = profile?.type_membre ? (ENGAGEMENT[profile.type_membre] ?? pretty(profile.type_membre)) : "-";
   const matrimonial = profile?.situation_matrimoniale
     ? (MATRIMONIAL[profile.situation_matrimoniale] ?? pretty(profile.situation_matrimoniale))
@@ -77,6 +89,10 @@ export function Infos({ profile, onDemande }: { profile: MembreProfile | null; o
         <Row label="Courriel" value={profile?.email ?? "-"} />
         <Row label="Téléphone" value={profile?.telephone ?? "-"} last />
       </Group>
+
+      {unlocked && token && profile && (
+        <ModifierChamps token={token} profile={profile} onSubmitted={onProfileChange} />
+      )}
 
       <p style={{ fontSize: 11, color: T.mut, lineHeight: 1.5, margin: "14px 2px 10px" }}>
         Certains champs sont gérés par l'administration. Pour les corriger, envoyez une demande motivée avec justificatif :
