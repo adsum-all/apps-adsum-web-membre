@@ -1,25 +1,47 @@
 import { useCallback, useState } from "react";
 
-import { type MembreProfile, type PresenceOut, getMembreProfile } from "./api.js";
+import { type EvenementOut, type MembreProfile, type PresenceOut, getMembreProfile } from "./api.js";
 import { Activites } from "./components/Activites.js";
 import { Carte } from "./components/Carte.js";
 import { DetailPresence } from "./components/DetailPresence.js";
+import { Document } from "./components/Document.js";
 import { Dossier } from "./components/Dossier.js";
+import { Engage } from "./components/Engage.js";
 import { Historique } from "./components/Historique.js";
 import { Identite } from "./components/Identite.js";
 import { Login } from "./components/Login.js";
 import { Notifications } from "./components/Notifications.js";
 import { Recensement } from "./components/Recensement.js";
+import { Secu } from "./components/Secu.js";
+import { Session } from "./components/Session.js";
+import { Settings } from "./components/Settings.js";
 import { Suivi } from "./components/Suivi.js";
 import { TabBar, type TabId } from "./components/TabBar.js";
 
-type ViewId = "identite" | "suivi" | "detail";
+type ViewId =
+  | "identite"
+  | "suivi"
+  | "detail"
+  | "engage"
+  | "document"
+  | "settings"
+  | "secu"
+  | "session"
+  | "sent";
 
 const VIEW_TITLES: Record<ViewId, string> = {
   identite: "Mon identité",
   suivi: "Suivi de mon dossier",
   detail: "Détail de la présence",
+  engage: "Engagements à signer",
+  document: "Document demandé",
+  settings: "Paramètres & sécurité",
+  secu: "Sécurité & connexions",
+  session: "Session en cours",
+  sent: "Participation",
 };
+
+const HIDE_CHROME: ViewId[] = ["session", "sent"];
 
 export function App(): JSX.Element {
   const [token, setToken] = useState<string | null>(null);
@@ -30,10 +52,18 @@ export function App(): JSX.Element {
   const [dossierOpen, setDossierOpen] = useState(false);
   const [view, setView] = useState<ViewId | null>(null);
   const [detailItem, setDetailItem] = useState<PresenceOut | null>(null);
+  const [activeEvent, setActiveEvent] = useState<EvenementOut | null>(null);
 
   const onAuth = useCallback(async (jwt: string) => {
     setProfile(await getMembreProfile(jwt));
     setToken(jwt);
+  }, []);
+
+  const logout = useCallback(() => {
+    setToken(null);
+    setProfile(null);
+    setView(null);
+    setTab("carte");
   }, []);
 
   if (!token) {
@@ -44,81 +74,110 @@ export function App(): JSX.Element {
     );
   }
 
+  const chromeHidden = view !== null && HIDE_CHROME.includes(view);
+
   return (
     <Shell>
-      <header className="topbar">
-        <span className="topbar-title">
-          {view
-            ? VIEW_TITLES[view]
-            : recensementOpen
-              ? "Recensement"
-              : dossierOpen
-                ? "Mon dossier"
-                : notifOpen
-                  ? "Notifications"
-                  : tabTitle(tab)}
-        </span>
-        {view ? (
-          <button
-            type="button"
-            className="bell"
-            onClick={() => {
-              if (view === "detail" || view === "suivi") {
-                setView(view === "detail" ? null : "identite");
-              } else {
-                setView(null);
-              }
-            }}
-          >
-            Fermer
-          </button>
-        ) : recensementOpen || dossierOpen ? (
-          <button
-            type="button"
-            className="bell"
-            onClick={() => {
-              setRecensementOpen(false);
-              setDossierOpen(false);
-            }}
-          >
-            Fermer
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="bell"
-            aria-label={notifOpen ? "Fermer les notifications" : "Notifications"}
-            onClick={() => setNotifOpen((v) => !v)}
-          >
-            {notifOpen ? "Fermer" : "◉"}
-          </button>
-        )}
-      </header>
+      {!chromeHidden && (
+        <header className="topbar">
+          <span className="topbar-title">
+            {view
+              ? VIEW_TITLES[view]
+              : recensementOpen
+                ? "Recensement"
+                : dossierOpen
+                  ? "Mon dossier"
+                  : notifOpen
+                    ? "Notifications"
+                    : tabTitle(tab)}
+          </span>
+          {view ? (
+            <button
+              type="button"
+              className="bell"
+              onClick={() => setView(view === "suivi" || view === "engage" ? "identite" : null)}
+            >
+              Fermer
+            </button>
+          ) : recensementOpen || dossierOpen ? (
+            <button
+              type="button"
+              className="bell"
+              onClick={() => {
+                setRecensementOpen(false);
+                setDossierOpen(false);
+              }}
+            >
+              Fermer
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="bell"
+              aria-label={notifOpen ? "Fermer les notifications" : "Notifications"}
+              onClick={() => setNotifOpen((v) => !v)}
+            >
+              {notifOpen ? "Fermer" : "◉"}
+            </button>
+          )}
+        </header>
+      )}
       <main className="screen">
         {view === "identite" ? (
-          <Identite
-            token={token}
-            profile={profile}
-            onEngagements={() => {
-              setView(null);
-              setDossierOpen(true);
-            }}
-            onSuivi={() => setView("suivi")}
-          />
+          <Identite token={token} profile={profile} onEngagements={() => setView("engage")} onSuivi={() => setView("suivi")} />
         ) : view === "suivi" ? (
           <Suivi token={token} profile={profile} />
         ) : view === "detail" && detailItem ? (
           <DetailPresence presence={detailItem} />
+        ) : view === "engage" ? (
+          <Engage token={token} onDone={() => setView("identite")} />
+        ) : view === "document" ? (
+          <Document token={token} onSent={() => setView("suivi")} />
+        ) : view === "settings" ? (
+          <Settings token={token} profile={profile} onLogout={logout} />
+        ) : view === "secu" ? (
+          <Secu token={token} onSettings={() => setView("settings")} />
+        ) : view === "session" && activeEvent ? (
+          <Session
+            token={token}
+            evenement={activeEvent}
+            onBack={() => {
+              setView(null);
+              setTab("activites");
+            }}
+            onDone={() => {
+              setView(null);
+              setTab("activites");
+            }}
+          />
         ) : recensementOpen ? (
           <Recensement token={token} />
         ) : dossierOpen ? (
           <Dossier token={token} />
         ) : notifOpen ? (
-          <Notifications token={token} />
+          <Notifications
+            token={token}
+            onDocument={() => {
+              setNotifOpen(false);
+              setView("document");
+            }}
+            onRecensement={() => {
+              setNotifOpen(false);
+              setRecensementOpen(true);
+            }}
+          />
         ) : (
           <>
             {tab === "carte" && <Carte token={token} profile={profile} />}
-            {tab === "activites" && <Activites token={token} />}
+            {tab === "activites" && (
+              <Activites
+                token={token}
+                onJoin={(ev) => {
+                  setActiveEvent(ev);
+                  setView("session");
+                }}
+              />
+            )}
             {tab === "historique" && (
               <Historique
                 token={token}
@@ -134,21 +193,26 @@ export function App(): JSX.Element {
                 onRecensement={() => setRecensementOpen(true)}
                 onDossier={() => setDossierOpen(true)}
                 onIdentite={() => setView("identite")}
+                onSecu={() => setView("secu")}
+                onSettings={() => setView("settings")}
               />
             )}
           </>
         )}
       </main>
-      <TabBar
-        active={tab}
-        onChange={(t) => {
-          setNotifOpen(false);
-          setRecensementOpen(false);
-          setDossierOpen(false);
-          setView(null);
-          setTab(t);
-        }}
-      />
+      {!chromeHidden && (
+        <TabBar
+          active={tab}
+          onChange={(t) => {
+            setNotifOpen(false);
+            setRecensementOpen(false);
+            setDossierOpen(false);
+            setView(null);
+            setActiveEvent(null);
+            setTab(t);
+          }}
+        />
+      )}
     </Shell>
   );
 }
@@ -200,11 +264,15 @@ function Profil({
   onRecensement,
   onDossier,
   onIdentite,
+  onSecu,
+  onSettings,
 }: {
   profile: MembreProfile | null;
   onRecensement: () => void;
   onDossier: () => void;
   onIdentite: () => void;
+  onSecu: () => void;
+  onSettings: () => void;
 }): JSX.Element {
   const fullName =
     profile && (profile.prenoms || profile.nom)
@@ -272,6 +340,12 @@ function Profil({
       </button>
       <button type="button" className="btn btn-ghost btn-block" onClick={onDossier}>
         Mon dossier (documents, engagements)
+      </button>
+      <button type="button" className="btn btn-ghost btn-block" onClick={onSecu}>
+        Sécurité &amp; connexions
+      </button>
+      <button type="button" className="btn btn-ghost btn-block" onClick={onSettings}>
+        Paramètres &amp; sécurité
       </button>
       <button type="button" className="btn btn-ghost btn-block" onClick={onRecensement}>
         Recensement annuel
