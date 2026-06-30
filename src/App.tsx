@@ -54,9 +54,13 @@ export function App(): JSX.Element {
   const [detailItem, setDetailItem] = useState<PresenceOut | null>(null);
   const [activeEvent, setActiveEvent] = useState<EvenementOut | null>(null);
 
-  const onAuth = useCallback(async (jwt: string) => {
-    setProfile(await getMembreProfile(jwt));
+  const onAuth = useCallback((jwt: string) => {
+    // Show the app immediately; load the profile in the background so the first
+    // paint does not wait on a second round trip (the card fills in when ready).
     setToken(jwt);
+    void getMembreProfile(jwt)
+      .then(setProfile)
+      .catch(() => undefined);
   }, []);
 
   const logout = useCallback(() => {
