@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 
 import { type ParticipationMembre, declarerParticipation, getParticipation } from "../api.js";
+import { useT } from "../i18n.js";
 import { T } from "../proto.js";
 
-const OPTIONS: { value: "present" | "partiel" | "absent"; label: string; hint: string }[] = [
-  { value: "present", label: "Présent", hint: "J'ai suivi l'activité" },
-  { value: "partiel", label: "Suivi partiel", hint: "J'ai suivi une partie" },
-  { value: "absent", label: "Absent", hint: "Je n'ai pas participé" },
+const OPTIONS: { value: "present" | "partiel" | "absent"; labelKey: string; hintKey: string }[] = [
+  { value: "present", labelKey: "part.present", hintKey: "part.presentHint" },
+  { value: "partiel", labelKey: "part.partiel", hintKey: "part.partielHint" },
+  { value: "absent", labelKey: "part.absent", hintKey: "part.absentHint" },
 ];
 
 /**
@@ -21,6 +22,7 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
   const [note, setNote] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const t = useT();
 
   useEffect(() => {
     void getParticipation(token, eventId)
@@ -43,9 +45,9 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
       : null;
     return (
       <div style={{ background: T.surf, border: `1px solid ${T.line}`, borderRadius: 12, padding: 12, marginTop: 6 }}>
-        <p style={{ fontSize: 12.5, fontWeight: 700, color: T.ink, margin: "0 0 4px", fontFamily: T.fd }}>Ma participation</p>
+        <p style={{ fontSize: 12.5, fontWeight: 700, color: T.ink, margin: "0 0 4px", fontFamily: T.fd }}>{t("part.title")}</p>
         <p style={{ fontSize: 11.5, color: T.mut, margin: 0, lineHeight: 1.5 }}>
-          Le formulaire sera disponible au début de l'activité{quand ? ` (le ${quand})` : ""}.
+          {t("part.notStarted")}{quand ? ` (${quand})` : ""}.
         </p>
       </div>
     );
@@ -62,7 +64,7 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
       const r = await declarerParticipation(token, eventId, body);
       const fresh = await getParticipation(token, eventId);
       setData(fresh);
-      setMsg(valider ? (r.message ?? "Réponse validée.") : "Réponse enregistrée (modifiable).");
+      setMsg(valider ? (r.message ?? t("part.validate")) : t("part.record"));
     } finally {
       setBusy(false);
     }
@@ -73,16 +75,16 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
 
   return (
     <div style={{ background: T.surf, border: `1px solid ${T.line}`, borderRadius: 12, padding: 12, marginTop: 6 }}>
-      <p style={{ fontSize: 12.5, fontWeight: 700, color: T.ink, margin: "0 0 8px", fontFamily: T.fd }}>Ma participation</p>
+      <p style={{ fontSize: 12.5, fontWeight: 700, color: T.ink, margin: "0 0 8px", fontFamily: T.fd }}>{t("part.title")}</p>
 
       {scanned ? (
         <div style={{ display: "flex", alignItems: "center", gap: 8, background: T.okbg, borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
           <span style={{ color: T.ok, fontWeight: 700 }}>✓</span>
-          <span style={{ fontSize: 12.5, color: T.ink }}>Vous êtes marqué(e) présent(e) (scan confirmé). Vous pouvez laisser votre avis.</span>
+          <span style={{ fontSize: 12.5, color: T.ink }}>{t("part.scanned")}</span>
         </div>
       ) : locked ? (
         <div style={{ background: T.okbg, borderRadius: 10, padding: "10px 12px", marginBottom: 10, fontSize: 12.5, color: T.ink }}>
-          Réponse validée : <b>{labelOf(data.statut)}</b>. Elle ne peut plus être modifiée.
+          {t("part.lockedPrefix")} <b>{t(`part.${data.statut}`)}</b>{t("part.lockedSuffix")}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
@@ -103,8 +105,8 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
               }}
             >
               <div>
-                <div style={{ fontSize: 13.5, fontWeight: 600 }}>{o.label}</div>
-                <div style={{ fontSize: 10.5, color: choix === o.value ? "rgba(255,255,255,.85)" : T.mut }}>{o.hint}</div>
+                <div style={{ fontSize: 13.5, fontWeight: 600 }}>{t(o.labelKey)}</div>
+                <div style={{ fontSize: 10.5, color: choix === o.value ? "rgba(255,255,255,.85)" : T.mut }}>{t(o.hintKey)}</div>
               </div>
               <span style={{ fontSize: 15 }}>{choix === o.value ? "●" : "○"}</span>
             </div>
@@ -115,7 +117,7 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
       {/* Feedback: available to everyone with a participation context (scanned or declared present/partial). */}
       {(scanned || choix === "present" || choix === "partiel" || (locked && data.statut !== "absent")) && (
         <div style={{ marginTop: 4 }}>
-          <div style={{ fontSize: 11, color: T.mut, marginBottom: 4 }}>Votre note</div>
+          <div style={{ fontSize: 11, color: T.mut, marginBottom: 4 }}>{t("part.yourRating")}</div>
           <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
             {[1, 2, 3, 4, 5].map((n) => (
               <button
@@ -132,7 +134,7 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
             value={avis}
             onChange={(e) => setAvis(e.target.value)}
             rows={2}
-            placeholder="Votre avis (facultatif)"
+            placeholder={t("part.opinion")}
             style={{ width: "100%", border: `1px solid ${T.line}`, borderRadius: 9, padding: 8, fontSize: 13, resize: "vertical", boxSizing: "border-box" }}
           />
         </div>
@@ -143,17 +145,13 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
       <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
         {!locked && (
           <button type="button" disabled={busy || !choix} onClick={() => void envoyer(false)} className="tap" style={{ flex: 1, height: 42, borderRadius: 11, border: `1px solid ${T.b600}`, background: "#fff", color: T.b600, fontWeight: 600, fontSize: 13, opacity: busy || !choix ? 0.6 : 1 }}>
-            Enregistrer
+            {t("part.record")}
           </button>
         )}
         <button type="button" disabled={busy || (!locked && !choix)} onClick={() => void envoyer(!locked)} className="tap" style={{ flex: 1, height: 42, borderRadius: 11, border: "none", background: `linear-gradient(180deg,${T.b500},${T.b600})`, color: "#fff", fontWeight: 600, fontSize: 13, opacity: busy ? 0.6 : 1 }}>
-          {locked ? "Enregistrer mon avis" : "Valider ma réponse"}
+          {locked ? t("part.saveOpinion") : t("part.validate")}
         </button>
       </div>
     </div>
   );
-}
-
-function labelOf(statut: string | null): string {
-  return OPTIONS.find((o) => o.value === statut)?.label ?? "-";
 }

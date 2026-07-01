@@ -13,6 +13,7 @@ import {
 } from "../api.js";
 import { T, gradient } from "../proto.js";
 import { PaysSelect, PhoneField, indicatifDePays } from "./FormFields.js";
+import { InfoTip } from "./InfoTip.js";
 
 interface Props {
   token: string;
@@ -43,11 +44,12 @@ const PIECE_TYPES = [
 const lbl = { fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "12px 0 5px", display: "block" } as const;
 const inp = { width: "100%", border: `1px solid ${T.line}`, borderRadius: 11, padding: "11px 12px", fontSize: 13.5, fontFamily: T.fu, background: T.surf, boxSizing: "border-box" } as const;
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }): JSX.Element {
+function Field({ label, required, info, children }: { label: string; required?: boolean; info?: string; children: React.ReactNode }): JSX.Element {
   return (
     <div>
       <span style={lbl}>
         {label.toUpperCase()} {required && <span style={{ color: T.dng }}>*</span>}
+        {info && <InfoTip text={info} />}
       </span>
       {children}
     </div>
@@ -179,20 +181,20 @@ export function CompleterProfil({ token, profile, motif, onSubmitted }: Props): 
 
 
       <p style={{ fontFamily: T.fm, fontSize: 9, letterSpacing: 0.8, color: T.b600, margin: "16px 2px 2px" }}>IDENTITÉ</p>
-      <Field label="Prénoms" required><input style={inp} value={f.prenoms} onChange={(e) => set("prenoms", e.target.value)} /></Field>
-      <Field label="Nom" required><input style={inp} value={f.nom} onChange={(e) => set("nom", e.target.value)} /></Field>
+      <Field label="Prénoms" required info="Vos prénoms tels qu'ils figurent sur votre pièce d'identité."><input style={inp} value={f.prenoms} onChange={(e) => set("prenoms", e.target.value)} /></Field>
+      <Field label="Nom" required info="Votre nom de famille, tel qu'il figure sur votre pièce d'identité."><input style={inp} value={f.nom} onChange={(e) => set("nom", e.target.value)} /></Field>
       <Field label="Genre" required>
         <select style={inp} value={f.genre} onChange={(e) => set("genre", e.target.value)}>
           <option value="">Sélectionner...</option>
           {GENRES.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
         </select>
       </Field>
-      <Field label="Date de naissance" required><input type="date" style={inp} value={f.date_naissance} onChange={(e) => set("date_naissance", e.target.value)} /></Field>
+      <Field label="Date de naissance" required info="Votre date complète. Par défaut, seuls le jour et le mois seront visibles sur votre profil (pour l'anniversaire) ; l'année reste masquée sauf si vous cochez la case ci-dessous."><input type="date" style={inp} value={f.date_naissance} onChange={(e) => set("date_naissance", e.target.value)} /></Field>
       <label style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 2px 2px", fontSize: 12, color: T.mut }}>
         <input type="checkbox" checked={!!f.naissance_annee_visible} onChange={(e) => set("naissance_annee_visible", e.target.checked)} style={{ width: 17, height: 17, accentColor: T.b600 }} />
         Afficher mon année de naissance sur mon profil (sinon seul le jour et le mois, pour l'anniversaire, sont visibles)
       </label>
-      <Field label="Téléphone" required>
+      <Field label="Téléphone" required info="Choisissez d'abord l'indicatif (le pays du numéro), puis saisissez votre numéro. L'indicatif peut être différent de votre pays de résidence.">
         <PhoneField
           indicatif={f.indicatif_telephone ?? ""}
           numero={f.telephone ?? ""}
@@ -202,7 +204,7 @@ export function CompleterProfil({ token, profile, motif, onSubmitted }: Props): 
       </Field>
 
       <p style={{ fontFamily: T.fm, fontSize: 9, letterSpacing: 0.8, color: T.b600, margin: "18px 2px 2px" }}>LOCALISATION & RATTACHEMENT</p>
-      <Field label="Pays" required>
+      <Field label="Pays" required info="Votre pays de résidence. Utilisez la recherche pour le trouver rapidement.">
         <PaysSelect
           value={f.pays ?? ""}
           onChange={(nom) => {
@@ -243,7 +245,7 @@ export function CompleterProfil({ token, profile, motif, onSubmitted }: Props): 
       <p style={{ fontSize: 11, color: T.mut, lineHeight: 1.5, margin: "2px 2px 6px" }}>
         Une indication générale suffit (quartier, secteur). Ne renseignez pas d'adresse précise.
       </p>
-      <Field label="Adresse (générale)"><input style={inp} value={f.adresse ?? ""} onChange={(e) => set("adresse", e.target.value)} placeholder="Ex. Cocody, quartier des Deux-Plateaux" /></Field>
+      <Field label="Adresse (générale)" info="Une indication générale suffit (quartier, secteur). Ne renseignez jamais une adresse précise, pour votre sécurité."><input style={inp} value={f.adresse ?? ""} onChange={(e) => set("adresse", e.target.value)} placeholder="Ex. Cocody, quartier des Deux-Plateaux" /></Field>
       <Field label="Complément (facultatif)"><input style={inp} value={f.adresse_complement ?? ""} onChange={(e) => set("adresse_complement", e.target.value)} placeholder="Précision libre, si vous le souhaitez" /></Field>
 
       <p style={{ fontFamily: T.fm, fontSize: 9, letterSpacing: 0.8, color: T.b600, margin: "18px 2px 2px" }}>VIE PERSONNELLE (facultatif)</p>

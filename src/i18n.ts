@@ -40,6 +40,25 @@ const DICT: Record<string, { fr: string; en: string }> = {
   "common.close": { fr: "Fermer", en: "Close" },
   "common.save": { fr: "Enregistrer", en: "Save" },
   "common.loading": { fr: "Chargement...", en: "Loading..." },
+
+  "part.title": { fr: "Ma participation", en: "My participation" },
+  "part.present": { fr: "Présent", en: "Present" },
+  "part.presentHint": { fr: "J'ai suivi l'activité", en: "I attended the activity" },
+  "part.partiel": { fr: "Suivi partiel", en: "Partial attendance" },
+  "part.partielHint": { fr: "J'ai suivi une partie", en: "I attended part of it" },
+  "part.absent": { fr: "Absent", en: "Absent" },
+  "part.absentHint": { fr: "Je n'ai pas participé", en: "I did not take part" },
+  "part.scanned": { fr: "Vous êtes marqué(e) présent(e) (scan confirmé). Vous pouvez laisser votre avis.", en: "You are marked present (scan confirmed). You may leave your feedback." },
+  "part.lockedPrefix": { fr: "Réponse validée :", en: "Answer validated:" },
+  "part.lockedSuffix": { fr: ". Elle ne peut plus être modifiée.", en: ". It can no longer be changed." },
+  "part.notStarted": { fr: "Le formulaire sera disponible au début de l'activité", en: "The form will be available when the activity starts" },
+  "part.yourRating": { fr: "Votre note", en: "Your rating" },
+  "part.opinion": { fr: "Votre avis (facultatif)", en: "Your feedback (optional)" },
+  "part.record": { fr: "Enregistrer", en: "Save" },
+  "part.validate": { fr: "Valider ma réponse", en: "Validate my answer" },
+  "part.saveOpinion": { fr: "Enregistrer mon avis", en: "Save my feedback" },
+  "part.joinSession": { fr: "▶ Rejoindre la session", en: "▶ Join the session" },
+  "part.sessionOpen": { fr: "Session ouverte", en: "Session open" },
 };
 
 export function tr(lang: Lang, key: string): string {
