@@ -1,10 +1,12 @@
+import { useT } from "../i18n.js";
+
 export type TabId = "carte" | "activites" | "historique" | "profil";
 
-const TABS: { id: TabId; label: string; glyph: string }[] = [
-  { id: "carte", label: "Ma carte", glyph: "▣" },
-  { id: "activites", label: "Activites", glyph: "▤" },
-  { id: "historique", label: "Historique", glyph: "↻" },
-  { id: "profil", label: "Profil", glyph: "◔" },
+const TABS: { id: TabId; glyph: string }[] = [
+  { id: "carte", glyph: "▣" },
+  { id: "activites", glyph: "▤" },
+  { id: "historique", glyph: "↻" },
+  { id: "profil", glyph: "◔" },
 ];
 
 interface TabBarProps {
@@ -13,18 +15,19 @@ interface TabBarProps {
 }
 
 export function TabBar({ active, onChange }: TabBarProps): JSX.Element {
+  const t = useT();
   return (
     <nav className="tabbar" aria-label="Navigation">
-      {TABS.map((t) => (
+      {TABS.map((tab) => (
         <button
-          key={t.id}
+          key={tab.id}
           type="button"
-          className={`tab ${active === t.id ? "tab-active" : ""}`}
-          onClick={() => onChange(t.id)}
-          aria-current={active === t.id ? "page" : undefined}
+          className={`tab ${active === tab.id ? "tab-active" : ""}`}
+          onClick={() => onChange(tab.id)}
+          aria-current={active === tab.id ? "page" : undefined}
         >
-          <span className="tab-glyph" aria-hidden="true">{t.glyph}</span>
-          <span className="tab-label">{t.label}</span>
+          <span className="tab-glyph" aria-hidden="true">{tab.glyph}</span>
+          <span className="tab-label">{t(`nav.${tab.id}`)}</span>
         </button>
       ))}
     </nav>

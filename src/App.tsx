@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   type EvenementOut,
@@ -8,6 +8,7 @@ import {
   getInscription,
   getMembreProfile,
 } from "./api.js";
+import { type Lang, LangContext } from "./i18n.js";
 import { T } from "./proto.js";
 import { CompleterProfil } from "./components/CompleterProfil.js";
 import { Activites } from "./components/Activites.js";
@@ -92,6 +93,11 @@ export function App(): JSX.Element {
     },
     [refreshInscription],
   );
+
+  const [lang, setLang] = useState<Lang>("fr");
+  useEffect(() => {
+    if (profile?.langue === "en" || profile?.langue === "fr") setLang(profile.langue);
+  }, [profile?.langue]);
 
   const reloadProfile = useCallback(() => {
     if (token) void getMembreProfile(token).then(setProfile).catch(() => undefined);
@@ -178,6 +184,7 @@ export function App(): JSX.Element {
   const chromeHidden = view !== null && HIDE_CHROME.includes(view);
 
   return (
+    <LangContext.Provider value={lang}>
     <Shell>
       {!chromeHidden && (
         <header className="topbar">
@@ -235,7 +242,7 @@ export function App(): JSX.Element {
         ) : view === "document" ? (
           <Document token={token} onSent={() => setView("suivi")} />
         ) : view === "settings" ? (
-          <Settings token={token} profile={profile} onLogout={logout} />
+          <Settings token={token} profile={profile} onLogout={logout} onLang={setLang} />
         ) : view === "infos" ? (
           <Infos token={token} profile={profile} onDemande={() => setView("demandes")} onProfileChange={reloadProfile} />
         ) : view === "demandes" ? (
@@ -321,6 +328,7 @@ export function App(): JSX.Element {
         />
       )}
     </Shell>
+    </LangContext.Provider>
   );
 }
 

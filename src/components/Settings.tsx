@@ -13,6 +13,7 @@ import {
   telegramLien,
   telegramVerifier,
 } from "../api.js";
+import { type Lang, useT } from "../i18n.js";
 import { T } from "../proto.js";
 
 function Toggle({ label, hint, on, onChange }: { label: string; hint?: string; on: boolean; onChange: (v: boolean) => void }): JSX.Element {
@@ -67,11 +68,14 @@ export function Settings({
   token,
   profile,
   onLogout,
+  onLang,
 }: {
   token: string;
   profile: MembreProfile | null;
   onLogout: () => void;
+  onLang?: (l: Lang) => void;
 }): JSX.Element {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [ancien, setAncien] = useState("");
   const [nouveau, setNouveau] = useState("");
@@ -146,8 +150,8 @@ export function Settings({
 
   return (
     <div className="scr" style={{ padding: "6px 18px 14px" }}>
-      <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "4px 0 4px" }}>COMPTE</p>
-      <Row label="Changer le mot de passe" hint="Argon2, vérification de l'ancien" onClick={() => setOpen((v) => !v)} value={open ? "▾" : "›"} />
+      <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "4px 0 4px" }}>{t("settings.account")}</p>
+      <Row label={t("settings.changePassword")} hint={t("settings.changePasswordHint")} onClick={() => setOpen((v) => !v)} value={open ? "▾" : "›"} />
       {open && (
         <div style={{ display: "flex", flexDirection: "column", gap: 9, padding: "12px 0" }}>
           <Field label="MOT DE PASSE ACTUEL" value={ancien} onChange={setAncien} />
@@ -163,30 +167,30 @@ export function Settings({
           </div>
         </div>
       )}
-      <Row label="Double authentification (2FA)" hint="Code par e-mail à la connexion" value="Recommandé" />
+      <Row label={t("settings.2fa")} hint={t("settings.2faHint")} value={t("settings.recommended")} />
 
-      <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "16px 0 4px" }}>PRÉFÉRENCES</p>
-      <LangueRow token={token} initial={profile?.langue === "en" ? "en" : "fr"} />
+      <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "16px 0 4px" }}>{t("settings.preferences")}</p>
+      <LangueRow token={token} initial={profile?.langue === "en" ? "en" : "fr"} onLang={onLang} />
 
-      <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "16px 0 4px" }}>NOTIFICATIONS</p>
+      <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "16px 0 4px" }}>{t("settings.notifications")}</p>
       {prefs ? (
         <>
-          <Toggle label="Événements et formations" hint="Sessions, calendrier" on={prefs.evenements} onChange={(v) => togglePref("evenements", v)} />
-          <Toggle label="Suivi de mes demandes" hint="Réponses de l'administration" on={prefs.demandes} onChange={(v) => togglePref("demandes", v)} />
-          <Toggle label="Rappels" hint="Recensement, échéances" on={prefs.rappels} onChange={(v) => togglePref("rappels", v)} />
-          <Toggle label="Souhaits d'anniversaire" hint="Message de la fraternité le jour J" on={prefs.anniversaire} onChange={(v) => togglePref("anniversaire", v)} />
-          <Toggle label="Recevoir aussi par e-mail" hint="En plus des notifications dans l'app" on={prefs.email} onChange={(v) => togglePref("email", v)} />
+          <Toggle label={t("settings.notifEvents")} on={prefs.evenements} onChange={(v) => togglePref("evenements", v)} />
+          <Toggle label={t("settings.notifRequests")} on={prefs.demandes} onChange={(v) => togglePref("demandes", v)} />
+          <Toggle label={t("settings.notifReminders")} on={prefs.rappels} onChange={(v) => togglePref("rappels", v)} />
+          <Toggle label={t("settings.notifBirthday")} on={prefs.anniversaire} onChange={(v) => togglePref("anniversaire", v)} />
+          <Toggle label={t("settings.notifEmail")} on={prefs.email} onChange={(v) => togglePref("email", v)} />
         </>
       ) : (
-        <Row label="Notifications" hint="Chargement..." />
+        <Row label={t("settings.notifications")} hint={t("common.loading")} />
       )}
 
-      <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "16px 0 4px" }}>CANAUX DE RÉCEPTION</p>
+      <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "16px 0 4px" }}>{t("settings.channels")}</p>
       <Canaux token={token} prefs={prefs} onPref={togglePref} onMsg={setMsg} />
 
-      <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "16px 0 4px" }}>DONNÉES (RGPD)</p>
-      <Row label="Exporter mes données" hint="Téléchargement immédiat (JSON)" onClick={() => void exportData()} />
-      <Row label="Demander la suppression" hint="Traitée par l'administration" onClick={() => void requestDeletion()} />
+      <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "16px 0 4px" }}>{t("settings.data")}</p>
+      <Row label={t("settings.export")} hint={t("settings.exportHint")} onClick={() => void exportData()} />
+      <Row label={t("settings.delete")} hint={t("settings.deleteHint")} onClick={() => void requestDeletion()} />
 
       {msg && (
         <div style={{ marginTop: 14, background: msg.kind === "ok" ? T.okbg : T.warnbg, border: `1px solid ${msg.kind === "ok" ? T.ok : T.warn}`, borderRadius: 11, padding: 11, fontSize: 11.5, color: T.ink }}>
@@ -195,16 +199,17 @@ export function Settings({
       )}
 
       <div onClick={onLogout} className="tap" style={{ marginTop: 16, height: 46, border: `1px solid ${T.line}`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: T.mut, background: T.surf }}>
-        Se déconnecter
+        {t("settings.logout")}
       </div>
     </div>
   );
 }
 
-function LangueRow({ token, initial }: { token: string; initial: "fr" | "en" }): JSX.Element {
+function LangueRow({ token, initial, onLang }: { token: string; initial: "fr" | "en"; onLang?: (l: Lang) => void }): JSX.Element {
   const [lang, setLang] = useState<"fr" | "en">(initial);
   function choose(l: "fr" | "en"): void {
     setLang(l);
+    onLang?.(l);
     void setLangue(token, l).catch(() => undefined);
   }
   return (
