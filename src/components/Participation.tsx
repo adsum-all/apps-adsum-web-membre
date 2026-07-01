@@ -35,6 +35,22 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
 
   if (!data) return null;
 
+  // Before the activity starts, the form is not available: a member can never
+  // declare participation to an event that has not happened yet.
+  if (!data.ouvert && !data.deja_scanne && !data.verrouille) {
+    const quand = data.disponible_le
+      ? new Date(data.disponible_le).toLocaleString("fr-FR", { day: "2-digit", month: "long", hour: "2-digit", minute: "2-digit" })
+      : null;
+    return (
+      <div style={{ background: T.surf, border: `1px solid ${T.line}`, borderRadius: 12, padding: 12, marginTop: 6 }}>
+        <p style={{ fontSize: 12.5, fontWeight: 700, color: T.ink, margin: "0 0 4px", fontFamily: T.fd }}>Ma participation</p>
+        <p style={{ fontSize: 11.5, color: T.mut, margin: 0, lineHeight: 1.5 }}>
+          Le formulaire sera disponible au début de l'activité{quand ? ` (le ${quand})` : ""}.
+        </p>
+      </div>
+    );
+  }
+
   async function envoyer(valider: boolean): Promise<void> {
     setBusy(true);
     setMsg(null);

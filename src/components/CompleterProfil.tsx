@@ -6,6 +6,7 @@ import {
   type RefItem,
   getReference,
   soumettreInscription,
+  telegramLien,
   updateProfil,
   uploadDocument,
   uploadPhoto,
@@ -49,6 +50,37 @@ function Field({ label, required, children }: { label: string; required?: boolea
         {label.toUpperCase()} {required && <span style={{ color: T.dng }}>*</span>}
       </span>
       {children}
+    </div>
+  );
+}
+
+function TelegramInvite({ token }: { token: string }): JSX.Element {
+  const [done, setDone] = useState(false);
+  async function rejoindre(): Promise<void> {
+    try {
+      const r = await telegramLien(token);
+      window.open(r.deep_link, "_blank", "noopener");
+      setDone(true);
+    } catch {
+      // Telegram non configuré : on n'affiche pas d'erreur bloquante.
+    }
+  }
+  return (
+    <div style={{ background: "linear-gradient(135deg,#eaf0ff,#f4f6fb)", border: `1px solid ${T.line}`, borderRadius: 13, padding: "12px 14px", margin: "10px 0 2px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ fontSize: 24 }}>✈️</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: T.ink, fontFamily: T.fd }}>Recevez vos notifications sur Telegram</div>
+          <div style={{ fontSize: 11, color: T.mut, lineHeight: 1.45 }}>Gratuit. Une seule fois : appuyez sur « Démarrer », puis tout arrive automatiquement (rappels, événements, anniversaire).</div>
+        </div>
+      </div>
+      <div
+        onClick={() => void rejoindre()}
+        className="tap"
+        style={{ marginTop: 10, height: 40, borderRadius: 10, background: done ? T.okbg : T.b600, color: done ? T.ok : "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 13 }}
+      >
+        {done ? "Ouvert dans Telegram - appuyez sur Démarrer ✓" : "Rejoindre Telegram"}
+      </div>
     </div>
   );
 }
@@ -142,6 +174,9 @@ export function CompleterProfil({ token, profile, motif, onSubmitted }: Props): 
           Modification demandée : {motif}
         </p>
       )}
+
+      <TelegramInvite token={token} />
+
 
       <p style={{ fontFamily: T.fm, fontSize: 9, letterSpacing: 0.8, color: T.b600, margin: "16px 2px 2px" }}>IDENTITÉ</p>
       <Field label="Prénoms" required><input style={inp} value={f.prenoms} onChange={(e) => set("prenoms", e.target.value)} /></Field>

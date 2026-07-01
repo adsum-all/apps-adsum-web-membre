@@ -255,6 +255,8 @@ export interface ParticipationMembre {
   note: number | null;
   deja_scanne: boolean;
   verrouille: boolean;
+  ouvert: boolean;
+  disponible_le: string | null;
 }
 
 export function getParticipation(token: string, eventId: string): Promise<ParticipationMembre> {
