@@ -1,6 +1,7 @@
 import { type EvenementOut, getEvenements } from "../api.js";
 import { formatDateTime } from "../format.js";
 import { useResource } from "../useResource.js";
+import { Participation } from "./Participation.js";
 import { Questionnaire } from "./Questionnaire.js";
 
 // Upcoming and ongoing events for the member, fetched live from the API.
@@ -47,6 +48,7 @@ export function Activites({
               ▶ Rejoindre la session
             </button>
           )}
+          <Participation token={token} eventId={e.id} />
           {isEnded(e) && <Questionnaire token={token} eventId={e.id} />}
         </li>
       ))}

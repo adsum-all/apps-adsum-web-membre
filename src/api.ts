@@ -242,6 +242,28 @@ export function setNotifPreferences(token: string, prefs: NotifPreferences): Pro
   return authedPut<NotifPreferences>("/api/v1/membres/me/preferences-notification", token, prefs, "Mise a jour impossible");
 }
 
+export interface ParticipationMembre {
+  statut: "present" | "partiel" | "absent" | null;
+  source: "scan" | "declaration" | null;
+  valide: boolean;
+  avis: string | null;
+  note: number | null;
+  deja_scanne: boolean;
+  verrouille: boolean;
+}
+
+export function getParticipation(token: string, eventId: string): Promise<ParticipationMembre> {
+  return authedGet<ParticipationMembre>(`/api/v1/membres/me/evenements/${eventId}/participation`, token, "Participation indisponible");
+}
+
+export function declarerParticipation(
+  token: string,
+  eventId: string,
+  body: { statut?: string; avis?: string; note?: number; valider?: boolean },
+): Promise<{ ok: boolean; verrouille: boolean; statut: string; message?: string }> {
+  return authedPut(`/api/v1/membres/me/evenements/${eventId}/participation`, token, body, "Envoi impossible");
+}
+
 export function getEventQuestionnaire(token: string, eventId: string): Promise<QuestionnaireMembre> {
   return authedGet<QuestionnaireMembre>(
     `/api/v1/membres/me/evenements/${eventId}/questionnaire`,
