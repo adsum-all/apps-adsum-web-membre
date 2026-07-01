@@ -9,6 +9,7 @@ import {
   getDocuments,
   getFonctions,
   getReference,
+  isNeedsSignature,
   soumettreInscription,
   updateProfil,
   uploadDocument,
@@ -28,6 +29,7 @@ import {
 } from "./CompleterProfilParts.js";
 import { PaysSelect, PhoneField, indicatifDePays } from "./FormFields.js";
 import { PiecesJustificatives } from "./PiecesJustificatives.js";
+import { SignatureEngagement } from "./SignatureEngagement.js";
 
 interface Props {
   token: string;
@@ -55,7 +57,7 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [pieceType, setPieceType] = useState("piece_identite");
   const [pieceFile, setPieceFile] = useState<File | null>(null);
-  const [consent, setConsent] = useState({ rgpd: false, confidentialite: false, engagement: false });
+  const [signed, setSigned] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,7 +93,6 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
   const requiredOk =
     !!f.prenoms?.trim() && !!f.nom?.trim() && !!f.telephone?.trim() && !!f.indicatif_telephone?.trim() &&
     !!f.date_naissance && !!f.genre && !!f.pays?.trim() && !!f.ville?.trim() && !!f.commission_id && !!f.tribu_id;
-  const consentOk = consent.rgpd && consent.confidentialite && consent.engagement;
   // A document is required only if it is not already provided, or if it was
   // explicitly flagged for correction.
   const photoOk = photoProvided ? true : !!photoFile;
@@ -113,8 +114,8 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
       setError("Un document à corriger doit être renvoyé.");
       return;
     }
-    if (!consentOk) {
-      setError("Vous devez accepter les engagements pour soumettre.");
+    if (!signed) {
+      setError(t("consent.signBeforeSubmit"));
       return;
     }
     setBusy(true);
@@ -124,8 +125,13 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
       if (pieceFile) await uploadDocument(token, pieceType, pieceFile);
       await soumettreInscription(token);
       onSubmitted();
-    } catch {
-      setError("Soumission impossible. Vérifiez vos informations et réessayez.");
+    } catch (err) {
+      if (isNeedsSignature(err)) {
+        setSigned(false);
+        setError(t("consent.signBeforeSubmit"));
+      } else {
+        setError("Soumission impossible. Vérifiez vos informations et réessayez.");
+      }
     } finally {
       setBusy(false);
     }
@@ -260,22 +266,22 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
       />
 
       <p style={{ fontFamily: T.fm, fontSize: 9, letterSpacing: 0.8, color: T.b600, margin: "18px 2px 8px" }}>ENGAGEMENTS</p>
-      {([
-        ["rgpd", "J'accepte la politique de protection des données (RGPD)"],
-        ["confidentialite", "J'accepte la charte de confidentialité"],
-        ["engagement", "Je lis et signe la lettre d'engagement"],
-      ] as const).map(([k, label]) => (
-        <label key={k} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", marginBottom: 8, border: `1px solid ${consent[k] ? T.ok : T.line}`, borderRadius: 11, background: consent[k] ? T.okbg : T.surf, fontSize: 12.5 }}>
-          <input type="checkbox" checked={consent[k]} onChange={(e) => setConsent((p) => ({ ...p, [k]: e.target.checked }))} style={{ width: 18, height: 18, accentColor: T.b600 }} />
-          {label} <span style={{ color: T.dng }}>*</span>
-        </label>
-      ))}
+      <SignatureEngagement token={token} onSigned={() => setSigned(true)} />
 
       {error && <p style={{ color: T.dng, fontSize: 12.5, marginTop: 10 }}>{error}</p>}
 
-      <div onClick={() => void submit()} className="tap" style={{ marginTop: 16, height: 50, background: busy ? T.faint : gradient, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 600, fontSize: 15, boxShadow: "0 12px 24px -10px rgba(42,79,173,.7)" }}>
-        {busy ? "Envoi en cours..." : correction ? t("correction.resubmit") : "Soumettre mon inscription"}
-      </div>
+      {(() => {
+        const submitDisabled = busy || !requiredOk || !photoOk || !pieceOk || photoNeedsRedo || pieceNeedsRedo || !signed;
+        return (
+          <div
+            onClick={submitDisabled ? undefined : () => void submit()}
+            className="tap"
+            style={{ marginTop: 16, height: 50, background: submitDisabled ? T.faint : gradient, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 600, fontSize: 15, opacity: submitDisabled ? 0.7 : 1, cursor: submitDisabled ? "not-allowed" : "pointer", boxShadow: submitDisabled ? "none" : "0 12px 24px -10px rgba(42,79,173,.7)" }}
+          >
+            {busy ? "Envoi en cours..." : correction ? t("correction.resubmit") : "Soumettre mon inscription"}
+          </div>
+        );
+      })()}
     </div>
   );
 }

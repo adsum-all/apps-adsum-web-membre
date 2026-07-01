@@ -177,6 +177,26 @@ export interface EngagementItem {
   signe_le: string | null;
 }
 
+export interface ConsentSummary {
+  cle: string;
+  version: string;
+  titre: string;
+  bloquant: boolean;
+  ordre: number;
+}
+
+export interface ConsentDoc {
+  cle: string;
+  version: string;
+  titre: string;
+  contenu: string;
+}
+
+export interface SignatureRef {
+  cle: string;
+  version: string;
+}
+
 export interface NotificationItem {
   id: string;
   type: string | null;
@@ -560,6 +580,58 @@ export function getInscription(token: string): Promise<InscriptionStatut> {
 
 export function soumettreInscription(token: string): Promise<unknown> {
   return authedPost("/api/v1/membres/me/inscription/soumettre", token, {}, "Soumission impossible");
+}
+
+/** True when a soumettreInscription failure was caused by a missing signature. */
+export function isNeedsSignature(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 422;
+}
+
+export function getConsentDocs(token: string): Promise<ConsentSummary[]> {
+  return authedGet<ConsentSummary[]>("/api/v1/consentements", token, "Documents indisponibles");
+}
+
+export function getConsentDoc(token: string, cle: string): Promise<ConsentDoc> {
+  return authedGet<ConsentDoc>(
+    `/api/v1/consentements/${encodeURIComponent(cle)}`,
+    token,
+    "Document indisponible",
+  );
+}
+
+export interface DemanderSignatureResult {
+  ok: boolean;
+  canaux: string[];
+  signature_id: string;
+}
+
+export function demanderSignature(
+  token: string,
+  documents: SignatureRef[],
+): Promise<DemanderSignatureResult> {
+  return authedPost<DemanderSignatureResult>(
+    "/api/v1/consentements/signature/demander",
+    token,
+    { documents },
+    "Envoi du code impossible",
+  );
+}
+
+export function verifierSignature(token: string, code: string): Promise<{ ok: true }> {
+  return authedPost<{ ok: true }>(
+    "/api/v1/consentements/signature/verifier",
+    token,
+    { code },
+    "Code invalide",
+  );
+}
+
+export function getSignatureEtat(token: string): Promise<{ signe: boolean }> {
+  return authedGet<{ signe: boolean }>(
+    "/api/v1/consentements/signature/etat",
+    token,
+    "Etat indisponible",
+  );
 }
 
 /** Upload a file to a private bucket via a server-issued signed URL, return the stored path. */

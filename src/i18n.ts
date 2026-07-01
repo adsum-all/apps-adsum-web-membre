@@ -135,6 +135,35 @@ const DICT: Record<string, { fr: string; en: string }> = {
   "part.sending": { fr: "Validation...", en: "Confirming..." },
   "part.joinSession": { fr: "▶ Rejoindre la session", en: "▶ Join the session" },
   "part.sessionOpen": { fr: "Session ouverte", en: "Session open" },
+
+  "consent.read": { fr: "Lire le document", en: "Read the document" },
+  "consent.iAccept": { fr: "J'ai lu et j'accepte", en: "I have read and I accept" },
+  "consent.scrollHint": {
+    fr: "Faites défiler jusqu'en bas du document pour pouvoir accepter.",
+    en: "Scroll to the bottom of the document to be able to accept.",
+  },
+  "consent.toRead": { fr: "À lire et accepter", en: "To read and accept" },
+  "consent.readAccepted": { fr: "Lu et accepté", en: "Read and accepted" },
+  "consent.approve": { fr: "J'ai lu et approuve", en: "I have read and approve" },
+  "consent.codeSent": {
+    fr: "Un code vous a été envoyé (application, e-mail, Telegram).",
+    en: "A code has been sent to you (app, e-mail, Telegram).",
+  },
+  "consent.enterCode": { fr: "Saisissez le code", en: "Enter the code" },
+  "consent.validateCode": { fr: "Valider le code", en: "Validate the code" },
+  "consent.invalidCode": { fr: "Code invalide", en: "Invalid code" },
+  "consent.signatureDone": { fr: "Signature effectuée", en: "Signature completed" },
+  "consent.signBeforeSubmit": {
+    fr: "Signez les documents avant de transmettre.",
+    en: "Sign the documents before submitting.",
+  },
+  "consent.proofTitle": { fr: "Preuve de consentement", en: "Proof of consent" },
+  "consent.proofHint": {
+    fr: "Chaque acceptation est horodatée et tracée. La signature par code renforce la preuve.",
+    en: "Each acceptance is timestamped and traced. The code signature strengthens the proof.",
+  },
+  "consent.loadError": { fr: "Document indisponible pour le moment.", en: "Document unavailable for now." },
+  "consent.requestError": { fr: "Action impossible. Réessayez.", en: "Action failed. Please try again." },
 };
 
 export function tr(lang: Lang, key: string): string {
