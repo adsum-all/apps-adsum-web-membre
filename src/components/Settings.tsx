@@ -8,6 +8,7 @@ import {
   enregistrerWhatsapp,
   exportDonneesRGPD,
   getNotifPreferences,
+  setLangue,
   setNotifPreferences,
   telegramLien,
   telegramVerifier,
@@ -165,7 +166,7 @@ export function Settings({
       <Row label="Double authentification (2FA)" hint="Code par e-mail à la connexion" value="Recommandé" />
 
       <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "16px 0 4px" }}>PRÉFÉRENCES</p>
-      <Row label="Langue" value="Français" />
+      <LangueRow token={token} initial={profile?.langue === "en" ? "en" : "fr"} />
 
       <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "16px 0 4px" }}>NOTIFICATIONS</p>
       {prefs ? (
@@ -195,6 +196,31 @@ export function Settings({
 
       <div onClick={onLogout} className="tap" style={{ marginTop: 16, height: 46, border: `1px solid ${T.line}`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: T.mut, background: T.surf }}>
         Se déconnecter
+      </div>
+    </div>
+  );
+}
+
+function LangueRow({ token, initial }: { token: string; initial: "fr" | "en" }): JSX.Element {
+  const [lang, setLang] = useState<"fr" | "en">(initial);
+  function choose(l: "fr" | "en"): void {
+    setLang(l);
+    void setLangue(token, l).catch(() => undefined);
+  }
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 0", borderBottom: `1px solid ${T.line}` }}>
+      <div style={{ fontSize: 12.5, fontWeight: 600 }}>Langue / Language</div>
+      <div style={{ display: "flex", gap: 6 }}>
+        {(["fr", "en"] as const).map((l) => (
+          <div
+            key={l}
+            onClick={() => choose(l)}
+            className="tap"
+            style={{ padding: "6px 12px", borderRadius: 9, fontSize: 12, fontWeight: 600, background: lang === l ? T.b600 : T.surf, color: lang === l ? "#fff" : T.mut, border: `1px solid ${lang === l ? T.b600 : T.line}` }}
+          >
+            {l === "fr" ? "Français" : "English"}
+          </div>
+        ))}
       </div>
     </div>
   );

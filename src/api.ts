@@ -52,6 +52,7 @@ export interface MembreProfile {
   coordination: string | null;
   coordinateur: string | null;
   champs_deverrouilles: string[];
+  langue: string;
 }
 
 export interface EvenementOut {
@@ -220,6 +221,10 @@ export function getNotifPreferences(token: string): Promise<NotifPreferences> {
 
 export function exportDonneesRGPD(token: string): Promise<Record<string, unknown>> {
   return authedGet<Record<string, unknown>>("/api/v1/membres/me/export", token, "Export impossible");
+}
+
+export function setLangue(token: string, langue: "fr" | "en"): Promise<{ ok: boolean; langue: string }> {
+  return authedPut("/api/v1/membres/me/langue", token, { langue }, "Changement de langue impossible");
 }
 
 export function telegramLien(token: string): Promise<{ deep_link: string; token: string }> {
