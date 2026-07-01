@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { type MembreProfile, getQrToken } from "../api.js";
 import { displayName } from "../name.js";
+import { AttestationManuelle } from "./AttestationManuelle.js";
 import { QrCard } from "./QrCard.js";
 
 // The card tab: fetch the server-signed QR token and refresh it before it
@@ -38,6 +39,7 @@ export function Carte({ token, profile }: { token: string; profile: MembreProfil
 
   return (
     <>
+      <AttestationManuelle token={token} />
       <QrCard
         matricule={profile?.matricule ?? "ADS-000000"}
         membreId={profile?.id ?? "00000000-0000-0000-0000-000000000000"}

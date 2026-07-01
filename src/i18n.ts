@@ -164,6 +164,35 @@ const DICT: Record<string, { fr: string; en: string }> = {
   },
   "consent.loadError": { fr: "Document indisponible pour le moment.", en: "Document unavailable for now." },
   "consent.requestError": { fr: "Action impossible. Réessayez.", en: "Action failed. Please try again." },
+
+  "attest.title": { fr: "Attestation signée à retourner", en: "Signed attestation to return" },
+  "attest.intro": {
+    fr: "Votre pays exige une attestation signée à la main. Imprimez le document, signez-le, puis renvoyez la version scannée ou photographiée.",
+    en: "Your country requires a hand-signed attestation. Print the document, sign it, then return the scanned or photographed copy.",
+  },
+  "attest.deadline": { fr: "Échéance", en: "Deadline" },
+  "attest.daysLeft": { fr: "{n} jour(s) restant(s)", en: "{n} day(s) left" },
+  "attest.dueToday": { fr: "À retourner aujourd'hui", en: "Due today" },
+  "attest.overdueBy": { fr: "En retard de {n} jour(s)", en: "Overdue by {n} day(s)" },
+  "attest.noDeadline": { fr: "Aucune échéance fixée", en: "No deadline set" },
+  "attest.download": { fr: "Télécharger / Imprimer", en: "Download / Print" },
+  "attest.documentTitle": { fr: "Document de l'attestation", en: "Attestation document" },
+  "attest.uploadTitle": { fr: "Envoyer l'attestation signée", en: "Upload the signed attestation" },
+  "attest.uploadZone": { fr: "Téléverser le scan signé", en: "Upload the signed scan" },
+  "attest.uploadHint": { fr: "PDF, JPG ou PNG · chiffré", en: "PDF, JPG or PNG · encrypted" },
+  "attest.ready": { fr: "Prêt à envoyer", en: "Ready to send" },
+  "attest.send": { fr: "Envoyer à l'administration", en: "Send to the administration" },
+  "attest.sending": { fr: "Envoi...", en: "Sending..." },
+  "attest.error": { fr: "Envoi impossible. Réessayez.", en: "Upload failed. Please try again." },
+  "attest.statusAwaiting": { fr: "En attente de votre envoi", en: "Awaiting your upload" },
+  "attest.statusReminded": { fr: "Rappel envoyé, en attente de votre envoi", en: "Reminder sent, awaiting your upload" },
+  "attest.statusOverdue": { fr: "En retard", en: "Overdue" },
+  "attest.statusUnderReview": { fr: "En cours de vérification par l'administration", en: "Under review by the administration" },
+  "attest.statusRejected": { fr: "Attestation refusée, merci de la renvoyer", en: "Attestation rejected, please upload again" },
+  "attest.rejectedHint": {
+    fr: "L'administration a refusé votre attestation. Vérifiez la signature et la lisibilité, puis renvoyez-la.",
+    en: "The administration rejected your attestation. Check the signature and legibility, then upload it again.",
+  },
 };
 
 export function tr(lang: Lang, key: string): string {

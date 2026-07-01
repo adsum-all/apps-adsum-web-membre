@@ -699,6 +699,26 @@ export async function submitRecensement(
   }
 }
 
+export interface AttestationInfo {
+  requise: boolean;
+  statut: string;
+  echeance: string | null;
+  texte: string;
+}
+
+export function getAttestation(token: string): Promise<AttestationInfo> {
+  return authedGet<AttestationInfo>("/api/v1/membres/me/attestation", token, "Attestation indisponible");
+}
+
+export function uploadAttestation(token: string, documentId: string): Promise<AttestationInfo> {
+  return authedPost<AttestationInfo>(
+    "/api/v1/membres/me/attestation/upload",
+    token,
+    { document_id: documentId },
+    "Envoi impossible",
+  );
+}
+
 export function apiBaseUrl(): string {
   return BASE;
 }
