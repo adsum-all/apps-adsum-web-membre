@@ -50,6 +50,9 @@ export function Carte({ token, profile }: { token: string; profile: MembreProfil
         tribu={profile?.tribu}
         patriarche={profile?.patriarche}
         engagement={profile?.type_membre}
+        authToken={token}
+        prenoms={profile?.prenoms}
+        memberNom={profile?.nom}
       />
       <button type="button" className="btn btn-ghost" onClick={() => setFullscreen(true)} disabled={!serverToken}>
         Afficher en plein ecran

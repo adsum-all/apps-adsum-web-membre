@@ -60,7 +60,7 @@ export function Identite({
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <Piece titre="Photo d'identité" sousTitre={photoOk ? "Validée" : "À fournir"} done={photoOk} />
-        <Piece titre="Pièce officielle" sousTitre={pieceOk ? "Supprimée après validation 🔒" : "À fournir"} done={pieceOk} />
+        <Piece titre="Pièce officielle" sousTitre={pieceOk ? "Conservée et protégée" : "À fournir"} done={pieceOk} />
         <Piece
           titre="Engagements signés"
           sousTitre={engagementsOk ? "Consentement · confidentialité · lettre" : "À lire et signer"}
