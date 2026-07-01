@@ -5,42 +5,83 @@ import { toEmbed } from "../embed.js";
 import { useT } from "../i18n.js";
 import { T, gradient } from "../proto.js";
 
+function OpenSource({ view }: { view: ReturnType<typeof toEmbed> }): JSX.Element {
+  const t = useT();
+  return (
+    <button
+      type="button"
+      onClick={() => window.open(view.original, "_blank", "noopener")}
+      className="tap"
+      style={{ marginTop: 8, width: "100%", background: "none", border: `1px solid ${T.line}`, borderRadius: 10, padding: "9px 12px", color: T.mut, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+    >
+      {t("session.openSource").replace("{source}", view.provider)}
+    </button>
+  );
+}
+
 function Diffusion({ evenement }: { evenement: EvenementOut }): JSX.Element {
   const t = useT();
   const lien = evenement.lien_session;
-  const embed = lien && evenement.type_diffusion === "embed" ? toEmbed(lien) : null;
 
-  if (embed && embed.kind === "iframe") {
+  if (!lien) {
     return (
-      <div style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", borderRadius: 14, overflow: "hidden", background: "#000" }}>
-        <iframe
-          src={embed.src}
-          title={evenement.titre}
-          allow="autoplay; encrypted-media; picture-in-picture"
-          allowFullScreen
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
-        />
+      <div style={{ background: "#0d1220", borderRadius: 14, height: 120, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, color: "#7c8598" }}>
+        <span style={{ fontSize: 26 }} aria-hidden="true">◷</span>
+        <span style={{ fontSize: 12 }}>{t("session.notStarted")}</span>
       </div>
     );
   }
 
-  if (lien && (evenement.type_diffusion === "externe" || (embed && embed.kind === "external"))) {
+  const view = toEmbed(lien);
+  // Watch inside the app by default whenever the source allows it, unless an
+  // admin forced the external mode. A secondary link always lets the member
+  // open the broadcast on its source (YouTube, Zoom, Telegram, ...).
+  const forceExternal = evenement.type_diffusion === "externe";
+
+  if (!forceExternal && view.kind === "iframe") {
     return (
+      <div>
+        <div style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", borderRadius: 14, overflow: "hidden", background: "#000" }}>
+          <iframe
+            src={view.src}
+            title={evenement.titre}
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+            allowFullScreen
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
+          />
+        </div>
+        <OpenSource view={view} />
+      </div>
+    );
+  }
+
+  if (!forceExternal && view.kind === "video") {
+    return (
+      <div>
+        <video
+          src={view.src}
+          controls
+          autoPlay
+          playsInline
+          style={{ width: "100%", aspectRatio: "16 / 9", borderRadius: 14, background: "#000" }}
+        />
+        <OpenSource view={view} />
+      </div>
+    );
+  }
+
+  // Non-embeddable source (Zoom, Telegram, ...) or admin-forced external.
+  return (
+    <div>
       <div
-        onClick={() => window.open(lien, "_blank", "noopener")}
+        onClick={() => window.open(view.original, "_blank", "noopener")}
         className="tap"
-        style={{ background: T.b900, borderRadius: 14, padding: "22px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, color: "#fff" }}
+        style={{ background: T.b900, borderRadius: 14, padding: "22px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, color: "#fff", cursor: "pointer" }}
       >
         <span style={{ fontSize: 30 }} aria-hidden="true">▶</span>
-        <span style={{ fontSize: 13.5, fontWeight: 600 }}>{t("session.open")}</span>
+        <span style={{ fontSize: 13.5, fontWeight: 600 }}>{t("session.watchHere")}</span>
       </div>
-    );
-  }
-
-  return (
-    <div style={{ background: "#0d1220", borderRadius: 14, height: 120, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, color: "#7c8598" }}>
-      <span style={{ fontSize: 26 }} aria-hidden="true">◷</span>
-      <span style={{ fontSize: 12 }}>{t("session.notStarted")}</span>
+      <p style={{ fontSize: 10.5, color: T.faint, margin: "6px 2px 0", textAlign: "center" }}>{t("session.externalNote")}</p>
     </div>
   );
 }

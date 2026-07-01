@@ -38,6 +38,9 @@ const DICT: Record<string, { fr: string; en: string }> = {
   "session.notStarted": { fr: "La diffusion n'a pas encore démarré", en: "The broadcast has not started yet" },
   "session.open": { fr: "Ouvrir la diffusion", en: "Open the broadcast" },
   "session.live": { fr: "En direct", en: "Live" },
+  "session.watchHere": { fr: "Regarder maintenant", en: "Watch now" },
+  "session.openSource": { fr: "Ouvrir sur {source}", en: "Open on {source}" },
+  "session.externalNote": { fr: "Cette source ne permet pas la lecture intégrée : elle s'ouvre dans une nouvelle fenêtre.", en: "This source does not allow embedded playback: it opens in a new window." },
 
   "settings.calendar": { fr: "CALENDRIER & ANNIVERSAIRES", en: "CALENDAR & BIRTHDAYS" },
   "settings.calVip": { fr: "Anniversaires VIP", en: "VIP birthdays" },
