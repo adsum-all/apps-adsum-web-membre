@@ -210,8 +210,20 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly detail?: unknown,
   ) {
     super(message);
+  }
+}
+
+/** Read the JSON error body (FastAPI `detail`) without throwing on a non-JSON
+ * response, so the caller can surface the precise reason for a 4xx. */
+async function readDetail(res: Response): Promise<unknown> {
+  try {
+    const data = (await res.clone().json()) as { detail?: unknown };
+    return data?.detail ?? data;
+  } catch {
+    return undefined;
   }
 }
 
@@ -409,7 +421,8 @@ async function authedPost<T>(path: string, token: string, body: unknown, onError
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    throw new ApiError(res.status === 400 ? "Requete invalide" : res.status === 401 ? "Session expiree" : onError, res.status);
+    const detail = await readDetail(res);
+    throw new ApiError(res.status === 400 ? "Requete invalide" : res.status === 401 ? "Session expiree" : onError, res.status, detail);
   }
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
@@ -553,7 +566,8 @@ async function authedPut<T>(path: string, token: string, body: unknown, onError:
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    throw new ApiError(res.status === 401 ? "Session expiree" : onError, res.status);
+    const detail = await readDetail(res);
+    throw new ApiError(res.status === 401 ? "Session expiree" : onError, res.status, detail);
   }
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
@@ -582,9 +596,61 @@ export function soumettreInscription(token: string): Promise<unknown> {
   return authedPost("/api/v1/membres/me/inscription/soumettre", token, {}, "Soumission impossible");
 }
 
-/** True when a soumettreInscription failure was caused by a missing signature. */
+interface SoumettreDetail {
+  missing_fields?: string[];
+  needs_document?: boolean;
+  needs_signature?: boolean;
+}
+
+function soumettreDetail(err: unknown): SoumettreDetail | null {
+  if (!(err instanceof ApiError) || err.status !== 422) return null;
+  const d = err.detail;
+  return d && typeof d === "object" ? (d as SoumettreDetail) : {};
+}
+
+/** True only when a soumettreInscription 422 was actually about the signature,
+ * not a missing field or document. Falls back to true when the server sends a
+ * 422 without a structured body (older API), so signature stays the safe guess. */
 export function isNeedsSignature(err: unknown): boolean {
-  return err instanceof ApiError && err.status === 422;
+  const d = soumettreDetail(err);
+  if (!d) return false;
+  if (d.needs_signature === true) return true;
+  // Structured body present but signature not the cause: not a signature issue.
+  if (d.needs_signature === false) return false;
+  // No structured body at all (empty object): keep the previous safe default.
+  return Object.keys(d).length === 0;
+}
+
+/** Field labels for the human-readable message on a soumettre 422. */
+const FIELD_LABELS: Record<string, string> = {
+  prenoms: "Prénoms",
+  nom: "Nom",
+  telephone: "Téléphone",
+  date_naissance: "Date de naissance",
+  genre: "Genre",
+  ville: "Ville",
+  pays: "Pays",
+  commission_id: "Commission",
+  tribu_id: "Tribu",
+};
+
+/** Precise French reason for a failed soumettreInscription, or null if the
+ * error is not a structured 422 (caller shows a generic message then). */
+export function soumettreReason(err: unknown): string | null {
+  const d = soumettreDetail(err);
+  if (!d) return null;
+  const missing = Array.isArray(d.missing_fields) ? d.missing_fields : [];
+  if (missing.length > 0) {
+    const labels = missing.map((k) => FIELD_LABELS[k] ?? k).join(", ");
+    return `Ces champs sont encore incomplets : ${labels}.`;
+  }
+  if (d.needs_document === true) {
+    return "Une pièce d'identité est requise avant l'envoi.";
+  }
+  if (d.needs_signature === true) {
+    return null; // handled by the signature flow, not a message
+  }
+  return null;
 }
 
 export function getConsentDocs(token: string): Promise<ConsentSummary[]> {

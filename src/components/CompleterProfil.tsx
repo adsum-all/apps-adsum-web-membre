@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  ApiError,
   type DocumentItem,
   type FonctionItem,
   type MembreProfile,
@@ -11,6 +12,7 @@ import {
   getReference,
   isNeedsSignature,
   soumettreInscription,
+  soumettreReason,
   updateProfil,
   uploadDocument,
   uploadPhoto,
@@ -38,6 +40,21 @@ interface Props {
   motif?: string | null;
   champsACorriger?: string[];
   onSubmitted: () => void;
+}
+
+/** Human-readable reason for a failure while saving the profile or files, so
+ * the member sees what to fix rather than a generic "Soumission impossible". */
+function saveReason(err: unknown): string {
+  if (err instanceof ApiError) {
+    const detail = err.detail as { locked_fields?: string[] } | undefined;
+    if (err.status === 403 && Array.isArray(detail?.locked_fields) && detail.locked_fields.length > 0) {
+      return `Certains champs ne sont plus modifiables : ${detail.locked_fields.join(", ")}.`;
+    }
+    if (err.status === 413) {
+      return "Un fichier est trop volumineux. Réduisez sa taille et réessayez.";
+    }
+  }
+  return "Impossible d'enregistrer vos informations. Vérifiez les champs, puis réessayez.";
 }
 
 export function CompleterProfil({ token, profile, statut, motif, champsACorriger = [], onSubmitted }: Props): JSX.Element {
@@ -120,9 +137,17 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
     }
     setBusy(true);
     try {
-      await updateProfil(token, f);
-      if (photoFile) await uploadPhoto(token, photoFile);
-      if (pieceFile) await uploadDocument(token, pieceType, pieceFile);
+      // Phase 1: persist the profile and any new files. A failure here is about
+      // saving the data, not about the final submission gate.
+      try {
+        await updateProfil(token, f);
+        if (photoFile) await uploadPhoto(token, photoFile);
+        if (pieceFile) await uploadDocument(token, pieceType, pieceFile);
+      } catch (saveErr) {
+        setError(saveReason(saveErr));
+        return;
+      }
+      // Phase 2: the server-side submission gate (fields, document, signature).
       await soumettreInscription(token);
       onSubmitted();
     } catch (err) {
@@ -130,7 +155,9 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
         setSigned(false);
         setError(t("consent.signBeforeSubmit"));
       } else {
-        setError("Soumission impossible. Vérifiez vos informations et réessayez.");
+        // Surface the precise server reason (missing field, document) instead
+        // of a generic message that hides why the submission was refused.
+        setError(soumettreReason(err) ?? "Soumission impossible. Vérifiez vos informations et réessayez.");
       }
     } finally {
       setBusy(false);
