@@ -5,9 +5,12 @@ import {
   type NotifPreferences,
   changePassword,
   demanderSuppression,
+  enregistrerWhatsapp,
   exportDonneesRGPD,
   getNotifPreferences,
   setNotifPreferences,
+  telegramLien,
+  telegramVerifier,
 } from "../api.js";
 import { T } from "../proto.js";
 
@@ -170,11 +173,15 @@ export function Settings({
           <Toggle label="Événements et formations" hint="Sessions, calendrier" on={prefs.evenements} onChange={(v) => togglePref("evenements", v)} />
           <Toggle label="Suivi de mes demandes" hint="Réponses de l'administration" on={prefs.demandes} onChange={(v) => togglePref("demandes", v)} />
           <Toggle label="Rappels" hint="Recensement, échéances" on={prefs.rappels} onChange={(v) => togglePref("rappels", v)} />
+          <Toggle label="Souhaits d'anniversaire" hint="Message de la fraternité le jour J" on={prefs.anniversaire} onChange={(v) => togglePref("anniversaire", v)} />
           <Toggle label="Recevoir aussi par e-mail" hint="En plus des notifications dans l'app" on={prefs.email} onChange={(v) => togglePref("email", v)} />
         </>
       ) : (
         <Row label="Notifications" hint="Chargement..." />
       )}
+
+      <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "16px 0 4px" }}>CANAUX DE RÉCEPTION</p>
+      <Canaux token={token} prefs={prefs} onPref={togglePref} onMsg={setMsg} />
 
       <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "16px 0 4px" }}>DONNÉES (RGPD)</p>
       <Row label="Exporter mes données" hint="Téléchargement immédiat (JSON)" onClick={() => void exportData()} />
@@ -190,5 +197,102 @@ export function Settings({
         Se déconnecter
       </div>
     </div>
+  );
+}
+
+function Canaux({
+  token,
+  prefs,
+  onPref,
+  onMsg,
+}: {
+  token: string;
+  prefs: NotifPreferences | null;
+  onPref: (k: keyof NotifPreferences, v: boolean) => void;
+  onMsg: (m: { kind: "ok" | "err"; text: string }) => void;
+}): JSX.Element {
+  const [deepLink, setDeepLink] = useState<string | null>(null);
+  const [wa, setWa] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function lierTelegram(): Promise<void> {
+    setBusy(true);
+    try {
+      const r = await telegramLien(token);
+      setDeepLink(r.deep_link);
+      window.open(r.deep_link, "_blank", "noopener");
+    } catch {
+      onMsg({ kind: "err", text: "Telegram n'est pas encore configuré côté serveur." });
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function verifierTelegram(): Promise<void> {
+    setBusy(true);
+    try {
+      const r = await telegramVerifier(token);
+      if (r.linked) {
+        onPref("telegram", true);
+        setDeepLink(null);
+        onMsg({ kind: "ok", text: "Compte Telegram lié. Vous recevrez vos notifications sur Telegram." });
+      } else {
+        onMsg({ kind: "err", text: r.message ?? "Lien non détecté. Appuyez sur Démarrer dans Telegram puis réessayez." });
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function saveWa(): Promise<void> {
+    if (!wa.trim()) return;
+    setBusy(true);
+    try {
+      await enregistrerWhatsapp(token, wa.trim());
+      onPref("whatsapp", true);
+      onMsg({ kind: "ok", text: "Numéro WhatsApp enregistré." });
+    } catch {
+      onMsg({ kind: "err", text: "Numéro invalide." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <div style={{ padding: "12px 0", borderBottom: `1px solid ${T.line}` }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+          <div>
+            <div style={{ fontSize: 12.5, fontWeight: 600 }}>Telegram</div>
+            <div style={{ fontSize: 10, color: T.mut }}>Gratuit. Recevez vos notifications sur Telegram.</div>
+          </div>
+          <div
+            onClick={() => void lierTelegram()}
+            className="tap"
+            style={{ padding: "8px 14px", borderRadius: 10, background: prefs?.telegram ? T.okbg : T.b600, color: prefs?.telegram ? T.ok : "#fff", fontSize: 12, fontWeight: 600, opacity: busy ? 0.6 : 1 }}
+          >
+            {prefs?.telegram ? "Lié ✓" : "Lier"}
+          </div>
+        </div>
+        {deepLink && (
+          <div onClick={() => void verifierTelegram()} className="tap" style={{ marginTop: 8, textAlign: "center", padding: "9px", borderRadius: 10, border: `1px solid ${T.b600}`, color: T.b600, fontSize: 12, fontWeight: 600 }}>
+            J'ai appuyé sur Démarrer, vérifier la liaison
+          </div>
+        )}
+      </div>
+
+      <div style={{ padding: "12px 0", borderBottom: `1px solid ${T.line}` }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>WhatsApp</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            value={wa}
+            onChange={(e) => setWa(e.target.value)}
+            placeholder="+225 07 00 00 00 00"
+            style={{ flex: 1, height: 40, border: `1px solid ${T.line}`, borderRadius: 10, padding: "0 12px", fontSize: 13 }}
+          />
+          <div onClick={() => void saveWa()} className="tap" style={{ padding: "0 16px", height: 40, display: "flex", alignItems: "center", borderRadius: 10, background: T.b600, color: "#fff", fontSize: 12, fontWeight: 600 }}>
+            {prefs?.whatsapp ? "Modifier" : "Ajouter"}
+          </div>
+        </div>
+      </div>
+    </>
   );
 }

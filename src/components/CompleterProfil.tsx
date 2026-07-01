@@ -11,6 +11,7 @@ import {
   uploadPhoto,
 } from "../api.js";
 import { T, gradient } from "../proto.js";
+import { PaysSelect, PhoneField, indicatifDePays } from "./FormFields.js";
 
 interface Props {
   token: string;
@@ -62,10 +63,15 @@ export function CompleterProfil({ token, profile, motif, onSubmitted }: Props): 
     prenoms: profile?.prenoms ?? "",
     nom: profile?.nom ?? "",
     telephone: profile?.telephone ?? "",
+    indicatif_telephone: profile?.indicatif_telephone ?? "",
     date_naissance: profile?.date_naissance ?? "",
+    naissance_annee_visible: profile?.naissance_annee_visible ?? false,
     genre: profile?.genre ?? "",
     pays: profile?.pays ?? "",
+    region: profile?.region ?? "",
     ville: profile?.ville ?? "",
+    adresse: profile?.adresse ?? "",
+    adresse_complement: profile?.adresse_complement ?? "",
     tribu_id: "",
     situation_matrimoniale: profile?.situation_matrimoniale ?? "",
     profession: profile?.profession ?? "",
@@ -92,8 +98,8 @@ export function CompleterProfil({ token, profile, motif, onSubmitted }: Props): 
   }
 
   const requiredOk =
-    !!f.prenoms?.trim() && !!f.nom?.trim() && !!f.telephone?.trim() && !!f.date_naissance &&
-    !!f.genre && !!f.pays?.trim() && !!f.ville?.trim() && !!f.commission_id && !!f.tribu_id;
+    !!f.prenoms?.trim() && !!f.nom?.trim() && !!f.telephone?.trim() && !!f.indicatif_telephone?.trim() &&
+    !!f.date_naissance && !!f.genre && !!f.pays?.trim() && !!f.ville?.trim() && !!f.commission_id && !!f.tribu_id;
   const consentOk = consent.rgpd && consent.confidentialite && consent.engagement;
   const docsOk = !!photoFile && !!pieceFile;
 
@@ -147,10 +153,31 @@ export function CompleterProfil({ token, profile, motif, onSubmitted }: Props): 
         </select>
       </Field>
       <Field label="Date de naissance" required><input type="date" style={inp} value={f.date_naissance} onChange={(e) => set("date_naissance", e.target.value)} /></Field>
-      <Field label="Téléphone" required><input type="tel" style={inp} value={f.telephone} onChange={(e) => set("telephone", e.target.value)} placeholder="+225..." /></Field>
+      <label style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 2px 2px", fontSize: 12, color: T.mut }}>
+        <input type="checkbox" checked={!!f.naissance_annee_visible} onChange={(e) => set("naissance_annee_visible", e.target.checked)} style={{ width: 17, height: 17, accentColor: T.b600 }} />
+        Afficher mon année de naissance sur mon profil (sinon seul le jour et le mois, pour l'anniversaire, sont visibles)
+      </label>
+      <Field label="Téléphone" required>
+        <PhoneField
+          indicatif={f.indicatif_telephone ?? ""}
+          numero={f.telephone ?? ""}
+          onIndicatif={(i) => set("indicatif_telephone", i)}
+          onNumero={(n) => set("telephone", n)}
+        />
+      </Field>
 
       <p style={{ fontFamily: T.fm, fontSize: 9, letterSpacing: 0.8, color: T.b600, margin: "18px 2px 2px" }}>LOCALISATION & RATTACHEMENT</p>
-      <Field label="Pays" required><input style={inp} value={f.pays} onChange={(e) => set("pays", e.target.value)} /></Field>
+      <Field label="Pays" required>
+        <PaysSelect
+          value={f.pays ?? ""}
+          onChange={(nom) => {
+            set("pays", nom);
+            // Prefill the phone dialling code from the country only if none chosen yet.
+            if (!f.indicatif_telephone) set("indicatif_telephone", indicatifDePays(nom));
+          }}
+        />
+      </Field>
+      <Field label="Région / État"><input style={inp} value={f.region ?? ""} onChange={(e) => set("region", e.target.value)} placeholder="Ex. Île-de-France, Californie..." /></Field>
       <Field label="Ville" required><input style={inp} value={f.ville} onChange={(e) => set("ville", e.target.value)} /></Field>
       <Field label="Commission" required>
         <select style={inp} value={f.commission_id ?? ""} onChange={(e) => set("commission_id", e.target.value)}>
@@ -176,6 +203,13 @@ export function CompleterProfil({ token, profile, motif, onSubmitted }: Props): 
           {tribus.map((t) => <option key={t.id} value={t.id}>{t.nom}</option>)}
         </select>
       </Field>
+
+      <p style={{ fontFamily: T.fm, fontSize: 9, letterSpacing: 0.8, color: T.b600, margin: "18px 2px 2px" }}>ADRESSE (facultatif)</p>
+      <p style={{ fontSize: 11, color: T.mut, lineHeight: 1.5, margin: "2px 2px 6px" }}>
+        Une indication générale suffit (quartier, secteur). Ne renseignez pas d'adresse précise.
+      </p>
+      <Field label="Adresse (générale)"><input style={inp} value={f.adresse ?? ""} onChange={(e) => set("adresse", e.target.value)} placeholder="Ex. Cocody, quartier des Deux-Plateaux" /></Field>
+      <Field label="Complément (facultatif)"><input style={inp} value={f.adresse_complement ?? ""} onChange={(e) => set("adresse_complement", e.target.value)} placeholder="Précision libre, si vous le souhaitez" /></Field>
 
       <p style={{ fontFamily: T.fm, fontSize: 9, letterSpacing: 0.8, color: T.b600, margin: "18px 2px 2px" }}>VIE PERSONNELLE (facultatif)</p>
       <Field label="Situation matrimoniale">

@@ -25,6 +25,30 @@ function pretty(v: string | null | undefined): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+
+/** Birth date honouring the year-visibility choice: full date if allowed,
+ * otherwise only the day and month (the birthday). */
+function naissance(date: string | null | undefined, anneeVisible: boolean): string {
+  if (!date) return "-";
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return "-";
+  const jour = d.getUTCDate();
+  const mois = MOIS[d.getUTCMonth()] ?? "";
+  return anneeVisible ? `${jour} ${mois} ${d.getUTCFullYear()}` : `${jour} ${mois}`;
+}
+
+function telephone(indicatif: string | null | undefined, numero: string | null | undefined): string {
+  const n = numero?.trim();
+  if (!n) return "-";
+  return indicatif ? `${indicatif} ${n}` : n;
+}
+
+function fullName(prenoms: string | null | undefined, nom: string | null | undefined): string {
+  const s = `${prenoms ?? ""} ${nom ?? ""}`.trim();
+  return s || "-";
+}
+
 function Group({ title, children }: { title: string; children: React.ReactNode }): JSX.Element {
   return (
     <>
@@ -61,8 +85,25 @@ export function Infos({
     : "-";
   const marriage = profile?.type_mariage ? ` (${pretty(profile.type_mariage)})` : "";
 
+  const adresse = [profile?.adresse, profile?.adresse_complement].filter(Boolean).join(", ");
+  const localisation = [profile?.ville, profile?.region, profile?.pays].filter(Boolean).join(", ");
+
   return (
     <div className="scr" style={{ padding: "6px 18px 24px" }}>
+      <Group title="Identité">
+        <Row label="Nom complet" value={fullName(profile?.prenoms, profile?.nom)} />
+        <Row label="Genre" value={pretty(profile?.genre)} />
+        <Row label={profile?.naissance_annee_visible ? "Date de naissance" : "Anniversaire"} value={naissance(profile?.date_naissance, !!profile?.naissance_annee_visible)} />
+        <Row label="Matricule" value={profile?.matricule ?? "-"} last />
+      </Group>
+
+      <Group title="Coordonnées">
+        <Row label="Téléphone" value={telephone(profile?.indicatif_telephone, profile?.telephone)} />
+        <Row label="Courriel" value={profile?.email ?? "-"} />
+        <Row label="Localisation" value={localisation || "-"} />
+        <Row label="Adresse" value={adresse || "-"} last />
+      </Group>
+
       <Group title="Identité ecclésiale">
         <Row label="Tribu" value={profile?.tribu ?? "-"} />
         <Row label="Patriarche" value={profile?.patriarche ?? "-"} />
@@ -81,13 +122,7 @@ export function Infos({
       <Group title="Vie personnelle">
         <Row label="Situation" value={matrimonial + marriage} />
         <Row label="Profession" value={profile?.profession ?? "-"} />
-        <Row label="Niveau d'études" value={profile?.niveau_etudes ?? "-"} />
-        <Row label="Ville" value={profile?.ville ?? "-"} last />
-      </Group>
-
-      <Group title="Contact">
-        <Row label="Courriel" value={profile?.email ?? "-"} />
-        <Row label="Téléphone" value={profile?.telephone ?? "-"} last />
+        <Row label="Niveau d'études" value={profile?.niveau_etudes ?? "-"} last />
       </Group>
 
       {unlocked && token && profile && (

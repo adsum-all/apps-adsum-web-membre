@@ -19,14 +19,19 @@ export interface MembreProfile {
   nom: string | null;
   prenoms: string | null;
   telephone: string | null;
+  indicatif_telephone: string | null;
   groupe: string | null;
   photo_url: string | null;
   statut: string;
   verifie: boolean;
   genre: string | null;
   date_naissance: string | null;
+  naissance_annee_visible: boolean;
   pays: string | null;
+  region: string | null;
   ville: string | null;
+  adresse: string | null;
+  adresse_complement: string | null;
   date_entree: string | null;
   cheminement_pastoral: string | null;
   statut_administratif: string | null;
@@ -66,6 +71,10 @@ export interface NotifPreferences {
   demandes: boolean;
   rappels: boolean;
   email: boolean;
+  telegram: boolean;
+  whatsapp: boolean;
+  sms: boolean;
+  anniversaire: boolean;
 }
 
 export interface QuestionItem {
@@ -211,6 +220,18 @@ export function getNotifPreferences(token: string): Promise<NotifPreferences> {
 
 export function exportDonneesRGPD(token: string): Promise<Record<string, unknown>> {
   return authedGet<Record<string, unknown>>("/api/v1/membres/me/export", token, "Export impossible");
+}
+
+export function telegramLien(token: string): Promise<{ deep_link: string; token: string }> {
+  return authedPost("/api/v1/membres/me/telegram/lien", token, {}, "Lien indisponible");
+}
+
+export function telegramVerifier(token: string): Promise<{ linked: boolean; message?: string }> {
+  return authedPost("/api/v1/membres/me/telegram/verifier", token, {}, "Vérification impossible");
+}
+
+export function enregistrerWhatsapp(token: string, numero: string): Promise<{ ok: boolean }> {
+  return authedPut("/api/v1/membres/me/whatsapp", token, { numero }, "Enregistrement impossible");
 }
 
 export function demanderSuppression(token: string): Promise<{ ok: boolean; demande_id?: string; deja_demandee?: boolean }> {
@@ -377,10 +398,15 @@ export interface ProfilFields {
   prenoms?: string;
   nom?: string;
   telephone?: string;
+  indicatif_telephone?: string;
   date_naissance?: string;
+  naissance_annee_visible?: boolean;
   genre?: string;
   pays?: string;
+  region?: string;
   ville?: string;
+  adresse?: string;
+  adresse_complement?: string;
   commission_id?: string;
   intendance_id?: string;
   tribu_id?: string;
