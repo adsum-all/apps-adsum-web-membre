@@ -1,7 +1,25 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { type MembreProfile, changePassword } from "../api.js";
+import { type MembreProfile, type NotifPreferences, changePassword, getNotifPreferences, setNotifPreferences } from "../api.js";
 import { T } from "../proto.js";
+
+function Toggle({ label, hint, on, onChange }: { label: string; hint?: string; on: boolean; onChange: (v: boolean) => void }): JSX.Element {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: `1px solid ${T.line}` }}>
+      <div>
+        <div style={{ fontSize: 12.5, fontWeight: 600 }}>{label}</div>
+        {hint && <div style={{ fontSize: 10, color: T.mut }}>{hint}</div>}
+      </div>
+      <div
+        onClick={() => onChange(!on)}
+        className="tap"
+        style={{ width: 44, height: 26, borderRadius: 999, background: on ? T.b600 : T.line, position: "relative", transition: "background .15s" }}
+      >
+        <div style={{ position: "absolute", top: 3, left: on ? 21 : 3, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left .15s", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
+      </div>
+    </div>
+  );
+}
 
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }): JSX.Element {
   return (
@@ -48,6 +66,18 @@ export function Settings({
   const [confirme, setConfirme] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [prefs, setPrefs] = useState<NotifPreferences | null>(null);
+
+  useEffect(() => {
+    void getNotifPreferences(token).then(setPrefs).catch(() => undefined);
+  }, [token]);
+
+  function togglePref(key: keyof NotifPreferences, value: boolean): void {
+    if (!prefs) return;
+    const next = { ...prefs, [key]: value };
+    setPrefs(next);
+    void setNotifPreferences(token, next).catch(() => undefined);
+  }
 
   const strong = nouveau.length >= 8 && /[A-Z]/.test(nouveau) && /[0-9]/.test(nouveau);
 
@@ -107,7 +137,18 @@ export function Settings({
 
       <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "16px 0 4px" }}>PRÉFÉRENCES</p>
       <Row label="Langue" value="Français" />
-      <Row label="Notifications" hint="Documents, rappels, recensement" value="Activées" />
+
+      <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "16px 0 4px" }}>NOTIFICATIONS</p>
+      {prefs ? (
+        <>
+          <Toggle label="Événements et formations" hint="Sessions, calendrier" on={prefs.evenements} onChange={(v) => togglePref("evenements", v)} />
+          <Toggle label="Suivi de mes demandes" hint="Réponses de l'administration" on={prefs.demandes} onChange={(v) => togglePref("demandes", v)} />
+          <Toggle label="Rappels" hint="Recensement, échéances" on={prefs.rappels} onChange={(v) => togglePref("rappels", v)} />
+          <Toggle label="Recevoir aussi par e-mail" hint="En plus des notifications dans l'app" on={prefs.email} onChange={(v) => togglePref("email", v)} />
+        </>
+      ) : (
+        <Row label="Notifications" hint="Chargement..." />
+      )}
 
       <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "16px 0 4px" }}>DONNÉES (RGPD)</p>
       <Row label="Exporter mes données" hint="Téléchargement immédiat (JSON)" onClick={exportData} />

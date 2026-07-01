@@ -1,6 +1,7 @@
 import { type EvenementOut, getEvenements } from "../api.js";
 import { formatDateTime } from "../format.js";
 import { useResource } from "../useResource.js";
+import { Questionnaire } from "./Questionnaire.js";
 
 // Upcoming and ongoing events for the member, fetched live from the API.
 export function Activites({
@@ -34,15 +35,27 @@ export function Activites({
               </span>
             </div>
           </div>
-          {e.session_ouverte && onJoin && (
-            <button type="button" className="btn btn-primary btn-block" onClick={() => onJoin(e)}>
+          {e.session_ouverte && (
+            <button
+              type="button"
+              className="btn btn-primary btn-block"
+              onClick={() => {
+                if (e.lien_session) window.open(e.lien_session, "_blank", "noopener");
+                onJoin?.(e);
+              }}
+            >
               ▶ Rejoindre la session
             </button>
           )}
+          {isEnded(e) && <Questionnaire token={token} eventId={e.id} />}
         </li>
       ))}
     </ul>
   );
+}
+
+function isEnded(e: EvenementOut): boolean {
+  return e.fin != null && new Date(e.fin).getTime() < Date.now();
 }
 
 function Centered({ text }: { text: string }): JSX.Element {

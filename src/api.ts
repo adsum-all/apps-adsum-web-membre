@@ -58,6 +58,29 @@ export interface EvenementOut {
   fin: string | null;
   lieu: string | null;
   session_ouverte: boolean;
+  lien_session: string | null;
+}
+
+export interface NotifPreferences {
+  evenements: boolean;
+  demandes: boolean;
+  rappels: boolean;
+  email: boolean;
+}
+
+export interface QuestionItem {
+  id: string;
+  libelle: string;
+  type: string;
+  options: string[];
+}
+
+export interface QuestionnaireMembre {
+  disponible: boolean;
+  deja_repondu?: boolean;
+  fenetre_heures?: number;
+  titre?: string;
+  questions: QuestionItem[];
 }
 
 export interface PresenceOut {
@@ -180,6 +203,31 @@ export function getMembreProfile(token: string): Promise<MembreProfile> {
 
 export function getEvenements(token: string): Promise<EvenementOut[]> {
   return authedGet<EvenementOut[]>("/api/v1/membres/me/evenements", token, "Activites indisponibles");
+}
+
+export function getNotifPreferences(token: string): Promise<NotifPreferences> {
+  return authedGet<NotifPreferences>("/api/v1/membres/me/preferences-notification", token, "Preferences indisponibles");
+}
+
+export function setNotifPreferences(token: string, prefs: NotifPreferences): Promise<NotifPreferences> {
+  return authedPut<NotifPreferences>("/api/v1/membres/me/preferences-notification", token, prefs, "Mise a jour impossible");
+}
+
+export function getEventQuestionnaire(token: string, eventId: string): Promise<QuestionnaireMembre> {
+  return authedGet<QuestionnaireMembre>(
+    `/api/v1/membres/me/evenements/${eventId}/questionnaire`,
+    token,
+    "Questionnaire indisponible",
+  );
+}
+
+export function submitQuestionnaire(token: string, eventId: string, reponses: Record<string, string>): Promise<{ ok: boolean }> {
+  return authedPost<{ ok: boolean }>(
+    `/api/v1/membres/me/evenements/${eventId}/questionnaire`,
+    token,
+    { reponses },
+    "Envoi impossible",
+  );
 }
 
 export function getHistorique(token: string): Promise<PresenceOut[]> {
@@ -341,6 +389,18 @@ export interface ProfilFields {
 async function authedPatch<T>(path: string, token: string, body: unknown, onError: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method: "PATCH",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new ApiError(res.status === 401 ? "Session expiree" : onError, res.status);
+  }
+  return (res.status === 204 ? undefined : await res.json()) as T;
+}
+
+async function authedPut<T>(path: string, token: string, body: unknown, onError: string): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "PUT",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
