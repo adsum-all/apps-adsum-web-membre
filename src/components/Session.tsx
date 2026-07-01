@@ -4,25 +4,30 @@ import { useT } from "../i18n.js";
 import { T } from "../proto.js";
 import { Participation } from "./Participation.js";
 
-function OpenSource({ view }: { view: ReturnType<typeof toEmbed> }): JSX.Element {
+function PlatformButton({ url, platform, primary }: { url: string; platform: PlatformInfo; primary?: boolean }): JSX.Element {
   const t = useT();
   return (
     <button
       type="button"
-      onClick={() => window.open(view.original, "_blank", "noopener")}
+      onClick={() => window.open(url, "_blank", "noopener")}
       className="tap"
-      style={{ marginTop: 8, width: "100%", background: "none", border: `1px solid ${T.line}`, borderRadius: 10, padding: "9px 12px", color: T.mut, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+      style={{
+        marginTop: 8, width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+        background: primary ? platform.color : "none", color: primary ? "#fff" : T.mut,
+        border: primary ? "none" : `1px solid ${T.line}`, borderRadius: 11,
+        padding: primary ? "13px 12px" : "9px 12px", fontSize: primary ? 13.5 : 12, fontWeight: 600, cursor: "pointer",
+      }}
     >
-      {t("session.openSource").replace("{source}", view.provider)}
+      {primary ? "▶ " : ""}{t("session.openSource").replace("{source}", platform.label)}
     </button>
   );
 }
 
 function Diffusion({ evenement }: { evenement: EvenementOut }): JSX.Element {
   const t = useT();
-  const lien = evenement.lien_session;
+  const liens = evenement.liens.length ? evenement.liens : evenement.lien_session ? [evenement.lien_session] : [];
 
-  if (!lien) {
+  if (liens.length === 0) {
     return (
       <div style={{ background: "#0d1220", borderRadius: 14, height: 120, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, color: "#7c8598" }}>
         <span style={{ fontSize: 26 }} aria-hidden="true">◷</span>
@@ -31,56 +36,40 @@ function Diffusion({ evenement }: { evenement: EvenementOut }): JSX.Element {
     );
   }
 
-  const view = toEmbed(lien);
-  // Watch inside the app by default whenever the source allows it, unless an
-  // admin forced the external mode. A secondary link always lets the member
-  // open the broadcast on its source (YouTube, Zoom, Telegram, ...).
   const forceExternal = evenement.type_diffusion === "externe";
+  const views = liens.map((url) => ({ url, embed: toEmbed(url), platform: detectPlatform(url) }));
+  const first = views[0]!;
+  // Preferred action = watch inside the app when a source allows it; every other
+  // link becomes a secondary platform button. Multiple simultaneous broadcasts
+  // are all offered, each opening its own platform.
+  const primaryEmbed = forceExternal ? undefined : views.find((v) => v.embed.kind === "iframe" || v.embed.kind === "video");
+  const secondaries = primaryEmbed ? views.filter((v) => v !== primaryEmbed) : views.slice(1);
 
-  if (!forceExternal && view.kind === "iframe") {
-    return (
-      <div>
-        <div style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", borderRadius: 14, overflow: "hidden", background: "#000" }}>
-          <iframe
-            src={view.src}
-            title={evenement.titre}
-            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-            allowFullScreen
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
-          />
-        </div>
-        <OpenSource view={view} />
-      </div>
-    );
-  }
-
-  if (!forceExternal && view.kind === "video") {
-    return (
-      <div>
-        <video
-          src={view.src}
-          controls
-          autoPlay
-          playsInline
-          style={{ width: "100%", aspectRatio: "16 / 9", borderRadius: 14, background: "#000" }}
-        />
-        <OpenSource view={view} />
-      </div>
-    );
-  }
-
-  // Non-embeddable source (Zoom, Telegram, ...) or admin-forced external.
   return (
     <div>
-      <div
-        onClick={() => window.open(view.original, "_blank", "noopener")}
-        className="tap"
-        style={{ background: T.b900, borderRadius: 14, padding: "22px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, color: "#fff", cursor: "pointer" }}
-      >
-        <span style={{ fontSize: 30 }} aria-hidden="true">▶</span>
-        <span style={{ fontSize: 13.5, fontWeight: 600 }}>{t("session.watchHere")}</span>
-      </div>
-      <p style={{ fontSize: 10.5, color: T.faint, margin: "6px 2px 0", textAlign: "center" }}>{t("session.externalNote")}</p>
+      {primaryEmbed ? (
+        primaryEmbed.embed.kind === "iframe" ? (
+          <div style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", borderRadius: 14, overflow: "hidden", background: "#000" }}>
+            <iframe
+              src={primaryEmbed.embed.src}
+              title={evenement.titre}
+              allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+              allowFullScreen
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
+            />
+          </div>
+        ) : (
+          <video src={primaryEmbed.embed.src} controls autoPlay playsInline style={{ width: "100%", aspectRatio: "16 / 9", borderRadius: 14, background: "#000" }} />
+        )
+      ) : (
+        <PlatformButton url={first.url} platform={first.platform} primary />
+      )}
+
+      {secondaries.map((v) => (
+        <PlatformButton key={v.url} url={v.url} platform={v.platform} />
+      ))}
+
+      {!primaryEmbed && <p style={{ fontSize: 10.5, color: T.faint, margin: "6px 2px 0", textAlign: "center" }}>{t("session.externalNote")}</p>}
     </div>
   );
 }

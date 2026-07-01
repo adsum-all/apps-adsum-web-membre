@@ -70,6 +70,7 @@ export interface EvenementOut {
   lieu: string | null;
   session_ouverte: boolean;
   lien_session: string | null;
+  liens: string[];
   mode?: string | null;
   type_diffusion: "embed" | "externe" | "aucun";
   visibilite: "public" | "membres" | "prive";
