@@ -40,10 +40,7 @@ export function Activites({
             <button
               type="button"
               className="btn btn-primary btn-block"
-              onClick={() => {
-                if (e.lien_session) window.open(e.lien_session, "_blank", "noopener");
-                onJoin?.(e);
-              }}
+              onClick={() => onJoin?.(e)}
             >
               ▶ Rejoindre la session
             </button>
