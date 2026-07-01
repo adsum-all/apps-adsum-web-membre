@@ -474,29 +474,38 @@ body {
   right: 0;
   bottom: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* Distribute every tab equally on a single row, whatever the number of tabs. */
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   background: rgba(255, 255, 255, 0.92);
   border-top: 1px solid var(--adsum-line);
   backdrop-filter: blur(10px);
+  /* Respect the iPhone home indicator / notch safe area. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 .tab {
   background: none;
   border: none;
   color: var(--adsum-mut);
-  padding: 10px 4px 16px;
+  padding: 10px 2px 14px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 3px;
   cursor: pointer;
   font-family: inherit;
+  min-width: 0;
 }
 .tab-glyph {
   font-size: 20px;
 }
 .tab-label {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 500;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .tab-active {
   color: var(--adsum-acc);

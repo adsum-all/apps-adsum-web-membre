@@ -130,7 +130,7 @@ export function Calendrier({
   const todayKey = dayKey(now);
 
   return (
-    <div className="scr" style={{ padding: "6px 16px 18px", overflowY: "auto" }}>
+    <div style={{ paddingBottom: 4 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
         <button type="button" aria-label={t("calendar.prev")} onClick={() => shift(-1)} style={navBtn}>‹</button>
         <div style={{ fontFamily: T.fd, fontWeight: 700, fontSize: 16, textTransform: "capitalize" }}>

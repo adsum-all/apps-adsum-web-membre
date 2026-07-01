@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import { type ParticipationMembre, declarerParticipation, getParticipation } from "../api.js";
 import { useT } from "../i18n.js";
@@ -11,9 +11,10 @@ const OPTIONS: { value: "present" | "partiel" | "absent"; labelKey: string; hint
 ];
 
 /**
- * Participation for one activity. A scanned member is already counted present and
- * can only leave feedback; an online member declares present/partial/absent and
- * validates (editable until then).
+ * Participation for one activity. It can be confirmed only once: after
+ * validation the whole form locks (read-only), so a member can never come back
+ * to change their status, rating or opinion. A scanned member is already present
+ * and only confirms their feedback.
  */
 export function Participation({ token, eventId }: { token: string; eventId: string }): JSX.Element | null {
   const [data, setData] = useState<ParticipationMembre | null>(null);
@@ -37,54 +38,71 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
 
   if (!data) return null;
 
-  // Before the activity starts, the form is not available: a member can never
-  // declare participation to an event that has not happened yet.
-  if (!data.ouvert && !data.deja_scanne && !data.verrouille) {
+  const locked = data.verrouille;
+  const scanned = data.deja_scanne;
+
+  // Before the activity starts (and if nothing recorded yet), the form is hidden.
+  if (!data.ouvert && !scanned && !locked) {
     const quand = data.disponible_le
       ? new Date(data.disponible_le).toLocaleString("fr-FR", { day: "2-digit", month: "long", hour: "2-digit", minute: "2-digit" })
       : null;
     return (
-      <div style={{ background: T.surf, border: `1px solid ${T.line}`, borderRadius: 12, padding: 12, marginTop: 6 }}>
-        <p style={{ fontSize: 12.5, fontWeight: 700, color: T.ink, margin: "0 0 4px", fontFamily: T.fd }}>{t("part.title")}</p>
+      <Card>
+        <Title text={t("part.title")} />
         <p style={{ fontSize: 11.5, color: T.mut, margin: 0, lineHeight: 1.5 }}>
           {t("part.notStarted")}{quand ? ` (${quand})` : ""}.
         </p>
-      </div>
+      </Card>
     );
   }
 
-  async function envoyer(valider: boolean): Promise<void> {
+  // Finalized: read-only summary, no inputs, no buttons.
+  if (locked) {
+    const statutLabel = data.statut ? t(`part.${data.statut}`) : "-";
+    return (
+      <Card>
+        <Title text={t("part.recorded")} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, background: T.okbg, borderRadius: 10, padding: "10px 12px", marginBottom: 8 }}>
+          <span style={{ color: T.ok, fontWeight: 700 }}>✓</span>
+          <span style={{ fontSize: 12.5, color: T.ink }}>
+            {t("part.yourStatus")} : <b>{statutLabel}</b>{data.note ? ` · ${data.note}/5` : ""}
+          </span>
+        </div>
+        {data.avis && <p style={{ fontSize: 12, color: T.mut, margin: "0 0 6px", fontStyle: "italic" }}>&laquo; {data.avis} &raquo;</p>}
+        <p style={{ fontSize: 11, color: T.faint, margin: 0 }}>{t("part.immutable")}</p>
+      </Card>
+    );
+  }
+
+  async function valider(): Promise<void> {
     setBusy(true);
     setMsg(null);
     try {
-      const body: { statut?: string; avis?: string; note?: number; valider?: boolean } = { valider };
+      const body: { statut?: string; avis?: string; note?: number; valider: boolean } = { valider: true };
       if (choix) body.statut = choix;
       if (avis.trim()) body.avis = avis.trim();
       if (note) body.note = note;
-      const r = await declarerParticipation(token, eventId, body);
+      await declarerParticipation(token, eventId, body);
       const fresh = await getParticipation(token, eventId);
       setData(fresh);
-      setMsg(valider ? (r.message ?? t("part.validate")) : t("part.record"));
+    } catch {
+      setMsg(null);
     } finally {
       setBusy(false);
     }
   }
 
-  const locked = data.verrouille;
-  const scanned = data.deja_scanne;
+  const showFeedback = scanned || choix === "present" || choix === "partiel";
+  const canConfirm = scanned || choix != null;
 
   return (
-    <div style={{ background: T.surf, border: `1px solid ${T.line}`, borderRadius: 12, padding: 12, marginTop: 6 }}>
-      <p style={{ fontSize: 12.5, fontWeight: 700, color: T.ink, margin: "0 0 8px", fontFamily: T.fd }}>{t("part.title")}</p>
+    <Card>
+      <Title text={t("part.title")} />
 
       {scanned ? (
         <div style={{ display: "flex", alignItems: "center", gap: 8, background: T.okbg, borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
           <span style={{ color: T.ok, fontWeight: 700 }}>✓</span>
           <span style={{ fontSize: 12.5, color: T.ink }}>{t("part.scanned")}</span>
-        </div>
-      ) : locked ? (
-        <div style={{ background: T.okbg, borderRadius: 10, padding: "10px 12px", marginBottom: 10, fontSize: 12.5, color: T.ink }}>
-          {t("part.lockedPrefix")} <b>{t(`part.${data.statut}`)}</b>{t("part.lockedSuffix")}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
@@ -114,8 +132,7 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
         </div>
       )}
 
-      {/* Feedback: available to everyone with a participation context (scanned or declared present/partial). */}
-      {(scanned || choix === "present" || choix === "partiel" || (locked && data.statut !== "absent")) && (
+      {showFeedback && (
         <div style={{ marginTop: 4 }}>
           <div style={{ fontSize: 11, color: T.mut, marginBottom: 4 }}>{t("part.yourRating")}</div>
           <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
@@ -140,18 +157,26 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
         </div>
       )}
 
-      {msg && <p style={{ fontSize: 11.5, color: T.ok, margin: "8px 0 0" }}>{msg}</p>}
+      {msg && <p style={{ fontSize: 11.5, color: T.dng, margin: "8px 0 0" }}>{msg}</p>}
+      <p style={{ fontSize: 10.5, color: T.faint, margin: "8px 0 6px" }}>{t("part.confirmOnce")}</p>
 
-      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-        {!locked && (
-          <button type="button" disabled={busy || !choix} onClick={() => void envoyer(false)} className="tap" style={{ flex: 1, height: 42, borderRadius: 11, border: `1px solid ${T.b600}`, background: "#fff", color: T.b600, fontWeight: 600, fontSize: 13, opacity: busy || !choix ? 0.6 : 1 }}>
-            {t("part.record")}
-          </button>
-        )}
-        <button type="button" disabled={busy || (!locked && !choix)} onClick={() => void envoyer(!locked)} className="tap" style={{ flex: 1, height: 42, borderRadius: 11, border: "none", background: `linear-gradient(180deg,${T.b500},${T.b600})`, color: "#fff", fontWeight: 600, fontSize: 13, opacity: busy ? 0.6 : 1 }}>
-          {locked ? t("part.saveOpinion") : t("part.validate")}
-        </button>
-      </div>
-    </div>
+      <button
+        type="button"
+        disabled={busy || !canConfirm}
+        onClick={() => void valider()}
+        className="tap"
+        style={{ width: "100%", height: 44, borderRadius: 11, border: "none", background: `linear-gradient(180deg,${T.b500},${T.b600})`, color: "#fff", fontWeight: 600, fontSize: 13.5, opacity: busy || !canConfirm ? 0.6 : 1 }}
+      >
+        {busy ? t("part.sending") : scanned ? t("part.validateOpinion") : t("part.validate")}
+      </button>
+    </Card>
   );
+}
+
+function Card({ children }: { children: ReactNode }): JSX.Element {
+  return <div style={{ background: T.surf, border: `1px solid ${T.line}`, borderRadius: 12, padding: 12, marginTop: 6 }}>{children}</div>;
+}
+
+function Title({ text }: { text: string }): JSX.Element {
+  return <p style={{ fontSize: 12.5, fontWeight: 700, color: T.ink, margin: "0 0 8px", fontFamily: T.fd }}>{text}</p>;
 }
