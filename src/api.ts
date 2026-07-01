@@ -227,7 +227,7 @@ export function setLangue(token: string, langue: "fr" | "en"): Promise<{ ok: boo
   return authedPut("/api/v1/membres/me/langue", token, { langue }, "Changement de langue impossible");
 }
 
-export function telegramLien(token: string): Promise<{ deep_link: string; token: string }> {
+export function telegramLien(token: string): Promise<{ deep_link: string }> {
   return authedPost("/api/v1/membres/me/telegram/lien", token, {}, "Lien indisponible");
 }
 
