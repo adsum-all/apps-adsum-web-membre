@@ -1,6 +1,8 @@
 // Thin client for the ADSUM API. The base URL is configurable so the app can
 // point at the deployed API (https://adsum-api.vercel.app) or a local one.
 
+import { computePhash } from "./phash.js";
+
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "https://adsum-api.vercel.app";
 
 export interface Me {
@@ -389,7 +391,15 @@ export async function uploadPhoto(token: string, file: File): Promise<void> {
     "Upload indisponible",
   );
   await uploadViaSignedUrl(signed.upload_url, file);
-  await authedPost<void>("/api/v1/membres/me/photo/confirm", token, { path: signed.path }, "Confirmation impossible");
+  // Compute the perceptual hash locally for duplicate detection (no PII leaves
+  // the device beyond the photo already uploaded). A failure must not block.
+  const phash = await computePhash(file).catch(() => null);
+  await authedPost<void>(
+    "/api/v1/membres/me/photo/confirm",
+    token,
+    { path: signed.path, phash },
+    "Confirmation impossible",
+  );
 }
 
 export async function uploadDocument(token: string, type: string, file: File): Promise<string> {
