@@ -12,13 +12,11 @@ type Cat = "enCours" | "aVenir" | "passees";
 
 const PAGE = 5; // events shown per section before "show more"
 
-function categorize(e: EvenementOut, now: number): Cat {
-  const debut = new Date(e.debut).getTime();
-  const fin = e.fin ? new Date(e.fin).getTime() : null;
-  if (e.session_ouverte) return "enCours";
-  if (now < debut) return "aVenir";
-  if (fin != null && now > fin) return "passees";
-  return "enCours"; // started, not closed
+// Grouping follows the server-computed lifecycle phase, never a manual flag.
+function categorize(e: EvenementOut): Cat {
+  if (e.phase === "en_cours") return "enCours";
+  if (e.phase === "termine") return "passees";
+  return "aVenir"; // a_venir or bientot
 }
 
 // Upcoming, ongoing and past events for the member, grouped and paginated so the
@@ -34,9 +32,8 @@ export function Activites({
   const { data, loading, error } = useResource(() => getEvenements(token), [token]);
 
   const groups = useMemo(() => {
-    const now = Date.now();
     const g: Record<Cat, EvenementOut[]> = { enCours: [], aVenir: [], passees: [] };
-    for (const e of data ?? []) g[categorize(e, now)].push(e);
+    for (const e of data ?? []) g[categorize(e)].push(e);
     g.enCours.sort((a, b) => +new Date(a.debut) - +new Date(b.debut));
     g.aVenir.sort((a, b) => +new Date(a.debut) - +new Date(b.debut));
     g.passees.sort((a, b) => +new Date(b.debut) - +new Date(a.debut));
@@ -92,18 +89,19 @@ function Section({
               </div>
               <div className="list-meta">
                 {e.lieu && <span className="list-place">{e.lieu}</span>}
-                <span className={`badge ${e.session_ouverte ? "badge-ok" : "badge-mut"}`}>
-                  {e.session_ouverte ? t("part.sessionOpen") : `Volet ${e.volet}`}
-                </span>
+                <PhaseBadge phase={e.phase} volet={e.volet} />
               </div>
             </div>
-            {e.session_ouverte && (
+            {/* The join button appears only when the session is truly joinable
+                (in the time window and a link is available), never just because
+                a link was stored or a flag was toggled. */}
+            {e.joignable && (
               <button type="button" className="btn btn-primary btn-block" onClick={() => onJoin?.(e)}>
                 {t("part.joinSession")}
               </button>
             )}
-            <Participation token={token} eventId={e.id} />
-            {isEnded(e) && <Questionnaire token={token} eventId={e.id} />}
+            {e.formulaire_ouvert && <Participation token={token} eventId={e.id} />}
+            {e.formulaire_ouvert && <Questionnaire token={token} eventId={e.id} />}
           </li>
         ))}
       </ul>
@@ -120,8 +118,12 @@ function Section({
   );
 }
 
-function isEnded(e: EvenementOut): boolean {
-  return e.fin != null && new Date(e.fin).getTime() < Date.now();
+function PhaseBadge({ phase, volet }: { phase: EvenementOut["phase"]; volet: string }): JSX.Element {
+  const t = useT();
+  if (phase === "en_cours") return <span className="badge badge-ok">{t("act.phaseEnCours")}</span>;
+  if (phase === "bientot") return <span className="badge" style={{ background: "#f6efdc", color: "#8a6d1f" }}>{t("act.phaseBientot")}</span>;
+  if (phase === "termine") return <span className="badge badge-mut">{t("act.phaseTermine")}</span>;
+  return <span className="badge badge-mut">{t("act.phaseAVenir")} · {volet}</span>;
 }
 
 function Centered({ text }: { text: string }): JSX.Element {

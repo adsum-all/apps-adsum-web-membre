@@ -41,6 +41,10 @@ const DICT: Record<string, { fr: string; en: string }> = {
   "session.watchHere": { fr: "Regarder maintenant", en: "Watch now" },
   "session.openSource": { fr: "Ouvrir sur {source}", en: "Open on {source}" },
   "session.externalNote": { fr: "Cette source ne permet pas la lecture intégrée : elle s'ouvre dans une nouvelle fenêtre.", en: "This source does not allow embedded playback: it opens in a new window." },
+  "session.soon": { fr: "Bientôt en direct", en: "Starting soon" },
+  "session.back": { fr: "Retour aux activités", en: "Back to activities" },
+  "session.onPlatformHere": { fr: "Diffusion visible directement ici", en: "Broadcast plays here" },
+  "session.onPlatformExt": { fr: "Ouvre la plateforme pour suivre", en: "Opens the platform to watch" },
 
   "settings.calendar": { fr: "CALENDRIER & ANNIVERSAIRES", en: "CALENDAR & BIRTHDAYS" },
   "settings.calVip": { fr: "Anniversaires VIP", en: "VIP birthdays" },
@@ -93,6 +97,10 @@ const DICT: Record<string, { fr: string; en: string }> = {
   "act.passees": { fr: "Activités passées", en: "Past activities" },
   "act.voirPlus": { fr: "Voir plus", en: "Show more" },
   "act.voirMoins": { fr: "Voir moins", en: "Show less" },
+  "act.phaseEnCours": { fr: "En direct", en: "Live" },
+  "act.phaseBientot": { fr: "Bientôt", en: "Soon" },
+  "act.phaseAVenir": { fr: "À venir", en: "Upcoming" },
+  "act.phaseTermine": { fr: "Terminée", en: "Ended" },
 
   "part.title": { fr: "Ma participation", en: "My participation" },
   "part.present": { fr: "Présent", en: "Present" },

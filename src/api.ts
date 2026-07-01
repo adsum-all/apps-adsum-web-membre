@@ -73,6 +73,9 @@ export interface EvenementOut {
   mode?: string | null;
   type_diffusion: "embed" | "externe" | "aucun";
   visibilite: "public" | "membres" | "prive";
+  phase: "a_venir" | "bientot" | "en_cours" | "termine";
+  joignable: boolean;
+  formulaire_ouvert: boolean;
 }
 
 export interface FonctionItem {

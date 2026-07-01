@@ -41,19 +41,10 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
   const locked = data.verrouille;
   const scanned = data.deja_scanne;
 
-  // Before the activity starts (and if nothing recorded yet), the form is hidden.
+  // Before the activity starts (and if nothing recorded yet), the form is fully
+  // hidden: no premature participation, no dead card on upcoming events.
   if (!data.ouvert && !scanned && !locked) {
-    const quand = data.disponible_le
-      ? new Date(data.disponible_le).toLocaleString("fr-FR", { day: "2-digit", month: "long", hour: "2-digit", minute: "2-digit" })
-      : null;
-    return (
-      <Card>
-        <Title text={t("part.title")} />
-        <p style={{ fontSize: 11.5, color: T.mut, margin: 0, lineHeight: 1.5 }}>
-          {t("part.notStarted")}{quand ? ` (${quand})` : ""}.
-        </p>
-      </Card>
-    );
+    return null;
   }
 
   // Finalized: read-only summary, no inputs, no buttons.
