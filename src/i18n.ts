@@ -35,6 +35,15 @@ const DICT: Record<string, { fr: string; en: string }> = {
   "profil.fonctionAttente": { fr: "En attente de validation", en: "Awaiting validation" },
   "profil.fonctionAucune": { fr: "Aucune", en: "None" },
 
+  "correction.banner": { fr: "Correction demandée : {motif}", en: "Correction requested: {motif}" },
+  "correction.bannerNoMotif": { fr: "L'administration vous demande de corriger votre dossier.", en: "The administration asks you to correct your registration." },
+  "correction.fieldsIntro": { fr: "Champs à corriger", en: "Fields to fix" },
+  "correction.fieldTag": { fr: "À corriger", en: "To fix" },
+  "correction.resubmit": { fr: "Renvoyer mon dossier corrigé", en: "Resubmit my corrected registration" },
+  "doc.alreadyProvided": { fr: "Document déjà fourni", en: "Document already provided" },
+  "doc.replace": { fr: "Remplacer", en: "Replace" },
+  "doc.keepExisting": { fr: "Conservé, aucun nouvel envoi requis", en: "Kept, no new upload required" },
+
   "session.notStarted": { fr: "La diffusion n'a pas encore démarré", en: "The broadcast has not started yet" },
   "session.open": { fr: "Ouvrir la diffusion", en: "Open the broadcast" },
   "session.live": { fr: "En direct", en: "Live" },

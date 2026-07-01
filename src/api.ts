@@ -57,6 +57,8 @@ export interface MembreProfile {
   fonction_cle?: string | null;
   fonction_confirmee: boolean;
   commission_id?: string | null;
+  intendance_id?: string | null;
+  tribu_id?: string | null;
   anniversaire_visible_annuaire: boolean;
 }
 
@@ -546,6 +548,7 @@ export function updateProfil(
 export interface InscriptionStatut {
   statut: string;
   motif_refus: string | null;
+  champs_a_corriger: string[];
   soumis_le: string | null;
   decision_le: string | null;
   verifie: boolean;

@@ -80,7 +80,16 @@ export function App(): JSX.Element {
   const refreshInscription = useCallback((jwt: string) => {
     void getInscription(jwt)
       .then(setInscription)
-      .catch(() => setInscription({ statut: "approuve", motif_refus: null, soumis_le: null, decision_le: null, verifie: true }));
+      .catch(() =>
+        setInscription({
+          statut: "approuve",
+          motif_refus: null,
+          champs_a_corriger: [],
+          soumis_le: null,
+          decision_le: null,
+          verifie: true,
+        }),
+      );
   }, []);
 
   const enter = useCallback(
@@ -174,7 +183,9 @@ export function App(): JSX.Element {
           <CompleterProfil
             token={token}
             profile={profile}
+            statut={st}
             motif={inscription?.motif_refus}
+            champsACorriger={inscription?.champs_a_corriger ?? []}
             onSubmitted={() => refreshInscription(token)}
           />
         </main>
