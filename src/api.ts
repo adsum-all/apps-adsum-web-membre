@@ -209,6 +209,14 @@ export function getNotifPreferences(token: string): Promise<NotifPreferences> {
   return authedGet<NotifPreferences>("/api/v1/membres/me/preferences-notification", token, "Preferences indisponibles");
 }
 
+export function exportDonneesRGPD(token: string): Promise<Record<string, unknown>> {
+  return authedGet<Record<string, unknown>>("/api/v1/membres/me/export", token, "Export impossible");
+}
+
+export function demanderSuppression(token: string): Promise<{ ok: boolean; demande_id?: string; deja_demandee?: boolean }> {
+  return authedPost("/api/v1/membres/me/suppression", token, {}, "Demande impossible");
+}
+
 export function setNotifPreferences(token: string, prefs: NotifPreferences): Promise<NotifPreferences> {
   return authedPut<NotifPreferences>("/api/v1/membres/me/preferences-notification", token, prefs, "Mise a jour impossible");
 }

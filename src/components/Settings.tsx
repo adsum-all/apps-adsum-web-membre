@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
 
-import { type MembreProfile, type NotifPreferences, changePassword, getNotifPreferences, setNotifPreferences } from "../api.js";
+import {
+  type MembreProfile,
+  type NotifPreferences,
+  changePassword,
+  demanderSuppression,
+  exportDonneesRGPD,
+  getNotifPreferences,
+  setNotifPreferences,
+} from "../api.js";
 import { T } from "../proto.js";
 
 function Toggle({ label, hint, on, onChange }: { label: string; hint?: string; on: boolean; onChange: (v: boolean) => void }): JSX.Element {
@@ -102,16 +110,34 @@ export function Settings({
     }
   }
 
-  function exportData(): void {
-    if (!profile) return;
-    const blob = new Blob([JSON.stringify(profile, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `adsum-mes-donnees-${profile.matricule}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setMsg({ kind: "ok", text: "Export de vos données téléchargé." });
+  async function exportData(): Promise<void> {
+    try {
+      const data = await exportDonneesRGPD(token);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `adsum-mes-donnees-${profile?.matricule ?? "export"}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setMsg({ kind: "ok", text: "Export complet de vos données téléchargé." });
+    } catch {
+      setMsg({ kind: "err", text: "Export impossible pour le moment." });
+    }
+  }
+
+  async function requestDeletion(): Promise<void> {
+    try {
+      const r = await demanderSuppression(token);
+      setMsg({
+        kind: "ok",
+        text: r.deja_demandee
+          ? "Une demande de suppression est déjà en cours de traitement."
+          : "Demande de suppression transmise à l'administration.",
+      });
+    } catch {
+      setMsg({ kind: "err", text: "Demande impossible pour le moment." });
+    }
   }
 
   return (
@@ -151,8 +177,8 @@ export function Settings({
       )}
 
       <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "16px 0 4px" }}>DONNÉES (RGPD)</p>
-      <Row label="Exporter mes données" hint="Téléchargement immédiat (JSON)" onClick={exportData} />
-      <Row label="Demander la suppression" hint="Traitée par l'administration" onClick={() => setMsg({ kind: "ok", text: "Demande de suppression transmise à l'administration." })} />
+      <Row label="Exporter mes données" hint="Téléchargement immédiat (JSON)" onClick={() => void exportData()} />
+      <Row label="Demander la suppression" hint="Traitée par l'administration" onClick={() => void requestDeletion()} />
 
       {msg && (
         <div style={{ marginTop: 14, background: msg.kind === "ok" ? T.okbg : T.warnbg, border: `1px solid ${msg.kind === "ok" ? T.ok : T.warn}`, borderRadius: 11, padding: 11, fontSize: 11.5, color: T.ink }}>
