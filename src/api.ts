@@ -53,6 +53,11 @@ export interface MembreProfile {
   coordinateur: string | null;
   champs_deverrouilles: string[];
   langue: string;
+  titre?: string | null;
+  fonction_cle?: string | null;
+  fonction_confirmee: boolean;
+  commission_id?: string | null;
+  anniversaire_visible_annuaire: boolean;
 }
 
 export interface EvenementOut {
@@ -65,7 +70,34 @@ export interface EvenementOut {
   lieu: string | null;
   session_ouverte: boolean;
   lien_session: string | null;
+  mode?: string | null;
+  type_diffusion: "embed" | "externe" | "aucun";
+  visibilite: "public" | "membres" | "prive";
 }
+
+export interface FonctionItem {
+  cle: string;
+  libelle_h: string;
+  libelle_f: string;
+  libelle_n: string;
+  est_vip: boolean;
+  ordre: number;
+  actif: boolean;
+}
+
+export interface AnniversaireOut {
+  id: string;
+  prenoms: string;
+  nom: string;
+  photo_url: string | null;
+  jour: number;
+  mois: number;
+  commission?: string | null;
+  est_vip: boolean;
+  titre?: string | null;
+}
+
+export type AnniversaireCategorie = "vip" | "responsables" | "commission";
 
 export interface NotifPreferences {
   evenements: boolean;
@@ -76,6 +108,10 @@ export interface NotifPreferences {
   whatsapp: boolean;
   sms: boolean;
   anniversaire: boolean;
+  anniv_pairs: boolean;
+  cal_vip: boolean;
+  cal_responsables: boolean;
+  cal_commission: boolean;
 }
 
 export interface QuestionItem {
@@ -213,6 +249,27 @@ export function getMembreProfile(token: string): Promise<MembreProfile> {
 
 export function getEvenements(token: string): Promise<EvenementOut[]> {
   return authedGet<EvenementOut[]>("/api/v1/membres/me/evenements", token, "Activites indisponibles");
+}
+
+export function getFonctions(token: string): Promise<FonctionItem[]> {
+  return authedGet<FonctionItem[]>("/api/v1/fonctions", token, "Fonctions indisponibles");
+}
+
+export function getAnniversaires(
+  token: string,
+  params: { categorie: AnniversaireCategorie; mois?: number },
+): Promise<AnniversaireOut[]> {
+  const query = new URLSearchParams({ categorie: params.categorie });
+  if (params.mois != null) query.set("mois", String(params.mois));
+  return authedGet<AnniversaireOut[]>(
+    `/api/v1/membres/anniversaires?${query.toString()}`,
+    token,
+    "Anniversaires indisponibles",
+  );
+}
+
+export function setAnniversaireVisibilite(token: string, visible: boolean): Promise<{ ok: boolean }> {
+  return authedPut("/api/v1/membres/me/anniversaire-visibilite", token, { visible }, "Mise a jour impossible");
 }
 
 export function getNotifPreferences(token: string): Promise<NotifPreferences> {
@@ -447,6 +504,8 @@ export interface ProfilFields {
   baptise?: boolean;
   confirme?: boolean;
   premiere_communion?: boolean;
+  type_membre?: string;
+  fonction_cle?: string;
 }
 
 async function authedPatch<T>(path: string, token: string, body: unknown, onError: string): Promise<T> {

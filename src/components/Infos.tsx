@@ -1,4 +1,5 @@
 import { type MembreProfile } from "../api.js";
+import { displayName } from "../name.js";
 import { T } from "../proto.js";
 import { ModifierChamps } from "./ModifierChamps.js";
 
@@ -44,8 +45,8 @@ function telephone(indicatif: string | null | undefined, numero: string | null |
   return indicatif ? `${indicatif} ${n}` : n;
 }
 
-function fullName(prenoms: string | null | undefined, nom: string | null | undefined): string {
-  const s = `${prenoms ?? ""} ${nom ?? ""}`.trim();
+function fullName(profile: MembreProfile | null): string {
+  const s = displayName({ titre: profile?.titre, prenoms: profile?.prenoms, nom: profile?.nom });
   return s || "-";
 }
 
@@ -91,7 +92,7 @@ export function Infos({
   return (
     <div className="scr" style={{ padding: "6px 18px 24px" }}>
       <Group title="Identité">
-        <Row label="Nom complet" value={fullName(profile?.prenoms, profile?.nom)} />
+        <Row label="Nom complet" value={fullName(profile)} />
         <Row label="Genre" value={pretty(profile?.genre)} />
         <Row label={profile?.naissance_annee_visible ? "Date de naissance" : "Anniversaire"} value={naissance(profile?.date_naissance, !!profile?.naissance_annee_visible)} />
         <Row label="Matricule" value={profile?.matricule ?? "-"} last />

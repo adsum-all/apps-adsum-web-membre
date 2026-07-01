@@ -1,10 +1,11 @@
 import { useT } from "../i18n.js";
 
-export type TabId = "carte" | "activites" | "historique" | "profil";
+export type TabId = "carte" | "activites" | "calendrier" | "historique" | "profil";
 
 const TABS: { id: TabId; glyph: string }[] = [
   { id: "carte", glyph: "▣" },
   { id: "activites", glyph: "▤" },
+  { id: "calendrier", glyph: "▦" },
   { id: "historique", glyph: "↻" },
   { id: "profil", glyph: "◔" },
 ];

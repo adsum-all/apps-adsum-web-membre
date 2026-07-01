@@ -9,9 +9,11 @@ import {
   getMembreProfile,
 } from "./api.js";
 import { type Lang, LangContext } from "./i18n.js";
+import { displayName } from "./name.js";
 import { T } from "./proto.js";
 import { CompleterProfil } from "./components/CompleterProfil.js";
 import { Activites } from "./components/Activites.js";
+import { Calendrier } from "./components/Calendrier.js";
 import { Carte } from "./components/Carte.js";
 import { DetailPresence } from "./components/DetailPresence.js";
 import { Document } from "./components/Document.js";
@@ -94,10 +96,16 @@ export function App(): JSX.Element {
     [refreshInscription],
   );
 
-  const [lang, setLang] = useState<Lang>("fr");
+  const [lang, setLang] = useState<Lang>(() => {
+    const stored = typeof localStorage !== "undefined" ? localStorage.getItem("adsum.lang") : null;
+    return stored === "en" || stored === "fr" ? stored : "fr";
+  });
   useEffect(() => {
     if (profile?.langue === "en" || profile?.langue === "fr") setLang(profile.langue);
   }, [profile?.langue]);
+  useEffect(() => {
+    if (typeof localStorage !== "undefined") localStorage.setItem("adsum.lang", lang);
+  }, [lang]);
 
   const reloadProfile = useCallback(() => {
     if (token) void getMembreProfile(token).then(setProfile).catch(() => undefined);
@@ -290,6 +298,15 @@ export function App(): JSX.Element {
                 }}
               />
             )}
+            {tab === "calendrier" && (
+              <Calendrier
+                token={token}
+                onJoin={(ev) => {
+                  setActiveEvent(ev);
+                  setView("session");
+                }}
+              />
+            )}
             {tab === "historique" && (
               <Historique
                 token={token}
@@ -401,7 +418,7 @@ function InscriptionAttente({
 }
 
 function tabTitle(tab: TabId): string {
-  return { carte: "Ma carte", activites: "Activites", historique: "Historique", profil: "Profil" }[tab];
+  return { carte: "Ma carte", activites: "Activites", calendrier: "Calendrier", historique: "Historique", profil: "Profil" }[tab];
 }
 
 function NavRow({
@@ -480,7 +497,7 @@ function Profil({
 }): JSX.Element {
   const fullName =
     profile && (profile.prenoms || profile.nom)
-      ? `${profile.prenoms ?? ""} ${profile.nom ?? ""}`.trim()
+      ? displayName({ titre: profile.titre, prenoms: profile.prenoms, nom: profile.nom })
       : (profile?.email ?? "Membre ADSUM");
   const initials = fullName.slice(0, 2).toUpperCase();
   const verified = profile?.verifie ?? false;

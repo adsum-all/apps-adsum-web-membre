@@ -8,6 +8,7 @@ import {
   enregistrerWhatsapp,
   exportDonneesRGPD,
   getNotifPreferences,
+  setAnniversaireVisibilite,
   setLangue,
   setNotifPreferences,
   telegramLien,
@@ -83,10 +84,20 @@ export function Settings({
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [prefs, setPrefs] = useState<NotifPreferences | null>(null);
+  const [annivVisible, setAnnivVisible] = useState<boolean>(profile?.anniversaire_visible_annuaire ?? true);
 
   useEffect(() => {
     void getNotifPreferences(token).then(setPrefs).catch(() => undefined);
   }, [token]);
+
+  useEffect(() => {
+    if (profile) setAnnivVisible(profile.anniversaire_visible_annuaire);
+  }, [profile?.anniversaire_visible_annuaire]);
+
+  function toggleAnnivVisible(v: boolean): void {
+    setAnnivVisible(v);
+    void setAnniversaireVisibilite(token, v).catch(() => setAnnivVisible(!v));
+  }
 
   function togglePref(key: keyof NotifPreferences, value: boolean): void {
     if (!prefs) return;
@@ -185,6 +196,19 @@ export function Settings({
         <Row label={t("settings.notifications")} hint={t("common.loading")} />
       )}
 
+      <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "16px 0 4px" }}>{t("settings.calendar")}</p>
+      {prefs ? (
+        <>
+          <Toggle label={t("settings.calVip")} hint={t("settings.calVipHint")} on={prefs.cal_vip} onChange={(v) => togglePref("cal_vip", v)} />
+          <Toggle label={t("settings.calResponsables")} hint={t("settings.calResponsablesHint")} on={prefs.cal_responsables} onChange={(v) => togglePref("cal_responsables", v)} />
+          <Toggle label={t("settings.calCommission")} hint={t("settings.calCommissionHint")} on={prefs.cal_commission} onChange={(v) => togglePref("cal_commission", v)} />
+          <Toggle label={t("settings.annivPairs")} hint={t("settings.annivPairsHint")} on={prefs.anniv_pairs} onChange={(v) => togglePref("anniv_pairs", v)} />
+        </>
+      ) : (
+        <Row label={t("settings.calendar")} hint={t("common.loading")} />
+      )}
+      <Toggle label={t("settings.annivVisible")} hint={t("settings.annivVisibleHint")} on={annivVisible} onChange={toggleAnnivVisible} />
+
       <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "16px 0 4px" }}>{t("settings.channels")}</p>
       <Canaux token={token} prefs={prefs} onPref={togglePref} onMsg={setMsg} />
 
@@ -209,6 +233,7 @@ function LangueRow({ token, initial, onLang }: { token: string; initial: "fr" | 
   const [lang, setLang] = useState<"fr" | "en">(initial);
   function choose(l: "fr" | "en"): void {
     setLang(l);
+    if (typeof localStorage !== "undefined") localStorage.setItem("adsum.lang", l);
     onLang?.(l);
     void setLangue(token, l).catch(() => undefined);
   }

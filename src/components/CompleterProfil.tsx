@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
+  type FonctionItem,
   type MembreProfile,
   type ProfilFields,
   type RefItem,
+  getFonctions,
   getReference,
   soumettreInscription,
   telegramLien,
@@ -11,6 +13,7 @@ import {
   uploadDocument,
   uploadPhoto,
 } from "../api.js";
+import { useT } from "../i18n.js";
 import { T, gradient } from "../proto.js";
 import { PaysSelect, PhoneField, indicatifDePays } from "./FormFields.js";
 import { InfoTip } from "./InfoTip.js";
@@ -39,6 +42,12 @@ const PIECE_TYPES = [
   { value: "passeport", label: "Passeport" },
   { value: "permis", label: "Permis de conduire" },
   { value: "carte_consulaire", label: "Carte consulaire" },
+];
+const STATUTS = [
+  { value: "membre_simple", key: "profil.statutSimple" },
+  { value: "membre_actif", key: "profil.statutActif" },
+  { value: "nouveau_engage", key: "profil.statutNouveau" },
+  { value: "inspirant", key: "profil.statutInspirant" },
 ];
 
 const lbl = { fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "12px 0 5px", display: "block" } as const;
@@ -88,10 +97,12 @@ function TelegramInvite({ token }: { token: string }): JSX.Element {
 }
 
 export function CompleterProfil({ token, profile, motif, onSubmitted }: Props): JSX.Element {
+  const t = useT();
   const [tribus, setTribus] = useState<RefItem[]>([]);
   const [commissions, setCommissions] = useState<RefItem[]>([]);
   const [intendances, setIntendances] = useState<RefItem[]>([]);
   const [groupes, setGroupes] = useState<RefItem[]>([]);
+  const [fonctions, setFonctions] = useState<FonctionItem[]>([]);
 
   const [f, setF] = useState<ProfilFields>({
     prenoms: profile?.prenoms ?? "",
@@ -110,6 +121,8 @@ export function CompleterProfil({ token, profile, motif, onSubmitted }: Props): 
     situation_matrimoniale: profile?.situation_matrimoniale ?? "",
     profession: profile?.profession ?? "",
     niveau_etudes: profile?.niveau_etudes ?? "",
+    type_membre: profile?.type_membre ?? "",
+    fonction_cle: profile?.fonction_cle ?? "",
   });
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [pieceType, setPieceType] = useState("piece_identite");
@@ -125,6 +138,7 @@ export function CompleterProfil({ token, profile, motif, onSubmitted }: Props): 
     void getReference(token, "commissions").then(setCommissions).catch(() => undefined);
     void getReference(token, "intendances").then(setIntendances).catch(() => undefined);
     void getReference(token, "groupes").then(setGroupes).catch(() => undefined);
+    void getFonctions(token).then((list) => setFonctions(list.filter((x) => x.actif))).catch(() => undefined);
   }, [token]);
 
   function set<K extends keyof ProfilFields>(k: K, v: ProfilFields[K]): void {
@@ -202,6 +216,23 @@ export function CompleterProfil({ token, profile, motif, onSubmitted }: Props): 
           onNumero={(n) => set("telephone", n)}
         />
       </Field>
+
+      <p style={{ fontFamily: T.fm, fontSize: 9, letterSpacing: 0.8, color: T.b600, margin: "18px 2px 2px" }}>ENGAGEMENT & FONCTION</p>
+      <Field label={t("profil.statut")} info={t("profil.statutInfo")}>
+        <select style={inp} value={f.type_membre ?? ""} onChange={(e) => set("type_membre", e.target.value)}>
+          <option value="">Sélectionner...</option>
+          {STATUTS.map((s) => <option key={s.value} value={s.value}>{t(s.key)}</option>)}
+        </select>
+      </Field>
+      <Field label={t("profil.fonction")} info={t("profil.fonctionInfo")}>
+        <select style={inp} value={f.fonction_cle ?? ""} onChange={(e) => set("fonction_cle", e.target.value)}>
+          <option value="">{t("profil.fonctionAucune")}</option>
+          {fonctions.map((fn) => <option key={fn.cle} value={fn.cle}>{fn.libelle_h || fn.libelle_n}</option>)}
+        </select>
+      </Field>
+      {profile?.fonction_cle && !profile.fonction_confirmee && (
+        <p style={{ fontSize: 11, color: T.warn, margin: "6px 2px 0" }}>{t("profil.fonctionAttente")}</p>
+      )}
 
       <p style={{ fontFamily: T.fm, fontSize: 9, letterSpacing: 0.8, color: T.b600, margin: "18px 2px 2px" }}>LOCALISATION & RATTACHEMENT</p>
       <Field label="Pays" required info="Votre pays de résidence. Utilisez la recherche pour le trouver rapidement.">

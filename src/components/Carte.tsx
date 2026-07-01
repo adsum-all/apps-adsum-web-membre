@@ -2,6 +2,7 @@ import QRCode from "qrcode";
 import { useEffect, useRef, useState } from "react";
 
 import { type MembreProfile, getQrToken } from "../api.js";
+import { displayName } from "../name.js";
 import { QrCard } from "./QrCard.js";
 
 // The card tab: fetch the server-signed QR token and refresh it before it
@@ -43,7 +44,7 @@ export function Carte({ token, profile }: { token: string; profile: MembreProfil
         verifie={profile?.verifie ?? false}
         preview={false}
         serverToken={serverToken}
-        nom={profile ? `${profile.prenoms ?? ""} ${profile.nom ?? ""}`.trim() : null}
+        nom={profile ? displayName({ titre: profile.titre, prenoms: profile.prenoms, nom: profile.nom }) || null : null}
         tribu={profile?.tribu}
         patriarche={profile?.patriarche}
         engagement={profile?.type_membre}

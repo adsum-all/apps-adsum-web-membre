@@ -1,7 +1,49 @@
 import { useState } from "react";
 
 import { type EvenementOut, participer } from "../api.js";
+import { toEmbed } from "../embed.js";
+import { useT } from "../i18n.js";
 import { T, gradient } from "../proto.js";
+
+function Diffusion({ evenement }: { evenement: EvenementOut }): JSX.Element {
+  const t = useT();
+  const lien = evenement.lien_session;
+  const embed = lien && evenement.type_diffusion === "embed" ? toEmbed(lien) : null;
+
+  if (embed && embed.kind === "iframe") {
+    return (
+      <div style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", borderRadius: 14, overflow: "hidden", background: "#000" }}>
+        <iframe
+          src={embed.src}
+          title={evenement.titre}
+          allow="autoplay; encrypted-media; picture-in-picture"
+          allowFullScreen
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
+        />
+      </div>
+    );
+  }
+
+  if (lien && (evenement.type_diffusion === "externe" || (embed && embed.kind === "external"))) {
+    return (
+      <div
+        onClick={() => window.open(lien, "_blank", "noopener")}
+        className="tap"
+        style={{ background: T.b900, borderRadius: 14, padding: "22px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, color: "#fff" }}
+      >
+        <span style={{ fontSize: 30 }} aria-hidden="true">▶</span>
+        <span style={{ fontSize: 13.5, fontWeight: 600 }}>{t("session.open")}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: "#0d1220", borderRadius: 14, height: 120, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, color: "#7c8598" }}>
+      <span style={{ fontSize: 26 }} aria-hidden="true">◷</span>
+      <span style={{ fontSize: 12 }}>{t("session.notStarted")}</span>
+    </div>
+  );
+}
 
 export function Session({
   token,
@@ -62,10 +104,7 @@ export function Session({
       </div>
 
       <div style={{ padding: 18 }}>
-        <div style={{ background: "#000", borderRadius: 14, height: 120, display: "flex", alignItems: "center", justifyContent: "center", color: "#5a6275", fontSize: 11, position: "relative", overflow: "hidden" }}>
-          <span>▶ flux vidéo</span>
-          <div style={{ position: "absolute", bottom: 8, left: 10, fontFamily: T.fm, fontSize: 8, color: "#7ed99a", background: "rgba(0,0,0,.5)", padding: "2px 7px", borderRadius: 10 }}>● LIVE</div>
-        </div>
+        <Diffusion evenement={evenement} />
         {evenement.lieu && <div style={{ fontSize: 11, color: T.mut, marginTop: 8 }}>{evenement.titre} · {evenement.lieu}</div>}
 
         <div style={{ background: T.surf, border: `1px solid ${T.line}`, borderRadius: 16, padding: 16, marginTop: 14 }}>
