@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import {
+  ApiError,
   type EvenementOut,
   type InscriptionStatut,
   type MembreProfile,
@@ -64,8 +65,27 @@ const VIEW_TITLES: Record<ViewId, string> = {
 
 const HIDE_CHROME: ViewId[] = ["session", "sent"];
 
+/** Persisted session token: restored on load so a refresh no longer logs out. */
+const TOKEN_KEY = "adsum.token";
+function loadToken(): string | null {
+  try {
+    return typeof localStorage !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
+  } catch {
+    return null;
+  }
+}
+function saveToken(jwt: string | null): void {
+  try {
+    if (typeof localStorage === "undefined") return;
+    if (jwt) localStorage.setItem(TOKEN_KEY, jwt);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* storage unavailable (private mode): session stays in memory only. */
+  }
+}
+
 export function App(): JSX.Element {
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(() => loadToken());
   const [profile, setProfile] = useState<MembreProfile | null>(null);
   const [tab, setTab] = useState<TabId>("carte");
   const [notifOpen, setNotifOpen] = useState(false);
@@ -97,6 +117,7 @@ export function App(): JSX.Element {
     (jwt: string) => {
       // Show the app immediately; load the profile in the background so the first
       // paint does not wait on a second round trip (the card fills in when ready).
+      saveToken(jwt);
       setToken(jwt);
       refreshInscription(jwt);
       void getMembreProfile(jwt)
@@ -133,6 +154,7 @@ export function App(): JSX.Element {
   );
 
   const logout = useCallback(() => {
+    saveToken(null);
     setToken(null);
     setProfile(null);
     setView(null);
@@ -140,6 +162,19 @@ export function App(): JSX.Element {
     setInscription(null);
     setTab("carte");
   }, []);
+
+  // Restore a persisted session on load: fetch the profile and status; if the
+  // token is no longer valid (expired or revoked) sign out cleanly.
+  useEffect(() => {
+    if (!token || profile) return;
+    refreshInscription(token);
+    void getMembreProfile(token)
+      .then(setProfile)
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 401) logout();
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   if (firstLogin) {
     return (
