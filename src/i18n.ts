@@ -176,6 +176,8 @@ const DICT: Record<string, { fr: string; en: string }> = {
   "attest.overdueBy": { fr: "En retard de {n} jour(s)", en: "Overdue by {n} day(s)" },
   "attest.noDeadline": { fr: "Aucune échéance fixée", en: "No deadline set" },
   "attest.download": { fr: "Télécharger / Imprimer", en: "Download / Print" },
+  "attest.downloadPdf": { fr: "Télécharger (PDF)", en: "Download (PDF)" },
+  "attest.print": { fr: "Imprimer", en: "Print" },
   "attest.documentTitle": { fr: "Document de l'attestation", en: "Attestation document" },
   "attest.uploadTitle": { fr: "Envoyer l'attestation signée", en: "Upload the signed attestation" },
   "attest.uploadZone": { fr: "Téléverser le scan signé", en: "Upload the signed scan" },

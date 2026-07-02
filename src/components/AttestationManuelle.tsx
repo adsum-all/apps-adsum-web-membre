@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 
 import { type AttestationInfo, getAttestation, uploadAttestation, uploadDocument } from "../api.js";
 import { useT } from "../i18n.js";
+import { attestationPdf, downloadBlob, printBlob } from "../pdf.js";
 import { T } from "../proto.js";
 import { useResource } from "../useResource.js";
 
@@ -18,20 +19,13 @@ function joursRestants(echeance: string | null): number | null {
   return Math.round(diffMs / 86_400_000);
 }
 
-function ouvrirImpression(titre: string, texte: string): void {
-  const fenetre = window.open("", "_blank");
-  if (!fenetre) return;
-  const secure = (v: string): string =>
-    v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  fenetre.document.write(
-    `<!doctype html><html><head><meta charset="utf-8"><title>${secure(titre)}</title>` +
-      "<style>body{font-family:'IBM Plex Sans',Arial,sans-serif;margin:40px;line-height:1.6;color:#16181d}" +
-      "h1{font-size:18px}pre{white-space:pre-wrap;font-family:inherit;font-size:14px}</style></head>" +
-      `<body><h1>${secure(titre)}</h1><pre>${secure(texte)}</pre></body></html>`,
-  );
-  fenetre.document.close();
-  fenetre.focus();
-  fenetre.print();
+// Download and print happen entirely inside the app (a real PDF built in the
+// browser, then a Blob download or a hidden-iframe print): never a new page.
+function telechargerAttestation(titre: string, texte: string): void {
+  downloadBlob(attestationPdf(titre, texte), "Attestation-Sacerdoce-Royal.pdf");
+}
+function imprimerAttestation(titre: string, texte: string): void {
+  printBlob(attestationPdf(titre, texte));
 }
 
 function StatusBadge({ info, t }: { info: AttestationInfo; t: (k: string) => string }): JSX.Element {
@@ -178,23 +172,43 @@ export function AttestationManuelle({ token }: { token: string }): JSX.Element |
         </pre>
       </div>
 
-      <div
-        onClick={() => ouvrirImpression(t("attest.title"), current.texte)}
-        className="tap"
-        style={{
-          height: 42,
-          border: `1.5px solid ${T.b600}`,
-          borderRadius: 12,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 12.5,
-          fontWeight: 600,
-          color: T.b600,
-          marginBottom: 12,
-        }}
-      >
-        {t("attest.download")}
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <div
+          onClick={() => telechargerAttestation(t("attest.title"), current.texte)}
+          className="tap"
+          style={{
+            flex: 1,
+            height: 42,
+            border: `1.5px solid ${T.b600}`,
+            borderRadius: 12,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: T.b600,
+          }}
+        >
+          {t("attest.downloadPdf")}
+        </div>
+        <div
+          onClick={() => imprimerAttestation(t("attest.title"), current.texte)}
+          className="tap"
+          style={{
+            flex: 1,
+            height: 42,
+            border: `1.5px solid ${T.b600}`,
+            borderRadius: 12,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: T.b600,
+          }}
+        >
+          {t("attest.print")}
+        </div>
       </div>
 
       <div style={{ fontSize: 11, fontWeight: 600, color: T.mut, marginBottom: 8 }}>{t("attest.uploadTitle")}</div>
