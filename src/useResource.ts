@@ -22,7 +22,7 @@ export function useResource<T>(loader: () => Promise<T>, deps: unknown[]): Resou
       })
       .catch((err: unknown) => {
         if (alive) {
-          const message = err instanceof ApiError ? err.message : "Erreur reseau";
+          const message = err instanceof ApiError ? err.message : "Erreur réseau";
           setState({ data: null, loading: false, error: message });
         }
       });

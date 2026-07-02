@@ -30,9 +30,9 @@ interface QrCardProps {
 
 const ENGAGEMENT_LABELS: Record<string, string> = {
   membre_simple: "Membre simple",
-  nouveau_engage: "Nouvel engage",
+  nouveau_engage: "Nouvel engagé",
   aspirant: "Aspirant",
-  engage: "Engage",
+  engage: "Engagé",
   berger: "Berger",
   responsable: "Responsable",
 };
@@ -104,7 +104,7 @@ export function QrCard({
       <div className="card-identity">
         <div className="card-photo">
           {photoUrl ? (
-            <img className="card-photo-img" src={photoUrl} alt="Photo d'identite" />
+            <img className="card-photo-img" src={photoUrl} alt="Photo d'identité" />
           ) : (
             <span className="card-photo-fallback" aria-hidden="true">
               {avatarInitials}
@@ -120,7 +120,7 @@ export function QrCard({
         </div>
       </div>
       <div className="card-qr">
-        <canvas ref={canvasRef} width={190} height={190} aria-label="QR signe du membre" />
+        <canvas ref={canvasRef} width={190} height={190} aria-label="QR signé du membre" />
       </div>
       <div className="card-meta">
         <div className="card-meta-item">
@@ -131,14 +131,14 @@ export function QrCard({
           <span>Engagement</span>
           <strong>{engagementLabel}</strong>
         </div>
-        <span className={`badge ${verifie ? "badge-ok" : "badge-mut"}`}>{verifie ? "VERIFIE" : "EN ATTENTE"}</span>
+        <span className={`badge ${verifie ? "badge-ok" : "badge-mut"}`}>{verifie ? "VÉRIFIÉ" : "EN ATTENTE"}</span>
       </div>
       <p className="card-hint">
         {serverToken
-          ? "QR signe par le serveur, valable quelques minutes. Presentez-le au controleur."
+          ? "QR signé par le serveur, valable quelques minutes. Présentez-le au contrôleur."
           : preview
-            ? "Apercu : QR signe Ed25519 dans le navigateur. En production il est signe par le serveur."
-            : "Presentez ce code au controleur a l'entree."}
+            ? "Aperçu : QR signé Ed25519 dans le navigateur. En production il est signé par le serveur."
+            : "Présentez ce code au contrôleur à l'entrée."}
       </p>
     </div>
   );

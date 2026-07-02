@@ -26,7 +26,7 @@ export function Carte({ token, profile }: { token: string; profile: MembreProfil
           }
         })
         .catch(() => {
-          if (alive) setNote("QR momentanement indisponible, reessai en cours.");
+          if (alive) setNote("QR momentanément indisponible, réessai en cours.");
         });
     };
     load();
@@ -55,7 +55,7 @@ export function Carte({ token, profile }: { token: string; profile: MembreProfil
         memberNom={profile?.nom}
       />
       <button type="button" className="btn btn-ghost" onClick={() => setFullscreen(true)} disabled={!serverToken}>
-        Afficher en plein ecran
+        Afficher en plein écran
       </button>
       {note && <p className="card-hint">{note}</p>}
       {fullscreen && serverToken && (
@@ -91,9 +91,9 @@ function FullscreenQr({
   }, [token]);
 
   return (
-    <div className="fs-qr" role="dialog" aria-label="QR plein ecran" onClick={onClose}>
-      <p className="fs-qr-hint">Luminosite maximale recommandee</p>
-      <canvas ref={canvasRef} width={300} height={300} aria-label="QR signe du membre" />
+    <div className="fs-qr" role="dialog" aria-label="QR plein écran" onClick={onClose}>
+      <p className="fs-qr-hint">Luminosité maximale recommandée</p>
+      <canvas ref={canvasRef} width={300} height={300} aria-label="QR signé du membre" />
       <p className="fs-qr-id">{matricule}</p>
       <button type="button" className="btn btn-primary fs-qr-close" onClick={onClose}>
         Fermer

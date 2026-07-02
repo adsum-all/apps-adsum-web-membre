@@ -39,9 +39,9 @@ export function Suivi({ token, profile }: { token: string; profile: MembreProfil
   const traiteEnCours = !verified && documents.some((d) => d.statut === "lu");
 
   const steps: Step[] = [
-    { titre: "Dossier soumis", sousTitre: dernier?.demande_le ? fmt(dernier.demande_le) : "Compte cree par l'administration", state: "done" },
+    { titre: "Dossier soumis", sousTitre: dernier?.demande_le ? fmt(dernier.demande_le) : "Compte créé par l'administration", state: "done" },
     { titre: "Reçu par l'administration", sousTitre: recu ? "Bien reçu" : "En attente", state: recu ? "done" : "current" },
-    { titre: "Lu par un administrateur", sousTitre: lu ? fmt(dernier?.recu_le ?? null) || "Consulte" : "En attente", state: lu ? "done" : recu ? "current" : "pending" },
+    { titre: "Lu par un administrateur", sousTitre: lu ? fmt(dernier?.recu_le ?? null) || "Consulté" : "En attente", state: lu ? "done" : recu ? "current" : "pending" },
     {
       titre: verified ? "Identité validée" : "En cours de traitement",
       sousTitre: verified ? "Carte & QR actifs" : "Délai estimé : 48-72 h",

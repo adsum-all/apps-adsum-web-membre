@@ -23,7 +23,7 @@ export function Recensement({ token }: { token: string }): JSX.Element {
       });
       setDone(true);
     } catch (err) {
-      setSubmitError(err instanceof ApiError ? err.message : "Erreur reseau");
+      setSubmitError(err instanceof ApiError ? err.message : "Erreur réseau");
     } finally {
       setBusy(false);
     }
@@ -44,8 +44,8 @@ export function Recensement({ token }: { token: string }): JSX.Element {
     return (
       <div className="empty">
         <div className="empty-glyph" aria-hidden="true">✓</div>
-        <h2>Recensement valide</h2>
-        <p>Merci, votre recensement {data.annee} est enregistre.</p>
+        <h2>Recensement validé</h2>
+        <p>Merci, votre recensement {data.annee} est enregistré.</p>
       </div>
     );
   }
@@ -56,16 +56,16 @@ export function Recensement({ token }: { token: string }): JSX.Element {
     <div className="recensement">
       <h2>Recensement annuel {data.annee}</h2>
       <p className="muted">
-        Confirmez que vous etes toujours engage(e) au sein de la fraternite et re-acceptez les engagements
-        pour l'annee.
+        Confirmez que vous êtes toujours engagé(e) au sein de la fraternité et réacceptez les engagements
+        pour l'année.
       </p>
       <label className="check-row">
         <input type="checkbox" checked={engagement} onChange={(e) => setEngagement(e.target.checked)} />
-        Je suis toujours present(e) et engage(e)
+        Je suis toujours présent(e) et engagé(e)
       </label>
       <label className="check-row">
         <input type="checkbox" checked={infos} onChange={(e) => setInfos(e.target.checked)} />
-        Mes informations sont a jour
+        Mes informations sont à jour
       </label>
       <label className="check-row">
         <input type="checkbox" checked={reaccepte} onChange={(e) => setReaccepte(e.target.checked)} />

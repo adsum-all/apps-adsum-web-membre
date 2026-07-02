@@ -2,10 +2,10 @@ import { getDocuments, getEngagements } from "../api.js";
 import { useResource } from "../useResource.js";
 
 const DOC_STATUT: Record<string, { label: string; cls: string }> = {
-  demande: { label: "Demande", cls: "badge-mut" },
-  recu: { label: "Recu", cls: "badge-info" },
+  demande: { label: "Demandé", cls: "badge-mut" },
+  recu: { label: "Reçu", cls: "badge-info" },
   lu: { label: "En cours", cls: "badge-info" },
-  traite: { label: "Valide", cls: "badge-ok" },
+  traite: { label: "Validé", cls: "badge-ok" },
 };
 
 function pretty(value: string | null): string {
@@ -21,13 +21,13 @@ export function Dossier({ token }: { token: string }): JSX.Element {
   return (
     <div className="recensement">
       <h2>Mon dossier</h2>
-      <span className="muted">Suivi de la validation de votre identite et de vos engagements.</span>
+      <span className="muted">Suivi de la validation de votre identité et de vos engagements.</span>
 
-      <p className="section-title profil-group">Pieces et validation d'identite</p>
+      <p className="section-title profil-group">Pièces et validation d'identité</p>
       {docs.loading && <p className="muted">Chargement...</p>}
       {docs.error && <p className="banner banner-warn">{docs.error}</p>}
       {!docs.loading && (docs.data?.length ?? 0) === 0 && (
-        <p className="banner banner-info">Aucune piece au dossier pour le moment.</p>
+        <p className="banner banner-info">Aucune pièce au dossier pour le moment.</p>
       )}
       <ul className="list">
         {(docs.data ?? []).map((d) => {
@@ -36,7 +36,7 @@ export function Dossier({ token }: { token: string }): JSX.Element {
             <li key={d.id} className="list-item">
               <div className="list-main">
                 <strong>{pretty(d.type)}</strong>
-                {d.demande_le && <span className="list-sub">Demande le {formatDate(d.demande_le)}</span>}
+                {d.demande_le && <span className="list-sub">Demandé le {formatDate(d.demande_le)}</span>}
               </div>
               <span className={`badge ${s.cls}`}>{s.label}</span>
             </li>
@@ -48,7 +48,7 @@ export function Dossier({ token }: { token: string }): JSX.Element {
       {engs.loading && <p className="muted">Chargement...</p>}
       {engs.error && <p className="banner banner-warn">{engs.error}</p>}
       {!engs.loading && (engs.data?.length ?? 0) === 0 && (
-        <p className="banner banner-info">Aucun engagement enregistre pour le moment.</p>
+        <p className="banner banner-info">Aucun engagement enregistré pour le moment.</p>
       )}
       <ul className="list">
         {(engs.data ?? []).map((e) => (
@@ -58,7 +58,7 @@ export function Dossier({ token }: { token: string }): JSX.Element {
               <span className="list-sub">Version {e.version}</span>
             </div>
             <span className={`badge ${e.signe ? "badge-ok" : "badge-mut"}`}>
-              {e.signe ? "Signe" : "A signer"}
+              {e.signe ? "Signé" : "À signer"}
             </span>
           </li>
         ))}

@@ -286,7 +286,7 @@ export function getMembreProfile(token: string): Promise<MembreProfile> {
 }
 
 export function getEvenements(token: string): Promise<EvenementOut[]> {
-  return authedGet<EvenementOut[]>("/api/v1/membres/me/evenements", token, "Activites indisponibles");
+  return authedGet<EvenementOut[]>("/api/v1/membres/me/evenements", token, "Activités indisponibles");
 }
 
 export function getFonctions(token: string): Promise<FonctionItem[]> {
@@ -311,7 +311,7 @@ export function setAnniversaireVisibilite(token: string, visible: boolean): Prom
 }
 
 export function getNotifPreferences(token: string): Promise<NotifPreferences> {
-  return authedGet<NotifPreferences>("/api/v1/membres/me/preferences-notification", token, "Preferences indisponibles");
+  return authedGet<NotifPreferences>("/api/v1/membres/me/preferences-notification", token, "Préférences indisponibles");
 }
 
 export function exportDonneesRGPD(token: string): Promise<Record<string, unknown>> {
@@ -455,7 +455,7 @@ async function publicPost<T>(path: string, body: unknown, onError: string): Prom
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    throw new ApiError(res.status === 400 ? "Code ou requete invalide" : onError, res.status);
+    throw new ApiError(res.status === 400 ? "Code ou requête invalide" : onError, res.status);
   }
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
@@ -526,7 +526,7 @@ export function createDemande(
   token: string,
   input: { type: string; sujet: string; champ_concerne?: string; message: string; categorie?: string; sous_categorie?: string },
 ): Promise<DemandeDetail> {
-  return authedPost<DemandeDetail>("/api/v1/membres/me/demandes", token, input, "Creation impossible");
+  return authedPost<DemandeDetail>("/api/v1/membres/me/demandes", token, input, "Création impossible");
 }
 
 export function sendDemandeMessage(token: string, id: string, corps: string, documentId?: string): Promise<DemandeMessage> {
@@ -539,7 +539,7 @@ export function sendDemandeMessage(token: string, id: string, corps: string, doc
 }
 
 export function resetPassword(email: string, code: string, nouveau: string): Promise<void> {
-  return publicPost<void>("/api/v1/auth/reset-password", { email, code, nouveau }, "Reinitialisation impossible");
+  return publicPost<void>("/api/v1/auth/reset-password", { email, code, nouveau }, "Réinitialisation impossible");
 }
 
 export interface RefItem {
@@ -729,7 +729,7 @@ export function getSignatureEtat(token: string): Promise<{ signe: boolean }> {
   return authedGet<{ signe: boolean }>(
     "/api/v1/consentements/signature/etat",
     token,
-    "Etat indisponible",
+    "État indisponible",
   );
 }
 
@@ -740,7 +740,7 @@ async function uploadViaSignedUrl(uploadUrl: string, file: File): Promise<void> 
     headers: { "Content-Type": file.type || "application/octet-stream", "x-upsert": "true" },
     body: file,
   });
-  if (!put.ok) throw new ApiError("Televersement impossible", put.status);
+  if (!put.ok) throw new ApiError("Téléversement impossible", put.status);
 }
 
 export async function uploadPhoto(token: string, file: File): Promise<void> {

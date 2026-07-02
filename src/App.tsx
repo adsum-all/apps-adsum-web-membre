@@ -466,7 +466,7 @@ function InscriptionAttente({
 }
 
 function tabTitle(tab: TabId): string {
-  return { carte: "Ma carte", activites: "Activites", calendrier: "Calendrier", historique: "Historique", profil: "Profil" }[tab];
+  return { carte: "Ma carte", activites: "Activités", calendrier: "Calendrier", historique: "Historique", profil: "Profil" }[tab];
 }
 
 function NavRow({

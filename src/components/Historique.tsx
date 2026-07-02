@@ -15,7 +15,7 @@ export function Historique({
   if (loading) return <Centered text="Chargement de l'historique..." />;
   if (error) return <Centered text={error} />;
   if (!data || data.length === 0) {
-    return <Centered text="Aucune presence enregistree pour le moment." />;
+    return <Centered text="Aucune présence enregistrée pour le moment." />;
   }
 
   return (
@@ -32,7 +32,7 @@ export function Historique({
           </div>
           <div className="list-meta">
             {p.methode && <span className="list-place">via {p.methode.toUpperCase()}</span>}
-            <span className="badge badge-ok">Present</span>
+            <span className="badge badge-ok">Présent</span>
           </div>
         </li>
       ))}

@@ -28,7 +28,7 @@ export function Login({ onAuth, onForgot }: LoginProps): JSX.Element {
       const res = await login(email, password);
       onAuth({ token: res.token, doitChangerMdp: res.doitChangerMdp, email, motDePasse: password });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erreur reseau");
+      setError(err instanceof ApiError ? err.message : "Erreur réseau");
     } finally {
       setBusy(false);
     }
