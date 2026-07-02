@@ -74,6 +74,70 @@ export function Field({ label, required, info, highlight, children }: { label: s
   );
 }
 
+/** Step definitions of the registration wizard, in order. */
+export const WIZARD_STEPS = [
+  { key: "identite", label: "Identité" },
+  { key: "rattachement", label: "Rattachement" },
+  { key: "vie", label: "Vie & fonction" },
+  { key: "pieces", label: "Pièces" },
+  { key: "signature", label: "Signature" },
+  { key: "recap", label: "Récapitulatif" },
+] as const;
+
+/** Progress header of the wizard: step counter, title and progress bar. */
+export function Stepper({ step }: { step: number }): JSX.Element {
+  const total = WIZARD_STEPS.length;
+  return (
+    <div style={{ margin: "10px 0 4px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <span style={{ fontFamily: T.fd, fontWeight: 700, fontSize: 16 }}>{WIZARD_STEPS[step]?.label ?? ""}</span>
+        <span style={{ fontFamily: T.fm, fontSize: 10, color: T.mut }}>Étape {step + 1} / {total}</span>
+      </div>
+      <div style={{ display: "flex", gap: 5, marginTop: 8 }}>
+        {WIZARD_STEPS.map((s, i) => (
+          <div key={s.key} style={{ flex: 1, height: 4, borderRadius: 3, background: i <= step ? T.b600 : T.line, transition: "background 200ms ease" }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Sticky back / continue bar, always reachable at the bottom of the step. */
+export function WizardNav({ step, busy, nextLabel, onBack, onNext }: {
+  step: number;
+  busy?: boolean;
+  nextLabel?: string;
+  onBack: () => void;
+  onNext: () => void;
+}): JSX.Element {
+  return (
+    <div style={{ position: "sticky", bottom: 0, marginTop: 16, padding: "10px 0 6px", background: `linear-gradient(transparent, ${T.bg} 35%)`, display: "flex", gap: 10 }}>
+      {step > 0 && (
+        <div onClick={onBack} className="tap" style={{ flex: 1, height: 48, border: `1.5px solid ${T.line}`, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 14, background: T.surf }}>
+          Retour
+        </div>
+      )}
+      <div
+        onClick={busy ? undefined : onNext}
+        className="tap"
+        style={{ flex: 2, height: 48, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 600, fontSize: 14.5, background: busy ? T.faint : T.b600, opacity: busy ? 0.7 : 1, boxShadow: busy ? "none" : "0 10px 20px -10px rgba(42,79,173,.6)" }}
+      >
+        {nextLabel ?? "Continuer"}
+      </div>
+    </div>
+  );
+}
+
+/** Read-only summary row of the final recap step. */
+export function RecapRow({ label, value, ok }: { label: string; value: string; ok?: boolean }): JSX.Element {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "10px 2px", borderBottom: `1px solid ${T.line}` }}>
+      <span style={{ fontSize: 12, color: T.mut }}>{label}</span>
+      <span style={{ fontSize: 12.5, fontWeight: 600, textAlign: "right", color: ok === false ? T.warn : T.ink }}>{value}</span>
+    </div>
+  );
+}
+
 export function TelegramInvite({ token }: { token: string }): JSX.Element {
   const [done, setDone] = useState(false);
   async function rejoindre(): Promise<void> {
