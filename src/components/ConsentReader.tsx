@@ -159,16 +159,16 @@ export function ConsentReader({ token, doc, accepted, onAccept }: Props): JSX.El
             {error ? (
               <p style={{ color: T.dng, fontSize: 13 }}>{error}</p>
             ) : content ? (
-              <div
-                style={{
-                  fontSize: 13,
-                  lineHeight: 1.6,
-                  color: T.ink,
-                  fontFamily: T.fu,
-                  whiteSpace: "pre-wrap",
-                }}
-              >
-                {content.contenu}
+              <div style={{ fontFamily: 'Georgia, "Times New Roman", serif', color: "#1b2333" }}>
+                <div style={{ textAlign: "center", fontFamily: T.fd, fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{content.titre}</div>
+                <div style={{ textAlign: "center", fontSize: 10.5, color: T.mut, fontFamily: T.fu, borderBottom: `1px solid ${T.line}`, paddingBottom: 10, marginBottom: 14 }}>
+                  Version {content.version}
+                </div>
+                {content.contenu.split(/\n\s*\n/).map((para, i) => (
+                  <p key={i} style={{ fontSize: 13.5, lineHeight: 1.7, textAlign: "justify", whiteSpace: "pre-wrap", margin: "0 0 12px" }}>
+                    {para}
+                  </p>
+                ))}
               </div>
             ) : (
               <p style={{ color: T.mut, fontSize: 13 }}>{t("common.loading")}</p>
