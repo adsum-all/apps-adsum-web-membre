@@ -232,7 +232,7 @@ async function authedGet<T>(path: string, token: string, onError: string): Promi
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) {
-    throw new ApiError(res.status === 401 ? "Session expiree" : onError, res.status);
+    throw new ApiError(res.status === 401 ? "Session expirée" : onError, res.status);
   }
   return (await res.json()) as T;
 }
@@ -278,7 +278,7 @@ export async function premiereConnexion(
 }
 
 export function getMe(token: string): Promise<Me> {
-  return authedGet<Me>("/api/v1/auth/me", token, "Session expiree");
+  return authedGet<Me>("/api/v1/auth/me", token, "Session expirée");
 }
 
 export function getMembreProfile(token: string): Promise<MembreProfile> {
@@ -307,7 +307,7 @@ export function getAnniversaires(
 }
 
 export function setAnniversaireVisibilite(token: string, visible: boolean): Promise<{ ok: boolean }> {
-  return authedPut("/api/v1/membres/me/anniversaire-visibilite", token, { visible }, "Mise a jour impossible");
+  return authedPut("/api/v1/membres/me/anniversaire-visibilite", token, { visible }, "Mise à jour impossible");
 }
 
 export function getNotifPreferences(token: string): Promise<NotifPreferences> {
@@ -339,7 +339,7 @@ export function demanderSuppression(token: string): Promise<{ ok: boolean; deman
 }
 
 export function setNotifPreferences(token: string, prefs: NotifPreferences): Promise<NotifPreferences> {
-  return authedPut<NotifPreferences>("/api/v1/membres/me/preferences-notification", token, prefs, "Mise a jour impossible");
+  return authedPut<NotifPreferences>("/api/v1/membres/me/preferences-notification", token, prefs, "Mise à jour impossible");
 }
 
 export interface ParticipationMembre {
@@ -422,7 +422,7 @@ async function authedPost<T>(path: string, token: string, body: unknown, onError
   });
   if (!res.ok) {
     const detail = await readDetail(res);
-    throw new ApiError(res.status === 400 ? "Requete invalide" : res.status === 401 ? "Session expiree" : onError, res.status, detail);
+    throw new ApiError(res.status === 400 ? "Requête invalide" : res.status === 401 ? "Session expirée" : onError, res.status, detail);
   }
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
@@ -554,7 +554,7 @@ async function authedPatch<T>(path: string, token: string, body: unknown, onErro
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    throw new ApiError(res.status === 401 ? "Session expiree" : onError, res.status);
+    throw new ApiError(res.status === 401 ? "Session expirée" : onError, res.status);
   }
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
@@ -567,7 +567,7 @@ async function authedPut<T>(path: string, token: string, body: unknown, onError:
   });
   if (!res.ok) {
     const detail = await readDetail(res);
-    throw new ApiError(res.status === 401 ? "Session expiree" : onError, res.status, detail);
+    throw new ApiError(res.status === 401 ? "Session expirée" : onError, res.status, detail);
   }
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
@@ -576,7 +576,7 @@ export function updateProfil(
   token: string,
   fields: ProfilFields,
 ): Promise<{ ok: boolean; pending_validation?: boolean; champs?: string[]; updated?: string[] }> {
-  return authedPatch("/api/v1/membres/me/profil", token, fields, "Mise a jour impossible");
+  return authedPatch("/api/v1/membres/me/profil", token, fields, "Mise à jour impossible");
 }
 
 export interface InscriptionStatut {
@@ -761,7 +761,7 @@ export async function submitRecensement(
     body: JSON.stringify(reponse),
   });
   if (!res.ok) {
-    throw new ApiError(res.status === 401 ? "Session expiree" : "Envoi impossible", res.status);
+    throw new ApiError(res.status === 401 ? "Session expirée" : "Envoi impossible", res.status);
   }
 }
 

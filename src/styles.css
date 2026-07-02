@@ -25,8 +25,10 @@ body {
 .phone-inner {
   width: 100%;
   max-width: 420px;
-  min-height: 96vh;
-  min-height: min(880px, 96dvh);
+  /* Locked height: content scrolls inside .screen, so the bottom menu stays
+     visible whatever the content length (it can no longer be pushed away). */
+  height: 96vh;
+  height: min(880px, 96dvh);
   background: var(--adsum-bg);
   border: 1px solid #cfd4dd;
   border-radius: 30px;
@@ -35,6 +37,29 @@ body {
   flex-direction: column;
   overflow: hidden;
   position: relative;
+}
+
+/* On a real phone the app is a true full-screen app, not a mock-up card
+   floating on a grey page. The decorative frame is kept on desktop only. */
+@media (max-width: 520px) {
+  .phone {
+    padding: 0;
+    background: var(--adsum-bg);
+  }
+  .phone-inner {
+    max-width: none;
+    height: 100vh;
+    height: 100dvh;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .topbar {
+    padding-top: calc(20px + env(safe-area-inset-top));
+  }
+  .tabbar {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }
 
 /* Top bar */

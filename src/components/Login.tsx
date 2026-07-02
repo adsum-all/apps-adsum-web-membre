@@ -40,7 +40,7 @@ export function Login({ onAuth, onForgot }: LoginProps): JSX.Element {
         A
       </div>
       <div className="login-brand">ADSUM</div>
-      <p className="login-sub">Espace membre, votre carte dans le telephone</p>
+      <p className="login-sub">Espace membre, votre carte dans le téléphone</p>
       <form onSubmit={submit} className="login-form">
         <label>
           <span>Courriel</span>
@@ -55,7 +55,7 @@ export function Login({ onAuth, onForgot }: LoginProps): JSX.Element {
           {busy ? "Connexion..." : "Se connecter"}
         </button>
         <button type="button" className="login-link" onClick={onForgot}>
-          Mot de passe oublie ?
+          Mot de passe oublié ?
         </button>
       </form>
     </div>
