@@ -466,20 +466,48 @@ export function requestOtp(email: string, purpose: string): Promise<{ ok: boolea
 
 export interface DemandeMessage {
   id: string;
-  auteur_type: "membre" | "staff";
+  auteur_type: "membre" | "staff" | "systeme";
   auteur_nom: string | null;
   corps: string;
   cree_le: string | null;
+  document_id?: string | null;
 }
 
 export interface Demande {
   id: string;
+  numero: string;
   type: string;
   sujet: string;
   champ_concerne: string | null;
   statut: string;
+  categorie?: string | null;
+  sous_categorie?: string | null;
+  motif_cloture?: string | null;
   cree_le: string | null;
   nb_messages: number;
+}
+
+export interface CatalogueSous {
+  cle: string;
+  libelle: string;
+  sujet: string;
+  message: string;
+  piece: string;
+}
+
+export interface CatalogueCategorie {
+  categorie: string;
+  libelle: string;
+  sous: CatalogueSous[];
+}
+
+export interface DemandeCatalogue {
+  categories: CatalogueCategorie[];
+  statuts: Record<string, string>;
+}
+
+export function getDemandeCatalogue(token: string): Promise<DemandeCatalogue> {
+  return authedGet<DemandeCatalogue>("/api/v1/membres/me/demandes/catalogue", token, "Catalogue indisponible");
 }
 
 export interface DemandeDetail extends Demande {
@@ -496,13 +524,18 @@ export function getDemande(token: string, id: string): Promise<DemandeDetail> {
 
 export function createDemande(
   token: string,
-  input: { type: string; sujet: string; champ_concerne?: string; message: string },
+  input: { type: string; sujet: string; champ_concerne?: string; message: string; categorie?: string; sous_categorie?: string },
 ): Promise<DemandeDetail> {
   return authedPost<DemandeDetail>("/api/v1/membres/me/demandes", token, input, "Creation impossible");
 }
 
-export function sendDemandeMessage(token: string, id: string, corps: string): Promise<DemandeMessage> {
-  return authedPost<DemandeMessage>(`/api/v1/membres/me/demandes/${id}/messages`, token, { corps }, "Envoi impossible");
+export function sendDemandeMessage(token: string, id: string, corps: string, documentId?: string): Promise<DemandeMessage> {
+  return authedPost<DemandeMessage>(
+    `/api/v1/membres/me/demandes/${id}/messages`,
+    token,
+    documentId ? { corps, document_id: documentId } : { corps },
+    "Envoi impossible",
+  );
 }
 
 export function resetPassword(email: string, code: string, nouveau: string): Promise<void> {

@@ -1,15 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { type DemandeDetail, type DemandeMessage, createDemande, getDemande, getDemandes, sendDemandeMessage } from "../api.js";
+import {
+  type CatalogueCategorie,
+  type CatalogueSous,
+  type DemandeDetail,
+  type DemandeMessage,
+  createDemande,
+  getDemande,
+  getDemandeCatalogue,
+  getDemandes,
+  sendDemandeMessage,
+  uploadDocument,
+} from "../api.js";
 import { T, gradient } from "../proto.js";
 import { useResource } from "../useResource.js";
-
-const TYPES = [
-  { value: "modification_info", label: "Modifier une information" },
-  { value: "question", label: "Poser une question" },
-  { value: "reclamation", label: "Réclamation" },
-  { value: "autre", label: "Autre" },
-];
 
 interface Badge {
   label: string;
@@ -20,6 +24,9 @@ const DEFAULT_BADGE: Badge = { label: "Ouverte", bg: T.warnbg, fg: T.warn };
 const STATUT_BADGE: Record<string, Badge> = {
   ouverte: DEFAULT_BADGE,
   en_cours: { label: "En cours", bg: "#eef3fc", fg: T.b600 },
+  pieces_demandees: { label: "Pièces demandées", bg: T.warnbg, fg: T.warn },
+  attente_membre: { label: "À vous de répondre", bg: T.warnbg, fg: T.warn },
+  en_validation: { label: "En validation", bg: "#eef3fc", fg: T.b600 },
   resolue: { label: "Résolue", bg: T.okbg, fg: T.ok },
   refusee: { label: "Refusée", bg: "#fae9e7", fg: T.dng },
 };
@@ -75,7 +82,9 @@ function List({ token, onNew, onOpen }: { token: string; onNew: () => void; onOp
           <div key={d.id} onClick={() => onOpen(d.id)} className="tap" style={{ background: T.surf, border: `1px solid ${T.line}`, borderRadius: 14, padding: 13, marginBottom: 9, display: "flex", alignItems: "center", gap: 11 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>{d.sujet}</div>
-              <div style={{ fontSize: 10.5, color: T.mut }}>{d.nb_messages} message(s) · {fmt(d.cree_le)}</div>
+              <div style={{ fontSize: 10.5, color: T.mut }}>
+                <span style={{ fontFamily: T.fm }}>{d.numero}</span> · {d.nb_messages} message(s) · {fmt(d.cree_le)}
+              </div>
             </div>
             <span style={{ fontSize: 10, fontWeight: 600, padding: "4px 9px", borderRadius: 20, background: s.bg, color: s.fg }}>{s.label}</span>
           </div>
@@ -85,15 +94,30 @@ function List({ token, onNew, onOpen }: { token: string; onNew: () => void; onOp
   );
 }
 
+/** Guided creation: pick a category, pick a request, the subject and message
+ * come prewritten (editable). No document needed to submit; the member can
+ * attach one later inside the ticket thread. */
 function NewDemande({ token, onDone, onCancel }: { token: string; onDone: () => void; onCancel: () => void }): JSX.Element {
-  const [type, setType] = useState("modification_info");
+  const catalogue = useResource(() => getDemandeCatalogue(token), [token]);
+  const [cat, setCat] = useState<CatalogueCategorie | null>(null);
+  const [sous, setSous] = useState<CatalogueSous | null>(null);
   const [sujet, setSujet] = useState("");
-  const [champ, setChamp] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  function pick(c: CatalogueCategorie, s: CatalogueSous): void {
+    setCat(c);
+    setSous(s);
+    setSujet(s.sujet);
+    setMessage(s.message);
+  }
+
   async function submit(): Promise<void> {
+    if (!cat || !sous) {
+      setError("Choisissez d'abord le type de votre demande.");
+      return;
+    }
     if (!sujet.trim() || !message.trim()) {
       setError("Sujet et message requis.");
       return;
@@ -101,7 +125,13 @@ function NewDemande({ token, onDone, onCancel }: { token: string; onDone: () => 
     setBusy(true);
     setError(null);
     try {
-      await createDemande(token, { type, sujet: sujet.trim(), champ_concerne: champ.trim() || undefined, message: message.trim() });
+      await createDemande(token, {
+        type: cat.categorie === "autre" ? "autre" : "modification_info",
+        sujet: sujet.trim(),
+        message: message.trim(),
+        categorie: cat.categorie,
+        sous_categorie: sous.cle,
+      });
       onDone();
     } catch {
       setError("Envoi impossible. Réessayez.");
@@ -112,31 +142,49 @@ function NewDemande({ token, onDone, onCancel }: { token: string; onDone: () => 
 
   const lbl = { fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "12px 0 5px", display: "block" } as const;
   const inp = { width: "100%", border: `1px solid ${T.line}`, borderRadius: 11, padding: "11px 12px", fontSize: 13.5, fontFamily: T.fu, background: T.surf } as const;
+  const cats = catalogue.data?.categories ?? [];
 
   return (
     <div className="scr" style={{ padding: "8px 18px 14px" }}>
-      <span style={lbl}>TYPE DE DEMANDE</span>
+      <span style={lbl}>1. CATÉGORIE</span>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
-        {TYPES.map((t) => (
-          <div key={t.value} onClick={() => setType(t.value)} className="tap" style={{ padding: "8px 12px", borderRadius: 10, fontSize: 12, border: `1.5px solid ${type === t.value ? T.b600 : T.line}`, background: type === t.value ? "#eef3fc" : T.surf, color: type === t.value ? T.b600 : T.ink, fontWeight: type === t.value ? 600 : 400 }}>
-            {t.label}
+        {cats.map((c) => (
+          <div key={c.categorie} onClick={() => { setCat(c); setSous(null); }} className="tap" style={{ padding: "8px 12px", borderRadius: 10, fontSize: 12, border: `1.5px solid ${cat?.categorie === c.categorie ? T.b600 : T.line}`, background: cat?.categorie === c.categorie ? "#eef3fc" : T.surf, color: cat?.categorie === c.categorie ? T.b600 : T.ink, fontWeight: cat?.categorie === c.categorie ? 600 : 400 }}>
+            {c.libelle}
           </div>
         ))}
       </div>
-      <span style={lbl}>SUJET</span>
-      <input value={sujet} onChange={(e) => setSujet(e.target.value)} placeholder="Ex. Correction de mon nom" style={inp} />
-      {type === "modification_info" && (
+      {cat && (
         <>
-          <span style={lbl}>CHAMP CONCERNÉ (optionnel)</span>
-          <input value={champ} onChange={(e) => setChamp(e.target.value)} placeholder="Ex. nom, téléphone, ville..." style={inp} />
+          <span style={lbl}>2. VOTRE DEMANDE</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+            {cat.sous.map((s) => (
+              <div key={s.cle} onClick={() => pick(cat, s)} className="tap" style={{ padding: "10px 12px", borderRadius: 11, fontSize: 12.5, border: `1.5px solid ${sous?.cle === s.cle ? T.b600 : T.line}`, background: sous?.cle === s.cle ? "#eef3fc" : T.surf, fontWeight: sous?.cle === s.cle ? 600 : 400 }}>
+                {s.libelle}
+              </div>
+            ))}
+          </div>
         </>
       )}
-      <span style={lbl}>MOTIF / MESSAGE</span>
-      <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4} placeholder="Expliquez votre demande. Joignez un justificatif via 'Mon dossier' si nécessaire." style={{ ...inp, resize: "vertical" }} />
+      {sous && (
+        <>
+          <span style={lbl}>3. SUJET</span>
+          <input value={sujet} onChange={(e) => setSujet(e.target.value)} style={inp} />
+          <span style={lbl}>4. MESSAGE (pré-rédigé, complétez si besoin)</span>
+          <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={5} style={{ ...inp, resize: "vertical" }} />
+          <p style={{ fontSize: 11, color: T.mut, lineHeight: 1.5, margin: "8px 2px 0" }}>
+            {sous.piece === "recommandée"
+              ? "Une pièce justificative est recommandée : vous pourrez la joindre dans la conversation, juste après l'envoi."
+              : "Aucune pièce n'est requise pour envoyer cette demande. Vous pourrez en joindre une plus tard si l'administration en a besoin."}
+          </p>
+        </>
+      )}
       {error && <p style={{ color: T.dng, fontSize: 12 }}>{error}</p>}
-      <div onClick={() => void submit()} className="tap" style={{ marginTop: 14, height: 48, background: busy ? T.faint : gradient, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 600, fontSize: 14 }}>
-        {busy ? "Envoi..." : "Envoyer la demande"}
-      </div>
+      {sous && (
+        <div onClick={busy ? undefined : () => void submit()} className="tap" style={{ marginTop: 14, height: 48, background: busy ? T.faint : gradient, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 600, fontSize: 14 }}>
+          {busy ? "Envoi..." : "Envoyer la demande"}
+        </div>
+      )}
       <div onClick={onCancel} className="tap" style={{ textAlign: "center", padding: 12, color: T.mut, fontSize: 12.5 }}>Annuler</div>
     </div>
   );
@@ -146,6 +194,8 @@ function Thread({ token, id, onBack }: { token: string; id: string; onBack: () =
   const [detail, setDetail] = useState<DemandeDetail | null>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -173,22 +223,53 @@ function Thread({ token, id, onBack }: { token: string; id: string; onBack: () =
     }
   }
 
+  async function joindre(file: File): Promise<void> {
+    setBusy(true);
+    setNote(null);
+    try {
+      const docId = await uploadDocument(token, "autre", file);
+      const m = await sendDemandeMessage(token, id, `Pièce jointe : ${file.name}`, docId);
+      setDetail((prev) => (prev ? { ...prev, messages: [...prev.messages, m] } : prev));
+      setNote("Pièce envoyée dans la demande.");
+    } catch {
+      setNote("Envoi de la pièce impossible. Réessayez.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const s = detail ? badgeFor(detail.statut) : null;
 
   return (
     <div className="scr" style={{ padding: "8px 16px 14px", display: "flex", flexDirection: "column", height: "100%" }}>
-      <div onClick={onBack} className="tap" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+      <div onClick={onBack} className="tap" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
         <span style={{ fontSize: 20, color: T.mut }}>‹</span>
         <span style={{ fontSize: 14, fontWeight: 600 }}>{detail?.sujet ?? "Demande"}</span>
         {s && <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 600, padding: "3px 9px", borderRadius: 20, background: s.bg, color: s.fg }}>{s.label}</span>}
       </div>
+      {detail && (
+        <div style={{ fontSize: 10, color: T.mut, margin: "0 0 4px 28px", fontFamily: T.fm }}>
+          {detail.numero} · ouverte le {fmt(detail.cree_le)}
+          {detail.motif_cloture ? ` · motif : ${detail.motif_cloture}` : ""}
+        </div>
+      )}
       <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 9, padding: "8px 2px" }}>
         {(detail?.messages ?? []).map((m: DemandeMessage) => {
+          if (m.auteur_type === "systeme") {
+            return (
+              <div key={m.id} style={{ alignSelf: "center", maxWidth: "92%", textAlign: "center" }}>
+                <span style={{ fontSize: 10.5, color: T.mut, background: T.bg, border: `1px dashed ${T.line}`, borderRadius: 10, padding: "4px 10px", display: "inline-block" }}>
+                  {m.corps} · {fmt(m.cree_le)}
+                </span>
+              </div>
+            );
+          }
           const mine = m.auteur_type === "membre";
           return (
             <div key={m.id} style={{ alignSelf: mine ? "flex-end" : "flex-start", maxWidth: "82%" }}>
               <div style={{ background: mine ? T.b600 : T.surf, color: mine ? "#fff" : T.ink, border: mine ? "none" : `1px solid ${T.line}`, borderRadius: 13, padding: "9px 12px", fontSize: 13, lineHeight: 1.45 }}>
                 {m.corps}
+                {m.document_id && <div style={{ fontSize: 10.5, marginTop: 4, opacity: 0.85 }}>Document joint à la demande</div>}
               </div>
               <div style={{ fontSize: 9, color: T.faint, margin: "3px 4px", textAlign: mine ? "right" : "left" }}>
                 {mine ? "Vous" : m.auteur_nom ?? "Administration"} · {fmt(m.cree_le)}
@@ -197,9 +278,21 @@ function Thread({ token, id, onBack }: { token: string; id: string; onBack: () =
           );
         })}
       </div>
+      {detail?.statut === "pieces_demandees" && (
+        <p style={{ fontSize: 11.5, color: "#8a5a12", background: T.warnbg, border: `1px solid ${T.warn}`, borderRadius: 10, padding: "8px 10px", margin: "0 0 6px" }}>
+          L'administration attend une pièce : utilisez le trombone pour la joindre ici.
+        </p>
+      )}
+      {note && <p style={{ fontSize: 11, color: T.mut, margin: "0 0 4px" }}>{note}</p>}
       <div style={{ display: "flex", gap: 7, paddingTop: 8 }}>
+        <input ref={fileRef} type="file" accept="image/*,.pdf" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) void joindre(f); e.target.value = ""; }} />
+        <div onClick={busy ? undefined : () => fileRef.current?.click()} className="tap" title="Joindre une pièce" style={{ width: 46, borderRadius: 11, border: `1.5px solid ${T.line}`, background: T.surf, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, color: T.b600 }}>
+          +
+        </div>
         <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void send()} placeholder="Votre message..." style={{ flex: 1, border: `1px solid ${T.line}`, borderRadius: 11, padding: "11px 12px", fontSize: 13, fontFamily: T.fu, background: T.surf }} />
-        <div onClick={() => void send()} className="tap" style={{ width: 48, borderRadius: 11, background: gradient, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", opacity: busy ? 0.6 : 1 }}>➤</div>
+        <div onClick={() => void send()} className="tap" style={{ width: 48, borderRadius: 11, background: gradient, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", opacity: busy ? 0.6 : 1 }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 2 11 13" /><path d="M22 2 15 22l-4-9-9-4z" /></svg>
+        </div>
       </div>
     </div>
   );
