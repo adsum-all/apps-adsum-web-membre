@@ -7,6 +7,7 @@ import {
   type PresenceOut,
   getInscription,
   getMembreProfile,
+  getPhotoUrl,
 } from "./api.js";
 import { type Lang, LangContext } from "./i18n.js";
 import { displayName } from "./name.js";
@@ -329,6 +330,7 @@ export function App(): JSX.Element {
             )}
             {tab === "profil" && (
               <Profil
+                token={token}
                 profile={profile}
                 onRecensement={() => setRecensementOpen(true)}
                 onDossier={() => setDossierOpen(true)}
@@ -488,6 +490,7 @@ function NavRow({
 }
 
 function Profil({
+  token,
   profile,
   onRecensement,
   onDossier,
@@ -497,6 +500,7 @@ function Profil({
   onInfos,
   onDemandes,
 }: {
+  token: string;
   profile: MembreProfile | null;
   onRecensement: () => void;
   onDossier: () => void;
@@ -513,13 +517,30 @@ function Profil({
   const initials = fullName.slice(0, 2).toUpperCase();
   const verified = profile?.verifie ?? false;
   const since = profile?.date_entree ? new Date(profile.date_entree).getFullYear() : null;
+  // Signed URL of the identity photo; falls back to initials when absent.
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void getPhotoUrl(token)
+      .then((r) => {
+        if (alive) setPhotoUrl(r.url);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [token]);
 
   return (
     <div className="profil" style={{ padding: "10px 2px 14px" }}>
       <div className="profil-head">
-        <div className="avatar" aria-hidden="true">
-          {initials}
-        </div>
+        {photoUrl ? (
+          <img className="avatar avatar-photo" src={photoUrl} alt="Photo d'identité" />
+        ) : (
+          <div className="avatar" aria-hidden="true">
+            {initials}
+          </div>
+        )}
         <h2 style={{ marginBottom: 4 }}>{fullName}</h2>
         <p className="profil-role" style={{ marginBottom: 8 }}>
           {profile?.matricule ?? ""}

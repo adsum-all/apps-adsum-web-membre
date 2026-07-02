@@ -684,3 +684,9 @@ body {
 
 .row-tap { cursor: pointer; }
 .row-tap:active { transform: scale(0.99); }
+
+.avatar-photo {
+  object-fit: cover;
+  border: 2px solid #ffffff;
+  box-shadow: 0 6px 18px rgba(16, 22, 40, 0.18);
+}
