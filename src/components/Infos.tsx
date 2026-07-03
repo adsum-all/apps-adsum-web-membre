@@ -139,7 +139,7 @@ export function Infos({
     <div className="scr" style={{ padding: "6px 18px 24px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 2px 4px" }}>
         {photoUrl ? (
-          <img src={photoUrl} alt="Photo d'identité" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", border: `2px solid ${T.line}` }} />
+          <img src={photoUrl} alt="Photo d'identité" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", objectPosition: "50% 30%", border: `2px solid ${T.line}` }} />
         ) : (
           <div style={{ width: 64, height: 64, borderRadius: "50%", background: T.b600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 20 }}>
             {initiales}

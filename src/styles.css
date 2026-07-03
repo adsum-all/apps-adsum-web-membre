@@ -252,8 +252,10 @@ body {
 }
 .card-photo {
   flex: 0 0 auto;
+  /* Portrait framing (4:5) like the controller, so the head and shoulders show
+     in full instead of a tight square crop of the face. */
   width: 64px;
-  height: 64px;
+  height: 80px;
   border-radius: 14px;
   overflow: hidden;
   border: 2px solid rgba(255, 255, 255, 0.55);
@@ -265,7 +267,10 @@ body {
 .card-photo-img {
   width: 100%;
   height: 100%;
+  /* Never distort the photo: scale uniformly and crop the overflow, keeping the
+     face in view (upper-centre focal point). */
   object-fit: cover;
+  object-position: 50% 30%;
   display: block;
 }
 .card-photo-fallback {
@@ -687,6 +692,7 @@ body {
 
 .avatar-photo {
   object-fit: cover;
+  object-position: 50% 30%;
   border: 2px solid #ffffff;
   box-shadow: 0 6px 18px rgba(16, 22, 40, 0.18);
 }
