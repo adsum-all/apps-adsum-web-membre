@@ -356,6 +356,8 @@ export interface ParticipationMembre {
   cloture?: boolean;
   /** End of the declaration window, so the form can show its deadline. */
   cloture_le?: string | null;
+  /** presentiel (proven by scan or declared) or en_ligne (declared). */
+  modalite?: "presentiel" | "en_ligne" | null;
 }
 
 export function getParticipation(token: string, eventId: string): Promise<ParticipationMembre> {
@@ -365,7 +367,7 @@ export function getParticipation(token: string, eventId: string): Promise<Partic
 export function declarerParticipation(
   token: string,
   eventId: string,
-  body: { statut?: string; avis?: string; note?: number; valider?: boolean },
+  body: { statut?: string; modalite?: "presentiel" | "en_ligne"; avis?: string; note?: number; valider?: boolean },
 ): Promise<{ ok: boolean; verrouille: boolean; statut: string; message?: string }> {
   return authedPut(`/api/v1/membres/me/evenements/${eventId}/participation`, token, body, "Envoi impossible");
 }

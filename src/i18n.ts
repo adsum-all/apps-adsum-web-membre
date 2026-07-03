@@ -133,6 +133,13 @@ const DICT: Record<string, { fr: string; en: string }> = {
   "part.yourStatus": { fr: "Votre statut", en: "Your status" },
   "part.confirmOnce": { fr: "Une seule validation possible. Vérifiez avant de valider.", en: "You can confirm only once. Please review before confirming." },
   "part.openUntil": { fr: "Formulaire ouvert jusqu'au {d}.", en: "Form open until {d}." },
+  "part.modQuestion": { fr: "Comment avez-vous suivi l'activité ?", en: "How did you follow the activity?" },
+  "part.modPresentiel": { fr: "Sur place (présentiel)", en: "On site (in person)" },
+  "part.modEnLigne": { fr: "En ligne", en: "Online" },
+  "part.modKnown": {
+    fr: "Votre présence sur place a été contrôlée par scan : la modalité est déjà connue.",
+    en: "Your on-site presence was checked by scan: the attendance mode is already known.",
+  },
   "part.closed": {
     fr: "Le formulaire de présence de cette activité est clôturé. Contactez l'administration si une correction est nécessaire.",
     en: "The attendance form for this activity is closed. Contact the administration if a correction is needed.",

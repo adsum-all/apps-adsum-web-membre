@@ -19,6 +19,7 @@ const OPTIONS: { value: "present" | "partiel" | "absent"; labelKey: string; hint
 export function Participation({ token, eventId }: { token: string; eventId: string }): JSX.Element | null {
   const [data, setData] = useState<ParticipationMembre | null>(null);
   const [choix, setChoix] = useState<"present" | "partiel" | "absent" | null>(null);
+  const [modalite, setModalite] = useState<"presentiel" | "en_ligne" | null>(null);
   const [avis, setAvis] = useState("");
   const [note, setNote] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
@@ -30,6 +31,7 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
       .then((d) => {
         setData(d);
         setChoix(d.statut);
+        setModalite(d.modalite ?? null);
         setAvis(d.avis ?? "");
         setNote(d.note);
       })
@@ -83,8 +85,11 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
     setBusy(true);
     setMsg(null);
     try {
-      const body: { statut?: string; avis?: string; note?: number; valider: boolean } = { valider: true };
+      const body: { statut?: string; modalite?: "presentiel" | "en_ligne"; avis?: string; note?: number; valider: boolean } = { valider: true };
       if (choix) body.statut = choix;
+      // Modality is declarative only when there is no scan proof; the server
+      // ignores it for scanned members (their modality is proven on-site).
+      if (!scanned && modalite && choix !== "absent") body.modalite = modalite;
       if (avis.trim()) body.avis = avis.trim();
       if (note) body.note = note;
       await declarerParticipation(token, eventId, body);
@@ -106,16 +111,20 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
   }
 
   const showFeedback = scanned || choix === "present" || choix === "partiel";
-  const canConfirm = scanned || choix != null;
+  const needModalite = !scanned && (choix === "present" || choix === "partiel");
+  const canConfirm = scanned || choix === "absent" || (choix != null && modalite != null);
 
   return (
     <Card>
       <Title text={t("part.title")} />
 
       {scanned ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, background: T.okbg, borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
-          <span style={{ color: T.ok, fontWeight: 700 }}>✓</span>
-          <span style={{ fontSize: 12.5, color: T.ink }}>{t("part.scanned")}</span>
+        <div style={{ background: T.okbg, borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ color: T.ok, fontWeight: 700 }}>✓</span>
+            <span style={{ fontSize: 12.5, color: T.ink }}>{t("part.scanned")}</span>
+          </div>
+          <div style={{ fontSize: 11, color: T.mut, marginTop: 4 }}>{t("part.modKnown")}</div>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
@@ -142,6 +151,37 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
               <span style={{ fontSize: 15 }}>{choix === o.value ? "●" : "○"}</span>
             </div>
           ))}
+        </div>
+      )}
+
+      {needModalite && (
+        <div style={{ margin: "2px 0 10px" }}>
+          <div style={{ fontSize: 11, color: T.mut, marginBottom: 6 }}>{t("part.modQuestion")}</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {([
+              { value: "presentiel" as const, label: t("part.modPresentiel") },
+              { value: "en_ligne" as const, label: t("part.modEnLigne") },
+            ]).map((m) => (
+              <div
+                key={m.value}
+                onClick={() => setModalite(m.value)}
+                className="tap"
+                style={{
+                  flex: 1,
+                  textAlign: "center",
+                  padding: "10px 8px",
+                  borderRadius: 11,
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  border: `1.5px solid ${modalite === m.value ? T.b600 : T.line}`,
+                  background: modalite === m.value ? T.b600 : "#fff",
+                  color: modalite === m.value ? "#fff" : T.ink,
+                }}
+              >
+                {m.label}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
