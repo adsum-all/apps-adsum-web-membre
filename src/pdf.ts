@@ -55,10 +55,10 @@ function toLatin1(s: string): string {
     "‘": "'",
     "“": '"',
     "”": '"',
-    "-": "-",
-    "-": "-",
+    "—": "-",
+    "–": "-",
     "…": "...",
-    " ": " ",
+    " ": " ",
   };
   // Keep line breaks and tabs (they are handled by wrapping), transliterate a
   // few common punctuation glyphs, drop anything else outside Latin-1.

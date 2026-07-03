@@ -485,6 +485,9 @@ export interface Demande {
   motif_cloture?: string | null;
   cree_le: string | null;
   nb_messages: number;
+  /** Step tracking: when the administration took the request over / closed it. */
+  pris_en_charge_le?: string | null;
+  clos_le?: string | null;
 }
 
 export interface CatalogueSous {
@@ -803,6 +806,10 @@ export interface AttestationInfo {
   statut: string;
   echeance: string | null;
   texte: string;
+  /** DD/MM/YYYY date the signed scan was transmitted, once sent. */
+  soumise_le?: string | null;
+  /** Reason given by the administration when the scan was rejected. */
+  motif_rejet?: string | null;
 }
 
 export function getAttestation(token: string): Promise<AttestationInfo> {

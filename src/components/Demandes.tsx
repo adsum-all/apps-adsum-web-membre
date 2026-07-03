@@ -41,6 +41,55 @@ function fmt(iso: string | null): string {
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
+/** Step path of a request, so the member sees at a glance what has been done,
+ * where the request stands now and what remains until it is closed. */
+function Etapes({ d }: { d: DemandeDetail }): JSX.Element {
+  const closed = d.statut === "resolue" || d.statut === "refusee";
+  const enCharge = Boolean(d.pris_en_charge_le) || d.statut !== "ouverte";
+  const traitementLabel: Record<string, string> = {
+    en_cours: "En cours de traitement",
+    pieces_demandees: "Pièces attendues de vous",
+    attente_membre: "Réponse attendue de vous",
+    en_validation: "En validation",
+  };
+  const steps: { label: string; date?: string | null; state: "done" | "current" | "todo" }[] = [
+    { label: "Envoyée", date: d.cree_le, state: "done" },
+    {
+      label: "Prise en charge",
+      date: d.pris_en_charge_le,
+      state: enCharge ? "done" : "current",
+    },
+    {
+      label: traitementLabel[d.statut] ?? "Traitement",
+      state: closed ? "done" : enCharge ? "current" : "todo",
+    },
+    {
+      label: d.statut === "resolue" ? "Résolue" : d.statut === "refusee" ? "Refusée" : "Clôture",
+      date: d.clos_le,
+      state: closed ? "done" : "todo",
+    },
+  ];
+  return (
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 0, background: T.surf, border: `1px solid ${T.line}`, borderRadius: 12, padding: "10px 8px", margin: "6px 0 4px" }}>
+      {steps.map((s, i) => {
+        const color = s.state === "done" ? T.ok : s.state === "current" ? T.b600 : T.faint;
+        return (
+          <div key={s.label} style={{ flex: 1, textAlign: "center", position: "relative" }}>
+            {i > 0 && (
+              <div style={{ position: "absolute", left: "-50%", right: "50%", top: 8, height: 2, background: s.state === "todo" ? T.line : T.ok }} />
+            )}
+            <div style={{ position: "relative", width: 16, height: 16, margin: "0 auto", borderRadius: "50%", background: s.state === "todo" ? T.bg : color, border: `2px solid ${color}`, color: "#fff", fontSize: 9, lineHeight: "12px", fontWeight: 700 }}>
+              {s.state === "done" ? "✓" : ""}
+            </div>
+            <div style={{ fontSize: 9.5, fontWeight: s.state === "current" ? 700 : 500, color: s.state === "todo" ? T.mut : T.ink, marginTop: 4, lineHeight: 1.25 }}>{s.label}</div>
+            {s.date && <div style={{ fontSize: 8.5, color: T.mut }}>{fmt(s.date)}</div>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function Demandes({ token }: { token: string }): JSX.Element {
   const [mode, setMode] = useState<"list" | "new" | "thread">("list");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -253,6 +302,7 @@ function Thread({ token, id, onBack }: { token: string; id: string; onBack: () =
           {detail.motif_cloture ? ` · motif : ${detail.motif_cloture}` : ""}
         </div>
       )}
+      {detail && <Etapes d={detail} />}
       <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 9, padding: "8px 2px" }}>
         {(detail?.messages ?? []).map((m: DemandeMessage) => {
           if (m.auteur_type === "systeme") {
@@ -281,6 +331,16 @@ function Thread({ token, id, onBack }: { token: string; id: string; onBack: () =
       {detail?.statut === "pieces_demandees" && (
         <p style={{ fontSize: 11.5, color: "#8a5a12", background: T.warnbg, border: `1px solid ${T.warn}`, borderRadius: 10, padding: "8px 10px", margin: "0 0 6px" }}>
           L'administration attend une pièce : utilisez le trombone pour la joindre ici.
+        </p>
+      )}
+      {detail?.statut === "attente_membre" && (
+        <p style={{ fontSize: 11.5, color: "#8a5a12", background: T.warnbg, border: `1px solid ${T.warn}`, borderRadius: 10, padding: "8px 10px", margin: "0 0 6px" }}>
+          L'administration attend votre réponse : écrivez-la ci-dessous pour que le traitement continue.
+        </p>
+      )}
+      {(detail?.statut === "en_cours" || detail?.statut === "en_validation") && (
+        <p style={{ fontSize: 11, color: T.mut, margin: "0 0 6px" }}>
+          Aucune action attendue de votre part pour le moment : l'administration traite votre demande.
         </p>
       )}
       {note && <p style={{ fontSize: 11, color: T.mut, margin: "0 0 4px" }}>{note}</p>}

@@ -91,6 +91,9 @@ export function AttestationManuelle({ token }: { token: string }): JSX.Element |
   if (!current || !current.requise || DONE_STATUTS.has(current.statut)) return null;
 
   const rejected = current.statut === "rejected";
+  // Once the signed scan is transmitted, nothing is expected from the member:
+  // the card switches to a follow-up view (no upload zone, no send button).
+  const sent = current.statut === "under_review";
 
   async function envoyer(): Promise<void> {
     if (!file) return;
@@ -124,9 +127,45 @@ export function AttestationManuelle({ token }: { token: string }): JSX.Element |
         <StatusBadge info={current} t={t} />
       </div>
 
-      <Echeance echeance={current.echeance} t={t} />
+      {!sent && <Echeance echeance={current.echeance} t={t} />}
 
-      <p style={{ fontSize: 11.5, color: T.mut, lineHeight: 1.5, margin: "8px 0 0" }}>{t("attest.intro")}</p>
+      {sent && (
+        <div style={{ margin: "10px 0 2px" }}>
+          {[
+            { label: current.soumise_le ? t("attest.sentOn").replace("{d}", current.soumise_le) : t("attest.sent"), state: "done" as const },
+            { label: t("attest.stepReview"), state: "current" as const },
+            { label: t("attest.stepDecision"), state: "todo" as const },
+          ].map((s) => (
+            <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 9, padding: "5px 0" }}>
+              <span
+                style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: "50%",
+                  flexShrink: 0,
+                  background: s.state === "done" ? T.ok : s.state === "current" ? T.b600 : T.bg,
+                  border: `2px solid ${s.state === "done" ? T.ok : s.state === "current" ? T.b600 : T.line}`,
+                  color: "#fff",
+                  fontSize: 9,
+                  lineHeight: "12px",
+                  fontWeight: 700,
+                  textAlign: "center",
+                }}
+              >
+                {s.state === "done" ? "✓" : ""}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: s.state === "current" ? 700 : 500, color: s.state === "todo" ? T.mut : T.ink }}>
+                {s.label}
+              </span>
+            </div>
+          ))}
+          <p style={{ fontSize: 11.5, color: T.ok, background: T.okbg, border: `1px solid ${T.ok}`, borderRadius: 11, padding: 10, margin: "8px 0 0", lineHeight: 1.5 }}>
+            {t("attest.noAction")}
+          </p>
+        </div>
+      )}
+
+      {!sent && <p style={{ fontSize: 11.5, color: T.mut, lineHeight: 1.5, margin: "8px 0 0" }}>{t("attest.intro")}</p>}
 
       {rejected && (
         <p
@@ -141,8 +180,13 @@ export function AttestationManuelle({ token }: { token: string }): JSX.Element |
           }}
         >
           {t("attest.rejectedHint")}
+          {current.motif_rejet ? ` ${t("attest.motif").replace("{m}", current.motif_rejet)}` : ""}
         </p>
       )}
+
+      {sent ? null : (
+      <>
+
 
       <div
         style={{
@@ -283,6 +327,8 @@ export function AttestationManuelle({ token }: { token: string }): JSX.Element |
       >
         {busy ? t("attest.sending") : t("attest.send")}
       </div>
+      </>
+      )}
     </div>
   );
 }

@@ -195,6 +195,15 @@ const DICT: Record<string, { fr: string; en: string }> = {
     fr: "L'administration a refusé votre attestation. Vérifiez la signature et la lisibilité, puis renvoyez-la.",
     en: "The administration rejected your attestation. Check the signature and legibility, then upload it again.",
   },
+  "attest.sent": { fr: "Document signé transmis", en: "Signed document transmitted" },
+  "attest.sentOn": { fr: "Document signé transmis le {d}", en: "Signed document transmitted on {d}" },
+  "attest.stepReview": { fr: "Vérification par l'administration en cours", en: "Verification by the administration in progress" },
+  "attest.stepDecision": { fr: "Décision de l'administration", en: "Administration decision" },
+  "attest.noAction": {
+    fr: "Votre document a bien été reçu. Aucune action n'est attendue de votre part : vous serez informé(e) de la décision.",
+    en: "Your document has been received. No action is expected from you: you will be informed of the decision.",
+  },
+  "attest.motif": { fr: "Motif : {m}", en: "Reason: {m}" },
 };
 
 export function tr(lang: Lang, key: string): string {
