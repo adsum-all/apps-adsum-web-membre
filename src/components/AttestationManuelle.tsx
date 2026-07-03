@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { type AttestationInfo, getAttestation, uploadAttestation, uploadDocument } from "../api.js";
 import { useT } from "../i18n.js";
@@ -86,6 +86,16 @@ export function AttestationManuelle({ token }: { token: string }): JSX.Element |
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<AttestationInfo | null>(null);
   const t = useT();
+
+  // The administration decides on its own side: refresh the task periodically
+  // so the member never keeps looking at a stale state (e.g. still "under
+  // review" after the decision) without reloading the page.
+  useEffect(() => {
+    const t = window.setInterval(() => {
+      getAttestation(token).then(setInfo).catch(() => undefined);
+    }, 15000);
+    return () => window.clearInterval(t);
+  }, [token]);
 
   const current = info ?? res.data;
   if (!current || !current.requise || DONE_STATUTS.has(current.statut)) return null;
