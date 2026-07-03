@@ -1,7 +1,26 @@
-import { type MembreProfile } from "../api.js";
+import { useEffect, useState } from "react";
+
+import { type MembreProfile, getDemandes, getPhotoUrl } from "../api.js";
 import { displayName } from "../name.js";
 import { T } from "../proto.js";
 import { ModifierChamps } from "./ModifierChamps.js";
+
+/** Member-facing labels of the unlockable elements (mirror of the server
+ * catalog): fields, identity photo and official identity document. */
+const ELEMENT_LABELS: Record<string, string> = {
+  nom: "Nom",
+  prenoms: "Prénoms",
+  telephone: "Téléphone",
+  date_naissance: "Date de naissance",
+  genre: "Genre",
+  pays: "Pays",
+  ville: "Ville",
+  profession: "Profession",
+  niveau_etudes: "Niveau d'études",
+  situation_matrimoniale: "Situation matrimoniale",
+  photo_identite: "Photo d'identité",
+  piece_identite: "Pièce d'identité officielle",
+};
 
 const ENGAGEMENT: Record<string, string> = {
   membre_simple: "Membre simple",
@@ -79,7 +98,34 @@ export function Infos({
   onDemande: () => void;
   onProfileChange: () => void;
 }): JSX.Element {
-  const unlocked = (profile?.champs_deverrouilles ?? []).length > 0;
+  const deverrouilles = profile?.champs_deverrouilles ?? [];
+  const unlocked = deverrouilles.length > 0;
+  const pieceDebloquee = deverrouilles.includes("piece_identite");
+
+  // Identity photo shown at the top of "Mes informations" (signed short-lived
+  // URL, initials fallback when the member has no photo yet).
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!token) return;
+    getPhotoUrl(token).then((r) => setPhotoUrl(r.url)).catch(() => setPhotoUrl(null));
+  }, [token, profile?.photo_url]);
+
+  // Deadline granted with the unlock: read from the member's own requests.
+  const [echeance, setEcheance] = useState<string | null>(null);
+  useEffect(() => {
+    if (!token || !unlocked) {
+      setEcheance(null);
+      return;
+    }
+    getDemandes(token)
+      .then((ds) => {
+        const attente = ds.find((d) => d.statut === "attente_membre" && d.echeance_reponse);
+        setEcheance(attente?.echeance_reponse ?? null);
+      })
+      .catch(() => setEcheance(null));
+  }, [token, unlocked]);
+
+  const initiales = `${(profile?.prenoms ?? " ")[0] ?? ""}${(profile?.nom ?? " ")[0] ?? ""}`.trim().toUpperCase() || "?";
   const engagement = profile?.type_membre ? (ENGAGEMENT[profile.type_membre] ?? pretty(profile.type_membre)) : "-";
   const matrimonial = profile?.situation_matrimoniale
     ? (MATRIMONIAL[profile.situation_matrimoniale] ?? pretty(profile.situation_matrimoniale))
@@ -91,6 +137,42 @@ export function Infos({
 
   return (
     <div className="scr" style={{ padding: "6px 18px 24px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 2px 4px" }}>
+        {photoUrl ? (
+          <img src={photoUrl} alt="Photo d'identité" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", border: `2px solid ${T.line}` }} />
+        ) : (
+          <div style={{ width: 64, height: 64, borderRadius: "50%", background: T.b600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 20 }}>
+            {initiales}
+          </div>
+        )}
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontFamily: T.fd, fontWeight: 700, fontSize: 16, color: T.ink }}>{fullName(profile)}</div>
+          <div style={{ fontSize: 11.5, color: T.mut, fontFamily: T.fm }}>{profile?.matricule ?? ""}</div>
+          {profile?.photo_pending && (
+            <div style={{ fontSize: 10.5, color: T.warn, marginTop: 3, fontWeight: 600 }}>
+              Nouvelle photo en attente de validation
+            </div>
+          )}
+        </div>
+      </div>
+
+      {unlocked && (
+        <div style={{ background: T.warnbg, border: `1px solid ${T.warn}`, borderRadius: 13, padding: 13, margin: "10px 0 4px" }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: "#8a5a12" }}>
+            L'administration a débloqué pour vous : {deverrouilles.map((c) => ELEMENT_LABELS[c] ?? c).join(", ")}.
+          </div>
+          <div style={{ fontSize: 11.5, color: "#8a5a12", marginTop: 4, lineHeight: 1.5 }}>
+            {echeance
+              ? `À faire avant le ${new Date(echeance).toLocaleDateString("fr-FR")}, sinon la demande sera clôturée sans suite. `
+              : ""}
+            {deverrouilles.some((c) => ELEMENT_LABELS[c] && c !== "piece_identite")
+              ? "Corrigez le tout dans le formulaire ci-dessous puis soumettez une seule fois. "
+              : ""}
+            {pieceDebloquee ? "Pour la pièce d'identité : joignez le nouveau document dans votre demande (trombone). " : ""}
+          </div>
+        </div>
+      )}
+
       <Group title="Identité">
         <Row label="Nom complet" value={fullName(profile)} />
         <Row label="Genre" value={pretty(profile?.genre)} />

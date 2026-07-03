@@ -22,7 +22,7 @@ describe("api client", () => {
 
   it("returns the access token on login", async () => {
     mockFetch(200, { access_token: "jwt-123", role: "direction" });
-    await expect(login("a@b.c", "pw")).resolves.toBe("jwt-123");
+    await expect(login("a@b.c", "pw")).resolves.toEqual({ token: "jwt-123", doitChangerMdp: false });
   });
 
   it("raises a typed error on invalid credentials", async () => {

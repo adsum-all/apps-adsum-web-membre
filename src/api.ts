@@ -22,6 +22,7 @@ export interface MembreProfile {
   indicatif_telephone: string | null;
   groupe: string | null;
   photo_url: string | null;
+  photo_pending: boolean;
   statut: string;
   verifie: boolean;
   genre: string | null;
@@ -401,6 +402,10 @@ export function getNotifications(token: string): Promise<NotificationItem[]> {
   return authedGet<NotificationItem[]>("/api/v1/membres/me/notifications", token, "Notifications indisponibles");
 }
 
+export function marquerNotificationLue(token: string, id: string): Promise<void> {
+  return authedPost<void>(`/api/v1/membres/me/notifications/${id}/lire`, token, {}, "Marquage impossible");
+}
+
 export async function markNotificationsRead(token: string): Promise<void> {
   await fetch(`${BASE}/api/v1/membres/me/notifications/lire`, {
     method: "POST",
@@ -477,6 +482,9 @@ export interface DemandeMessage {
   corps: string;
   cree_le: string | null;
   document_id?: string | null;
+  /** Read receipts: when the member / the staff read this message. */
+  lu_par_membre_le?: string | null;
+  lu_par_staff_le?: string | null;
 }
 
 export interface Demande {
@@ -494,6 +502,8 @@ export interface Demande {
   /** Step tracking: when the administration took the request over / closed it. */
   pris_en_charge_le?: string | null;
   clos_le?: string | null;
+  /** Deadline for the member's action after an unlock (auto-close when over). */
+  echeance_reponse?: string | null;
 }
 
 export interface CatalogueSous {
@@ -619,6 +629,27 @@ export function updateProfil(
   fields: ProfilFields,
 ): Promise<{ ok: boolean; pending_validation?: boolean; champs?: string[]; updated?: string[] }> {
   return authedPatch("/api/v1/membres/me/profil", token, fields, "Mise à jour impossible");
+}
+
+/** Single, unified submission of an admin-opened modification cycle: the edited
+ * text fields and any staged replacement photo go together, once. The server
+ * consumes the whole unlock and rejects any replay. */
+export function soumettreModifications(
+  token: string,
+  champs: Record<string, string>,
+  inclurePhoto: boolean,
+): Promise<{ ok: boolean; pending_validation?: boolean; champs?: string[]; photo?: boolean }> {
+  return authedPost(
+    "/api/v1/membres/me/modifications/soumettre",
+    token,
+    { champs, inclure_photo: inclurePhoto },
+    "Soumission impossible",
+  );
+}
+
+/** Signed preview of a replacement photo staged but not yet validated. */
+export function getPendingPhotoUrl(token: string): Promise<{ url: string | null }> {
+  return authedGet("/api/v1/membres/me/photo/pending", token, "Aperçu indisponible");
 }
 
 export interface InscriptionStatut {
