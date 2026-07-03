@@ -22,6 +22,7 @@ export interface MembreProfile {
   indicatif_telephone: string | null;
   groupe: string | null;
   photo_url: string | null;
+  photo_pending: boolean;
   statut: string;
   verifie: boolean;
   genre: string | null;
@@ -628,6 +629,27 @@ export function updateProfil(
   fields: ProfilFields,
 ): Promise<{ ok: boolean; pending_validation?: boolean; champs?: string[]; updated?: string[] }> {
   return authedPatch("/api/v1/membres/me/profil", token, fields, "Mise à jour impossible");
+}
+
+/** Single, unified submission of an admin-opened modification cycle: the edited
+ * text fields and any staged replacement photo go together, once. The server
+ * consumes the whole unlock and rejects any replay. */
+export function soumettreModifications(
+  token: string,
+  champs: Record<string, string>,
+  inclurePhoto: boolean,
+): Promise<{ ok: boolean; pending_validation?: boolean; champs?: string[]; photo?: boolean }> {
+  return authedPost(
+    "/api/v1/membres/me/modifications/soumettre",
+    token,
+    { champs, inclure_photo: inclurePhoto },
+    "Soumission impossible",
+  );
+}
+
+/** Signed preview of a replacement photo staged but not yet validated. */
+export function getPendingPhotoUrl(token: string): Promise<{ url: string | null }> {
+  return authedGet("/api/v1/membres/me/photo/pending", token, "Aperçu indisponible");
 }
 
 export interface InscriptionStatut {

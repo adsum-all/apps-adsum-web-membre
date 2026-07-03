@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
-import { type MembreProfile, type ProfilFields, updateProfil } from "../api.js";
+import { type MembreProfile, soumettreModifications, uploadPhoto } from "../api.js";
 import { T } from "../proto.js";
 
 /** Human label for each unlockable member field. */
@@ -32,36 +32,61 @@ interface ModifierChampsProps {
 }
 
 /**
- * Member-facing editor for the fields the administration has unlocked.
- * Submitting does not change the record directly: it files a proposal that the
- * administration validates before it is committed (bank / public-service style).
+ * Single, unified editor for everything the administration unlocked in the
+ * current cycle: the text fields AND the identity photo, submitted ONCE.
+ * Selecting a photo only stages it (no submission); the record is never changed
+ * directly. The one "Soumettre pour validation" click files the whole proposal,
+ * the server consumes the unlock, and this panel disappears (its visibility is
+ * driven by the server truth champs_deverrouilles, so a refresh cannot reopen
+ * it). A new modification requires the administration to unlock again.
  */
 export function ModifierChamps({ token, profile, onSubmitted }: ModifierChampsProps): JSX.Element | null {
-  const unlocked = (profile.champs_deverrouilles ?? []).filter((f) => f in LABELS);
+  const deverrouilles = profile.champs_deverrouilles ?? [];
+  const unlocked = deverrouilles.filter((f) => f in LABELS);
+  const photoUnlocked = deverrouilles.includes("photo_identite");
+
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(unlocked.map((f) => [f, initialValue(f, profile)])),
   );
+  const photoInput = useRef<HTMLInputElement | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoStaged, setPhotoStaged] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (unlocked.length === 0) return null;
+  if (unlocked.length === 0 && !photoUnlocked) return null;
+
+  async function stagePhoto(file: File): Promise<void> {
+    setPhotoBusy(true);
+    setError(null);
+    try {
+      // Uploads and stages only: the live photo is untouched until the
+      // administration validates the single submission below.
+      await uploadPhoto(token, file);
+      setPhotoStaged(true);
+      setPhotoPreview(URL.createObjectURL(file));
+    } catch (e) {
+      setError(e instanceof Error && e.message ? e.message : "Chargement de la photo impossible. Réessayez.");
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
 
   async function submit(): Promise<void> {
     setBusy(true);
     setError(null);
     try {
-      const payload: ProfilFields = {};
-      for (const f of unlocked) {
-        (payload as Record<string, string>)[f] = values[f] ?? "";
-      }
-      const res = await updateProfil(token, payload);
+      const champs: Record<string, string> = {};
+      for (const f of unlocked) champs[f] = values[f] ?? "";
+      const res = await soumettreModifications(token, champs, photoStaged);
       if (res.pending_validation) {
         setDone(true);
         onSubmitted();
       }
-    } catch {
-      setError("Envoi impossible. Réessayez.");
+    } catch (e) {
+      setError(e instanceof Error && e.message ? e.message : "Envoi impossible. Réessayez.");
     } finally {
       setBusy(false);
     }
@@ -72,7 +97,9 @@ export function ModifierChamps({ token, profile, onSubmitted }: ModifierChampsPr
       <div style={{ background: T.warnbg, border: `1px solid ${T.warn}33`, borderRadius: 14, padding: "14px 16px", margin: "12px 0" }}>
         <p style={{ fontSize: 13, fontWeight: 600, color: T.warn, margin: 0 }}>Modification en attente de validation</p>
         <p style={{ fontSize: 12, color: T.mut, margin: "6px 0 0", lineHeight: 1.5 }}>
-          Votre proposition a été transmise à l'administration. Elle sera enregistrée après validation finale.
+          Votre proposition (informations{photoStaged ? " et photo" : ""}) a été transmise à l'administration. Elle sera
+          enregistrée après validation finale. Vous ne pouvez plus la modifier tant que l'administration n'a pas rouvert
+          un nouveau déblocage.
         </p>
       </div>
     );
@@ -81,27 +108,67 @@ export function ModifierChamps({ token, profile, onSubmitted }: ModifierChampsPr
   return (
     <div style={{ background: T.surf, border: `1px solid ${T.line}`, borderRadius: 14, padding: "14px 16px", margin: "12px 0" }}>
       <p style={{ fontSize: 13, fontWeight: 700, color: T.ink, margin: "0 0 4px", fontFamily: T.fd }}>
-        Champs débloqués par l'administration
+        Correction débloquée par l'administration
       </p>
       <p style={{ fontSize: 11.5, color: T.mut, margin: "0 0 12px", lineHeight: 1.5 }}>
-        Corrigez les informations ci-dessous puis soumettez. La modification sera enregistrée après validation finale.
+        Modifiez les éléments ci-dessous puis soumettez une seule fois. Tout est envoyé ensemble et sera enregistré
+        après validation finale.
       </p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {unlocked.map((f) => (
-          <label key={f} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <span style={{ fontSize: 11, color: T.mut }}>{LABELS[f]}</span>
-            <Field
-              field={f}
-              value={values[f] ?? ""}
-              onChange={(val) => setValues((prev) => ({ ...prev, [f]: val }))}
+
+      {photoUnlocked && (
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: unlocked.length ? 14 : 4 }}>
+          {photoPreview ? (
+            <img src={photoPreview} alt="Nouvelle photo" style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: `2px solid ${T.b500}` }} />
+          ) : (
+            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#eef2ff", color: T.b600, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>
+              {"📷"}
+            </div>
+          )}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <input
+              ref={photoInput}
+              type="file"
+              accept="image/jpeg,image/png"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void stagePhoto(f);
+                e.target.value = "";
+              }}
             />
-          </label>
-        ))}
-      </div>
+            <button
+              type="button"
+              disabled={photoBusy || busy}
+              onClick={() => photoInput.current?.click()}
+              className="tap"
+              style={{ height: 38, padding: "0 14px", borderRadius: 10, background: photoStaged ? T.ok : T.b600, color: "#fff", border: "none", fontWeight: 600, fontSize: 12.5, opacity: photoBusy ? 0.6 : 1 }}
+            >
+              {photoBusy ? "Chargement..." : photoStaged ? "Photo prête, changer" : "Choisir ma nouvelle photo"}
+            </button>
+            <p style={{ fontSize: 11, color: T.mut, margin: "6px 0 0", lineHeight: 1.4 }}>
+              {photoStaged
+                ? "Photo prête. Elle sera enregistrée à la validation, avec le reste."
+                : "La photo n'est pas encore envoyée : elle partira avec la soumission unique."}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {unlocked.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {unlocked.map((f) => (
+            <label key={f} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 11, color: T.mut }}>{LABELS[f]}</span>
+              <Field field={f} value={values[f] ?? ""} onChange={(val) => setValues((prev) => ({ ...prev, [f]: val }))} />
+            </label>
+          ))}
+        </div>
+      )}
+
       {error && <p style={{ fontSize: 12, color: T.dng, margin: "10px 0 0" }}>{error}</p>}
       <button
         type="button"
-        disabled={busy}
+        disabled={busy || photoBusy}
         onClick={() => void submit()}
         className="tap"
         style={{
@@ -114,7 +181,7 @@ export function ModifierChamps({ token, profile, onSubmitted }: ModifierChampsPr
           color: "#fff",
           fontWeight: 600,
           fontSize: 14,
-          opacity: busy ? 0.6 : 1,
+          opacity: busy || photoBusy ? 0.6 : 1,
         }}
       >
         {busy ? "Envoi..." : "Soumettre pour validation"}

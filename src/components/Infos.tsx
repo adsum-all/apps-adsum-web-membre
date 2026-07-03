@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
-import { type MembreProfile, getDemandes, getPhotoUrl, uploadPhoto } from "../api.js";
+import { type MembreProfile, getDemandes, getPhotoUrl } from "../api.js";
 import { displayName } from "../name.js";
 import { T } from "../proto.js";
 import { ModifierChamps } from "./ModifierChamps.js";
@@ -100,7 +100,6 @@ export function Infos({
 }): JSX.Element {
   const deverrouilles = profile?.champs_deverrouilles ?? [];
   const unlocked = deverrouilles.length > 0;
-  const photoDebloquee = deverrouilles.includes("photo_identite");
   const pieceDebloquee = deverrouilles.includes("piece_identite");
 
   // Identity photo shown at the top of "Mes informations" (signed short-lived
@@ -126,26 +125,6 @@ export function Infos({
       .catch(() => setEcheance(null));
   }, [token, unlocked]);
 
-  // One-tap identity-photo replacement, available only while unlocked.
-  const photoInput = useRef<HTMLInputElement | null>(null);
-  const [photoBusy, setPhotoBusy] = useState(false);
-  const [photoMsg, setPhotoMsg] = useState<string | null>(null);
-  async function remplacerPhoto(file: File): Promise<void> {
-    if (!token) return;
-    setPhotoBusy(true);
-    setPhotoMsg(null);
-    try {
-      await uploadPhoto(token, file);
-      setPhotoMsg("Photo transmise. Elle est en attente de revalidation par l'administration.");
-      onProfileChange();
-      getPhotoUrl(token).then((r) => setPhotoUrl(r.url)).catch(() => undefined);
-    } catch (e) {
-      setPhotoMsg(e instanceof Error && e.message ? e.message : "Envoi impossible. Réessayez.");
-    } finally {
-      setPhotoBusy(false);
-    }
-  }
-
   const initiales = `${(profile?.prenoms ?? " ")[0] ?? ""}${(profile?.nom ?? " ")[0] ?? ""}`.trim().toUpperCase() || "?";
   const engagement = profile?.type_membre ? (ENGAGEMENT[profile.type_membre] ?? pretty(profile.type_membre)) : "-";
   const matrimonial = profile?.situation_matrimoniale
@@ -169,6 +148,11 @@ export function Infos({
         <div style={{ minWidth: 0 }}>
           <div style={{ fontFamily: T.fd, fontWeight: 700, fontSize: 16, color: T.ink }}>{fullName(profile)}</div>
           <div style={{ fontSize: 11.5, color: T.mut, fontFamily: T.fm }}>{profile?.matricule ?? ""}</div>
+          {profile?.photo_pending && (
+            <div style={{ fontSize: 10.5, color: T.warn, marginTop: 3, fontWeight: 600 }}>
+              Nouvelle photo en attente de validation
+            </div>
+          )}
         </div>
       </div>
 
@@ -181,34 +165,11 @@ export function Infos({
             {echeance
               ? `À faire avant le ${new Date(echeance).toLocaleDateString("fr-FR")}, sinon la demande sera clôturée sans suite. `
               : ""}
-            {deverrouilles.some((c) => ELEMENT_LABELS[c] && c !== "photo_identite" && c !== "piece_identite")
-              ? "Les champs concernés sont modifiables ci-dessous. "
+            {deverrouilles.some((c) => ELEMENT_LABELS[c] && c !== "piece_identite")
+              ? "Corrigez le tout dans le formulaire ci-dessous puis soumettez une seule fois. "
               : ""}
             {pieceDebloquee ? "Pour la pièce d'identité : joignez le nouveau document dans votre demande (trombone). " : ""}
           </div>
-          {photoDebloquee && (
-            <>
-              <input
-                ref={photoInput}
-                type="file"
-                accept="image/jpeg,image/png"
-                style={{ display: "none" }}
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) void remplacerPhoto(f);
-                  e.target.value = "";
-                }}
-              />
-              <div
-                onClick={photoBusy ? undefined : () => photoInput.current?.click()}
-                className="tap"
-                style={{ marginTop: 10, height: 42, borderRadius: 11, background: T.b600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 12.5, opacity: photoBusy ? 0.6 : 1 }}
-              >
-                {photoBusy ? "Envoi de la photo..." : "Remplacer ma photo d'identité"}
-              </div>
-            </>
-          )}
-          {photoMsg && <p style={{ fontSize: 11.5, color: photoMsg.startsWith("Photo transmise") ? T.ok : T.dng, margin: "8px 0 0" }}>{photoMsg}</p>}
         </div>
       )}
 
