@@ -132,6 +132,12 @@ const DICT: Record<string, { fr: string; en: string }> = {
   "part.immutable": { fr: "Elle est prise en compte et ne peut plus être modifiée.", en: "It is recorded and can no longer be changed." },
   "part.yourStatus": { fr: "Votre statut", en: "Your status" },
   "part.confirmOnce": { fr: "Une seule validation possible. Vérifiez avant de valider.", en: "You can confirm only once. Please review before confirming." },
+  "part.openUntil": { fr: "Formulaire ouvert jusqu'au {d}.", en: "Form open until {d}." },
+  "part.closed": {
+    fr: "Le formulaire de présence de cette activité est clôturé. Contactez l'administration si une correction est nécessaire.",
+    en: "The attendance form for this activity is closed. Contact the administration if a correction is needed.",
+  },
+  "part.error": { fr: "Validation impossible. Réessayez.", en: "Confirmation failed. Please try again." },
   "part.sending": { fr: "Validation...", en: "Confirming..." },
   "part.joinSession": { fr: "▶ Rejoindre la session", en: "▶ Join the session" },
   "part.sessionOpen": { fr: "Session ouverte", en: "Session open" },

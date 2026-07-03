@@ -47,6 +47,20 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
     return null;
   }
 
+  // Declaration window over and nothing recorded: the screen says so instead of
+  // showing a form the server would reject (no misleading state, ever).
+  if (data.cloture && !locked && !scanned && data.statut == null) {
+    return (
+      <Card>
+        <Title text={t("part.title")} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, background: T.bg, border: `1px dashed ${T.line}`, borderRadius: 10, padding: "10px 12px" }}>
+          <span style={{ color: T.mut, fontWeight: 700 }}>-</span>
+          <span style={{ fontSize: 12.5, color: T.mut }}>{t("part.closed")}</span>
+        </div>
+      </Card>
+    );
+  }
+
   // Finalized: read-only summary, no inputs, no buttons.
   if (locked) {
     const statutLabel = data.statut ? t(`part.${data.statut}`) : "-";
@@ -76,8 +90,16 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
       await declarerParticipation(token, eventId, body);
       const fresh = await getParticipation(token, eventId);
       setData(fresh);
-    } catch {
-      setMsg(null);
+    } catch (e) {
+      // Never fail silently: the member must know why nothing happened
+      // (window closed, already recorded, network...).
+      setMsg(e instanceof Error && e.message ? e.message : t("part.error"));
+      try {
+        const fresh = await getParticipation(token, eventId);
+        setData(fresh);
+      } catch {
+        // keep the current view if the refresh itself fails
+      }
     } finally {
       setBusy(false);
     }
@@ -149,7 +171,12 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
       )}
 
       {msg && <p style={{ fontSize: 11.5, color: T.dng, margin: "8px 0 0" }}>{msg}</p>}
-      <p style={{ fontSize: 10.5, color: T.faint, margin: "8px 0 6px" }}>{t("part.confirmOnce")}</p>
+      <p style={{ fontSize: 10.5, color: T.faint, margin: "8px 0 6px" }}>
+        {t("part.confirmOnce")}
+        {data.cloture_le
+          ? ` ${t("part.openUntil").replace("{d}", new Date(data.cloture_le).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }))}`
+          : ""}
+      </p>
 
       <button
         type="button"

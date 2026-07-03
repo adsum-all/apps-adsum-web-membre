@@ -352,6 +352,10 @@ export interface ParticipationMembre {
   verrouille: boolean;
   ouvert: boolean;
   disponible_le: string | null;
+  /** True once the declaration window is over (server-enforced). */
+  cloture?: boolean;
+  /** End of the declaration window, so the form can show its deadline. */
+  cloture_le?: string | null;
 }
 
 export function getParticipation(token: string, eventId: string): Promise<ParticipationMembre> {
