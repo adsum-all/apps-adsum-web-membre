@@ -323,6 +323,7 @@ function Thread({ token, id, onBack }: { token: string; id: string; onBack: () =
               </div>
               <div style={{ fontSize: 9, color: T.faint, margin: "3px 4px", textAlign: mine ? "right" : "left" }}>
                 {mine ? "Vous" : m.auteur_nom ?? "Administration"} · {fmt(m.cree_le)}
+                {mine && m.lu_par_staff_le ? <span style={{ color: T.ok, fontWeight: 700 }}> · Lu {fmt(m.lu_par_staff_le)}</span> : mine ? " · Envoyé" : ""}
               </div>
             </div>
           );
@@ -336,6 +337,9 @@ function Thread({ token, id, onBack }: { token: string; id: string; onBack: () =
       {detail?.statut === "attente_membre" && (
         <p style={{ fontSize: 11.5, color: "#8a5a12", background: T.warnbg, border: `1px solid ${T.warn}`, borderRadius: 10, padding: "8px 10px", margin: "0 0 6px" }}>
           L'administration attend votre réponse : écrivez-la ci-dessous pour que le traitement continue.
+          {detail.echeance_reponse
+            ? ` À faire avant le ${new Date(detail.echeance_reponse).toLocaleDateString("fr-FR")}, sinon la demande sera clôturée sans suite.`
+            : ""}
         </p>
       )}
       {(detail?.statut === "en_cours" || detail?.statut === "en_validation") && (

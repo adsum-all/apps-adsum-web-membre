@@ -401,6 +401,10 @@ export function getNotifications(token: string): Promise<NotificationItem[]> {
   return authedGet<NotificationItem[]>("/api/v1/membres/me/notifications", token, "Notifications indisponibles");
 }
 
+export function marquerNotificationLue(token: string, id: string): Promise<void> {
+  return authedPost<void>(`/api/v1/membres/me/notifications/${id}/lire`, token, {}, "Marquage impossible");
+}
+
 export async function markNotificationsRead(token: string): Promise<void> {
   await fetch(`${BASE}/api/v1/membres/me/notifications/lire`, {
     method: "POST",
@@ -477,6 +481,9 @@ export interface DemandeMessage {
   corps: string;
   cree_le: string | null;
   document_id?: string | null;
+  /** Read receipts: when the member / the staff read this message. */
+  lu_par_membre_le?: string | null;
+  lu_par_staff_le?: string | null;
 }
 
 export interface Demande {
@@ -494,6 +501,8 @@ export interface Demande {
   /** Step tracking: when the administration took the request over / closed it. */
   pris_en_charge_le?: string | null;
   clos_le?: string | null;
+  /** Deadline for the member's action after an unlock (auto-close when over). */
+  echeance_reponse?: string | null;
 }
 
 export interface CatalogueSous {
