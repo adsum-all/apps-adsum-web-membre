@@ -9,6 +9,7 @@ import {
   getInscription,
   getMembreProfile,
   getPhotoUrl,
+  logoutSession,
   photoObjectPosition,
 } from "./api.js";
 import { type Lang, LangContext } from "./i18n.js";
@@ -155,6 +156,7 @@ export function App(): JSX.Element {
   );
 
   const logout = useCallback(() => {
+    if (token) void logoutSession(token).catch(() => undefined);
     saveToken(null);
     setToken(null);
     setProfile(null);
@@ -162,7 +164,7 @@ export function App(): JSX.Element {
     setFirstLogin(null);
     setInscription(null);
     setTab("carte");
-  }, []);
+  }, [token]);
 
   // Restore a persisted session on load: fetch the profile and status; if the
   // token is no longer valid (expired or revoked) sign out cleanly.

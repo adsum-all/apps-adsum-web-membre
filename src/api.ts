@@ -489,6 +489,11 @@ export function requestOtp(email: string, purpose: string): Promise<{ ok: boolea
   return publicPost("/api/v1/auth/request-otp", { email, purpose }, "Envoi du code impossible");
 }
 
+/** Close the current session server-side (records the logout and its duration). */
+export function logoutSession(token: string): Promise<{ ok: boolean }> {
+  return authedPost("/api/v1/auth/logout", token, {}, "Déconnexion");
+}
+
 export interface DemandeMessage {
   id: string;
   auteur_type: "membre" | "staff" | "systeme";
