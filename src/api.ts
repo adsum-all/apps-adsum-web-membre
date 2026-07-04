@@ -61,7 +61,6 @@ export interface MembreProfile {
   berger: string | null;
   tribu: string | null;
   patriarche: string | null;
-  patriarche_biblique: string | null;
   coordination: string | null;
   coordinateur: string | null;
   champs_deverrouilles: string[];
