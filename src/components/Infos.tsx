@@ -265,7 +265,8 @@ export function Infos({
 
       <Group title="Identité ecclésiale">
         <Row label="Tribu" value={profile?.tribu ?? "-"} />
-        <Row label="Patriarche" value={profile?.patriarche ?? "-"} />
+        <Row label="Patriarche" value={profile?.patriarche ?? "Non affecté"} />
+        {profile?.patriarche_biblique && <Row label="Fondement biblique" value={profile.patriarche_biblique} />}
         <Row label="Niveau d'engagement" value={engagement} />
         <Row label="Promotion" value={profile?.promotion ?? "-"} />
         <Row label="Cheminement" value={pretty(profile?.cheminement_pastoral)} last />
