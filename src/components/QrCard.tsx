@@ -52,12 +52,25 @@ function abregerRole(texte: string): string {
 
 const ENGAGEMENT_LABELS: Record<string, string> = {
   membre_simple: "Membre simple",
+  membre_actif: "Membre actif",
   nouveau_engage: "Nouvel engagé",
+  nouvel_engage: "Nouvel engagé",
   aspirant: "Aspirant",
   engage: "Engagé",
   berger: "Berger",
   responsable: "Responsable",
 };
+
+/** Human label for an engagement value: mapped when known, otherwise the raw
+ * slug is prettified (underscores to spaces, first letter capitalised) so a raw
+ * snake_case value can never appear on the card. */
+function engagementDisplay(value?: string | null): string {
+  if (!value) return "Membre";
+  const known = ENGAGEMENT_LABELS[value];
+  if (known) return known;
+  const words = value.replace(/_/g, " ").trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
 
 export function QrCard({
   matricule,
@@ -120,7 +133,7 @@ export function QrCard({
     };
   }, [authToken]);
 
-  const engagementLabel = engagement ? (ENGAGEMENT_LABELS[engagement] ?? engagement) : "Membre";
+  const engagementLabel = engagementDisplay(engagement);
   const avatarInitials = initials({ prenoms, nom: memberNom });
 
   // The distinguished line: consecration name first, otherwise the primary
