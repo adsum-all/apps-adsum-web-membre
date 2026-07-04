@@ -9,6 +9,7 @@ import {
   getInscription,
   getMembreProfile,
   getPhotoUrl,
+  photoObjectPosition,
 } from "./api.js";
 import { type Lang, LangContext } from "./i18n.js";
 import { displayName } from "./name.js";
@@ -570,7 +571,7 @@ function Profil({
     <div className="profil" style={{ padding: "10px 2px 14px" }}>
       <div className="profil-head">
         {photoUrl ? (
-          <img className="avatar avatar-photo" src={photoUrl} alt="Photo d'identité" />
+          <img className="avatar avatar-photo" src={photoUrl} alt="Photo d'identité" style={{ objectPosition: photoObjectPosition(profile) }} />
         ) : (
           <div className="avatar" aria-hidden="true">
             {initials}

@@ -23,6 +23,8 @@ export interface MembreProfile {
   groupe: string | null;
   photo_url: string | null;
   photo_pending: boolean;
+  photo_focus_x: number | null;
+  photo_focus_y: number | null;
   statut: string;
   verifie: boolean;
   genre: string | null;
@@ -783,7 +785,11 @@ async function uploadViaSignedUrl(uploadUrl: string, file: File): Promise<void> 
   if (!put.ok) throw new ApiError("Téléversement impossible", put.status);
 }
 
-export async function uploadPhoto(token: string, file: File): Promise<void> {
+export async function uploadPhoto(
+  token: string,
+  file: File,
+  focus?: { x: number; y: number },
+): Promise<void> {
   const signed = await authedPost<{ upload_url: string; path: string }>(
     "/api/v1/membres/me/photo/upload-url",
     token,
@@ -797,9 +803,22 @@ export async function uploadPhoto(token: string, file: File): Promise<void> {
   await authedPost<void>(
     "/api/v1/membres/me/photo/confirm",
     token,
-    { path: signed.path, phash },
+    { path: signed.path, phash, focus_x: focus?.x ?? null, focus_y: focus?.y ?? null },
     "Confirmation impossible",
   );
+}
+
+/** Re-frame the current photo (display-only focal point, no re-validation). */
+export function setPhotoFocus(token: string, x: number, y: number): Promise<void> {
+  return authedPatch("/api/v1/membres/me/photo/focus", token, { x, y }, "Cadrage impossible");
+}
+
+/** CSS object-position for a member photo, from its stored focal point.
+ * Falls back to the upper-centre default that suits head-and-shoulders photos. */
+export function photoObjectPosition(p: { photo_focus_x: number | null; photo_focus_y: number | null } | null): string {
+  const x = p?.photo_focus_x;
+  const y = p?.photo_focus_y;
+  return x != null && y != null ? `${x}% ${y}%` : "50% 30%";
 }
 
 export async function uploadDocument(token: string, type: string, file: File): Promise<string> {
