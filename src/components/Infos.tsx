@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { type MembreProfile, getDemandes, getPhotoUrl, photoObjectPosition, setPhotoFocus } from "../api.js";
 import { type Focus, PhotoFocusEditor } from "./PhotoFocusEditor.js";
-import { civilName, civilNameComplet, fonctionLabel } from "../name.js";
+import { civilName, civilNameComplet } from "../name.js";
 import { T } from "../proto.js";
 import { ModifierChamps } from "./ModifierChamps.js";
 
@@ -174,8 +174,14 @@ export function Infos({
           {profile?.est_berger && profile?.nom_pastoral_affiche && (
             <div style={{ fontSize: 12.5, fontWeight: 700, color: "#a06a12", marginTop: 3 }}>{profile.nom_pastoral_affiche}</div>
           )}
-          {fonctionLabel(profile ?? {}) && (
-            <div style={{ fontSize: 11.5, color: T.mut, marginTop: 2 }}>{fonctionLabel(profile ?? {})}</div>
+          {(profile?.fonctions ?? []).map((f, i) => (
+            <div key={i} style={{ fontSize: 11.5, color: T.b600, fontWeight: 600, marginTop: 2 }}>
+              {f.libelle}
+              {f.perimetre ? ` - ${f.perimetre}` : ""}
+            </div>
+          ))}
+          {!profile?.est_berger && (profile?.fonctions ?? []).length === 0 && (
+            <div style={{ fontSize: 11.5, color: T.mut, marginTop: 2 }}>Membre</div>
           )}
           {profile?.photo_pending && (
             <div style={{ fontSize: 10.5, color: T.warn, marginTop: 3, fontWeight: 600 }}>
@@ -232,7 +238,9 @@ export function Infos({
         {profile?.est_berger && profile?.nom_pastoral_affiche && (
           <Row label="Nom pastoral" value={profile.nom_pastoral_affiche} />
         )}
-        {fonctionLabel(profile ?? {}) && <Row label="Fonction" value={fonctionLabel(profile ?? {}) ?? "-"} />}
+        {(profile?.fonctions ?? []).map((f, i) => (
+          <Row key={i} label={i === 0 ? "Fonction" : ""} value={f.perimetre ? `${f.libelle} - ${f.perimetre}` : f.libelle} />
+        ))}
         <Row label="Genre" value={pretty(profile?.genre)} />
         <Row label={profile?.naissance_annee_visible ? "Date de naissance" : "Anniversaire"} value={naissance(profile?.date_naissance, !!profile?.naissance_annee_visible)} />
         <Row label="Matricule" value={profile?.matricule ?? "-"} last />

@@ -26,6 +26,7 @@ export interface MembreProfile {
   nom_pastoral: string | null;
   nom_pastoral_affiche: string | null;
   fonction_perimetre: string | null;
+  fonctions: { libelle: string; perimetre: string | null }[];
   telephone: string | null;
   indicatif_telephone: string | null;
   groupe: string | null;

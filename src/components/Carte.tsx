@@ -55,6 +55,10 @@ export function Carte({ token, profile }: { token: string; profile: MembreProfil
         memberNom={profile?.nom}
         focusX={profile?.photo_focus_x}
         focusY={profile?.photo_focus_y}
+        estBerger={profile?.est_berger}
+        nomPastoral={profile?.nom_pastoral_affiche}
+        fonctionPrincipale={profile?.fonctions?.[0]?.libelle ?? null}
+        fonctionPerimetre={profile?.fonctions?.[0]?.perimetre ?? null}
       />
       <button type="button" className="btn btn-ghost" onClick={() => setFullscreen(true)} disabled={!serverToken}>
         Afficher en plein écran
