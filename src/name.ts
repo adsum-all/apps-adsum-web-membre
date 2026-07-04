@@ -19,6 +19,14 @@ function capWord(word: string): string {
     .join("");
 }
 
+/** A structural unit with its type as a prefix: "Commission SAINT GABRIEL",
+ * "Mission EL GIBBOR". Mirrors the back office so a member sees the same label. */
+export function uniteLabel(unite: { nom: string; type_organisation?: string | null }): string {
+  const slug = (unite.type_organisation ?? "commission").trim() || "commission";
+  const prefix = slug.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+  return `${prefix} ${unite.nom}`;
+}
+
 /** Given names in title case (particles lowercase), returned as a list. */
 export function prenomsList(prenoms?: string | null): string[] {
   const cleaned = (prenoms ?? "").trim().replace(/\s+/g, " ");

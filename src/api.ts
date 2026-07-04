@@ -579,6 +579,7 @@ export interface RefItem {
   id: string;
   nom: string;
   patriarche?: string | null;
+  type_organisation?: string | null;
 }
 
 export function getReference(token: string, kind: string): Promise<RefItem[]> {
