@@ -494,6 +494,18 @@ export function logoutSession(token: string): Promise<{ ok: boolean }> {
   return authedPost("/api/v1/auth/logout", token, {}, "Déconnexion");
 }
 
+export interface NiveauItem {
+  cle: string;
+  libelle: string;
+  ordre: number;
+  actif: boolean;
+}
+
+/** Active engagement levels (admin catalogue), for labels on the card and lists. */
+export function getNiveaux(token: string): Promise<NiveauItem[]> {
+  return authedGet<NiveauItem[]>("/api/v1/niveaux-engagement", token, "Niveaux indisponibles");
+}
+
 export interface DemandeMessage {
   id: string;
   auteur_type: "membre" | "staff" | "systeme";

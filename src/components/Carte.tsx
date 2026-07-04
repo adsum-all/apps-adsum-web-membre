@@ -1,7 +1,7 @@
 import QRCode from "qrcode";
 import { useEffect, useRef, useState } from "react";
 
-import { type MembreProfile, getQrToken } from "../api.js";
+import { type MembreProfile, type NiveauItem, getNiveaux, getQrToken } from "../api.js";
 import { civilName } from "../name.js";
 import { AttestationManuelle } from "./AttestationManuelle.js";
 import { QrCard } from "./QrCard.js";
@@ -14,6 +14,21 @@ export function Carte({ token, profile }: { token: string; profile: MembreProfil
   const [serverToken, setServerToken] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  // Admin-defined engagement levels, so the card shows the exact label the
+  // administration set (never a raw slug).
+  const [niveaux, setNiveaux] = useState<NiveauItem[]>([]);
+  useEffect(() => {
+    let alive = true;
+    getNiveaux(token)
+      .then((n) => {
+        if (alive) setNiveaux(n);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [token]);
+  const engagementLabel = niveaux.find((n) => n.cle === profile?.type_membre)?.libelle ?? profile?.type_membre ?? null;
 
   useEffect(() => {
     let alive = true;
@@ -49,7 +64,7 @@ export function Carte({ token, profile }: { token: string; profile: MembreProfil
         nom={profile ? civilName(profile) || null : null}
         tribu={profile?.tribu}
         patriarche={profile?.patriarche}
-        engagement={profile?.type_membre}
+        engagement={engagementLabel}
         authToken={token}
         prenoms={profile?.prenoms}
         memberNom={profile?.nom}
