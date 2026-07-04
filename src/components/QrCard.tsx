@@ -168,7 +168,7 @@ export function QrCard({
           )}
           <p className="card-tribu">
             {tribu ? `Tribu ${tribu}` : "Sacerdoce Royal"}
-            {patriarche ? ` . ${patriarche}` : ""}
+            {patriarche ? ` · ${patriarche}` : ""}
           </p>
         </div>
       </div>

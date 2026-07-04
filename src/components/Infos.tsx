@@ -112,8 +112,18 @@ export function Infos({
   // URL, initials fallback when the member has no photo yet).
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   useEffect(() => {
-    if (!token) return;
-    getPhotoUrl(token).then((r) => setPhotoUrl(r.url)).catch(() => setPhotoUrl(null));
+    if (!token) return undefined;
+    let alive = true;
+    getPhotoUrl(token)
+      .then((r) => {
+        if (alive) setPhotoUrl(r.url);
+      })
+      .catch(() => {
+        if (alive) setPhotoUrl(null);
+      });
+    return () => {
+      alive = false;
+    };
   }, [token, profile?.photo_url]);
 
   // Re-frame the current photo (display-only focal point, no re-validation).
@@ -180,7 +190,7 @@ export function Infos({
               {f.perimetre ? ` - ${f.perimetre}` : ""}
             </div>
           ))}
-          {!profile?.est_berger && (profile?.fonctions ?? []).length === 0 && (
+          {!(profile?.est_berger && profile?.nom_pastoral_affiche) && (profile?.fonctions ?? []).length === 0 && (
             <div style={{ fontSize: 11.5, color: T.mut, marginTop: 2 }}>Membre</div>
           )}
           {profile?.photo_pending && (
