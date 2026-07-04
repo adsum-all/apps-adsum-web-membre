@@ -118,7 +118,7 @@ export function ModifierChamps({ token, profile, onSubmitted }: ModifierChampsPr
       {photoUnlocked && (
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: unlocked.length ? 14 : 4 }}>
           {photoPreview ? (
-            <img src={photoPreview} alt="Nouvelle photo" style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: `2px solid ${T.b500}` }} />
+            <img src={photoPreview} alt="Nouvelle photo" style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", objectPosition: "50% 30%", border: `2px solid ${T.b500}` }} />
           ) : (
             <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#eef2ff", color: T.b600, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>
               {"📷"}
