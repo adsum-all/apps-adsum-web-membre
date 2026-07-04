@@ -2,7 +2,7 @@ import QRCode from "qrcode";
 import { useEffect, useRef, useState } from "react";
 
 import { type MembreProfile, getQrToken } from "../api.js";
-import { displayName } from "../name.js";
+import { civilName } from "../name.js";
 import { AttestationManuelle } from "./AttestationManuelle.js";
 import { QrCard } from "./QrCard.js";
 
@@ -46,7 +46,7 @@ export function Carte({ token, profile }: { token: string; profile: MembreProfil
         verifie={profile?.verifie ?? false}
         preview={false}
         serverToken={serverToken}
-        nom={profile ? displayName({ titre: profile.titre, prenoms: profile.prenoms, nom: profile.nom }) || null : null}
+        nom={profile ? civilName(profile) || null : null}
         tribu={profile?.tribu}
         patriarche={profile?.patriarche}
         engagement={profile?.type_membre}

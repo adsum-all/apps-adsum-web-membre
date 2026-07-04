@@ -12,7 +12,7 @@ import {
   photoObjectPosition,
 } from "./api.js";
 import { type Lang, LangContext } from "./i18n.js";
-import { displayName } from "./name.js";
+import { civilName, fonctionLabel, initials as memberInitials } from "./name.js";
 import { T } from "./proto.js";
 import { CompleterProfil } from "./components/CompleterProfil.js";
 import { Activites } from "./components/Activites.js";
@@ -547,10 +547,12 @@ function Profil({
   onDemandes: () => void;
 }): JSX.Element {
   const fullName =
-    profile && (profile.prenoms || profile.nom)
-      ? displayName({ titre: profile.titre, prenoms: profile.prenoms, nom: profile.nom })
+    profile && (profile.prenoms || profile.nom || profile.nom_affichage)
+      ? civilName(profile)
       : (profile?.email ?? "Membre ADSUM");
-  const initials = fullName.slice(0, 2).toUpperCase();
+  const initials = profile ? memberInitials(profile) : "?";
+  const fonction = profile ? fonctionLabel(profile) : null;
+  const bergerLabel = profile?.est_berger ? profile.nom_pastoral_affiche : null;
   const verified = profile?.verifie ?? false;
   const since = profile?.date_entree ? new Date(profile.date_entree).getFullYear() : null;
   // Signed URL of the identity photo; falls back to initials when absent.
@@ -578,9 +580,15 @@ function Profil({
           </div>
         )}
         <h2 style={{ marginBottom: 4 }}>{fullName}</h2>
-        <p className="profil-role" style={{ marginBottom: 8 }}>
+        <p className="profil-role" style={{ marginBottom: bergerLabel || fonction ? 6 : 8 }}>
           {profile?.matricule ?? ""}
         </p>
+        {bergerLabel && (
+          <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 700, color: "#ffd98a" }}>{bergerLabel}</p>
+        )}
+        {fonction && (
+          <p style={{ margin: "0 0 8px", fontSize: 12, color: "rgba(255,255,255,0.85)" }}>{fonction}</p>
+        )}
         <span
           style={{
             fontSize: 11,
