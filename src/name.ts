@@ -34,8 +34,8 @@ function famUpper(nom?: string | null): string {
 
 /**
  * Civil display name: prefers the server value (nom_affichage), else composes
- * ``NOM Prenom1 [Prenom2]`` (family name first, at most two given names). Never
- * includes a function/title/pastoral name.
+ * ``Prenom1 [Prenom2] NOM`` (given names first, then the family name in
+ * uppercase, at most two given names). Never includes a function/pastoral name.
  */
 export function civilName(p: {
   nom_affichage?: string | null;
@@ -44,14 +44,14 @@ export function civilName(p: {
 }): string {
   const server = (p.nom_affichage ?? "").trim();
   if (server) return server;
-  const parts = [famUpper(p.nom), ...prenomsList(p.prenoms).slice(0, 2)].filter(Boolean);
+  const parts = [...prenomsList(p.prenoms).slice(0, 2), famUpper(p.nom)].filter(Boolean);
   return parts.join(" ");
 }
 
-/** Full civil name (family name + ALL given names) for the detailed file, never
+/** Full civil name (ALL given names + family name) for the detailed file, never
  * capped and never a function. */
 export function civilNameComplet(p: { nom?: string | null; prenoms?: string | null }): string {
-  return [famUpper(p.nom), ...prenomsList(p.prenoms)].filter(Boolean).join(" ");
+  return [...prenomsList(p.prenoms), famUpper(p.nom)].filter(Boolean).join(" ");
 }
 
 // Backwards-compatible alias: historical callers passed { titre, prenoms, nom };
