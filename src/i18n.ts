@@ -31,7 +31,7 @@ const DICT: Record<string, { fr: string; en: string }> = {
   "profil.statutNouveau": { fr: "Nouvellement engagé", en: "Newly committed" },
   "profil.statutInspirant": { fr: "Inspirant", en: "Inspiring" },
   "profil.fonction": { fr: "Fonction (facultative)", en: "Function (optional)" },
-  "profil.fonctionInfo": { fr: "Le titre n'apparaîtra devant votre nom qu'après validation par un administrateur.", en: "The title will only appear before your name after an administrator validates it." },
+  "profil.fonctionInfo": { fr: "Votre fonction s'affiche dans une zone dédiée sous votre nom, jamais dans le nom lui-même, et uniquement après validation par un administrateur.", en: "Your function is shown in a dedicated area under your name, never inside the name itself, and only after an administrator validates it." },
   "profil.fonctionAttente": { fr: "En attente de validation", en: "Awaiting validation" },
   "profil.fonctionAucune": { fr: "Aucune", en: "None" },
 
