@@ -18,6 +18,7 @@ import {
   uploadPhoto,
 } from "../api.js";
 import { useT } from "../i18n.js";
+import { uniteLabel } from "../name.js";
 import { T, gradient } from "../proto.js";
 import {
   DOC_TYPES,
@@ -224,7 +225,8 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
     }
   }
 
-  const commissionNom = commissions.find((c) => c.id === f.commission_id)?.nom ?? "";
+  const commissionSel = commissions.find((c) => c.id === f.commission_id);
+  const commissionNom = commissionSel ? uniteLabel(commissionSel) : "";
   const tribuNom = tribus.find((x) => x.id === f.tribu_id)?.nom ?? "";
 
   // Given names are stored in a single field but captured as two guided inputs:
@@ -305,7 +307,7 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
           <Field label="Commission" required highlight={hl("commission_id")}>
             <select style={inp("commission_id")} value={f.commission_id ?? ""} onChange={(e) => set("commission_id", e.target.value)}>
               <option value="">Sélectionner...</option>
-              {commissions.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+              {commissions.map((c) => <option key={c.id} value={c.id}>{uniteLabel(c)}</option>)}
             </select>
           </Field>
           <Field label="Groupe" highlight={hl("groupe")}>
