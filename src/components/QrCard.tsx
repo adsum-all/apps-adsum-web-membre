@@ -26,6 +26,9 @@ interface QrCardProps {
   // the member has no photo. They are never rendered as text on the card.
   prenoms?: string | null;
   memberNom?: string | null;
+  // Face focal point (0-100) so the photo is framed the same way everywhere.
+  focusX?: number | null;
+  focusY?: number | null;
 }
 
 const ENGAGEMENT_LABELS: Record<string, string> = {
@@ -50,6 +53,8 @@ export function QrCard({
   authToken,
   prenoms,
   memberNom,
+  focusX,
+  focusY,
 }: QrCardProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [previewToken] = useState(() => {
@@ -104,7 +109,7 @@ export function QrCard({
       <div className="card-identity">
         <div className="card-photo">
           {photoUrl ? (
-            <img className="card-photo-img" src={photoUrl} alt="Photo d'identité" />
+            <img className="card-photo-img" src={photoUrl} alt="Photo d'identité" style={{ objectPosition: `${focusX ?? 50}% ${focusY ?? 30}%` }} />
           ) : (
             <span className="card-photo-fallback" aria-hidden="true">
               {avatarInitials}

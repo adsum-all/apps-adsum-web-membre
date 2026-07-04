@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 
 import { type MembreProfile, soumettreModifications, uploadPhoto } from "../api.js";
 import { T } from "../proto.js";
+import { type Focus, PhotoFocusEditor } from "./PhotoFocusEditor.js";
 
 /** Human label for each unlockable member field. */
 const LABELS: Record<string, string> = {
@@ -50,27 +51,31 @@ export function ModifierChamps({ token, profile, onSubmitted }: ModifierChampsPr
   );
   const photoInput = useRef<HTMLInputElement | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoFocus, setPhotoFocus] = useState<Focus>({ x: 50, y: 30 });
   const [photoStaged, setPhotoStaged] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (unlocked.length === 0 && !photoUnlocked) return null;
 
-  async function stagePhoto(file: File): Promise<void> {
+  async function stagePhoto(file: File, focus: Focus): Promise<void> {
     setPhotoBusy(true);
     setError(null);
     try {
-      // Uploads and stages only: the live photo is untouched until the
-      // administration validates the single submission below.
-      await uploadPhoto(token, file);
+      // Uploads and stages only (photo + its focal point): the live photo is
+      // untouched until the administration validates the single submission below.
+      await uploadPhoto(token, file, focus);
       setPhotoStaged(true);
+      setPhotoFocus(focus);
       setPhotoPreview(URL.createObjectURL(file));
     } catch (e) {
       setError(e instanceof Error && e.message ? e.message : "Chargement de la photo impossible. Réessayez.");
     } finally {
       setPhotoBusy(false);
+      setPendingFile(null);
     }
   }
 
@@ -118,7 +123,7 @@ export function ModifierChamps({ token, profile, onSubmitted }: ModifierChampsPr
       {photoUnlocked && (
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: unlocked.length ? 14 : 4 }}>
           {photoPreview ? (
-            <img src={photoPreview} alt="Nouvelle photo" style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", objectPosition: "50% 30%", border: `2px solid ${T.b500}` }} />
+            <img src={photoPreview} alt="Nouvelle photo" style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", objectPosition: `${photoFocus.x}% ${photoFocus.y}%`, border: `2px solid ${T.b500}` }} />
           ) : (
             <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#eef2ff", color: T.b600, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>
               {"📷"}
@@ -132,7 +137,7 @@ export function ModifierChamps({ token, profile, onSubmitted }: ModifierChampsPr
               style={{ display: "none" }}
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (f) void stagePhoto(f);
+                if (f) setPendingFile(f);
                 e.target.value = "";
               }}
             />
@@ -186,6 +191,15 @@ export function ModifierChamps({ token, profile, onSubmitted }: ModifierChampsPr
       >
         {busy ? "Envoi..." : "Soumettre pour validation"}
       </button>
+
+      {pendingFile && (
+        <PhotoFocusEditor
+          file={pendingFile}
+          busy={photoBusy}
+          onCancel={() => setPendingFile(null)}
+          onConfirm={(focus) => void stagePhoto(pendingFile, focus)}
+        />
+      )}
     </div>
   );
 }

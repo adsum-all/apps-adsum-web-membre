@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
-import { type MembreProfile, getDemandes, getPhotoUrl } from "../api.js";
+import { type MembreProfile, getDemandes, getPhotoUrl, photoObjectPosition, setPhotoFocus } from "../api.js";
+import { type Focus, PhotoFocusEditor } from "./PhotoFocusEditor.js";
 import { displayName } from "../name.js";
 import { T } from "../proto.js";
 import { ModifierChamps } from "./ModifierChamps.js";
@@ -110,6 +111,23 @@ export function Infos({
     getPhotoUrl(token).then((r) => setPhotoUrl(r.url)).catch(() => setPhotoUrl(null));
   }, [token, profile?.photo_url]);
 
+  // Re-frame the current photo (display-only focal point, no re-validation).
+  const [cadrer, setCadrer] = useState(false);
+  const [cadreBusy, setCadreBusy] = useState(false);
+  async function enregistrerCadrage(focus: Focus): Promise<void> {
+    if (!token) return;
+    setCadreBusy(true);
+    try {
+      await setPhotoFocus(token, focus.x, focus.y);
+      setCadrer(false);
+      onProfileChange();
+    } catch {
+      setCadrer(false);
+    } finally {
+      setCadreBusy(false);
+    }
+  }
+
   // Deadline granted with the unlock: read from the member's own requests.
   const [echeance, setEcheance] = useState<string | null>(null);
   useEffect(() => {
@@ -139,7 +157,7 @@ export function Infos({
     <div className="scr" style={{ padding: "6px 18px 24px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 2px 4px" }}>
         {photoUrl ? (
-          <img src={photoUrl} alt="Photo d'identité" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", objectPosition: "50% 30%", border: `2px solid ${T.line}` }} />
+          <img src={photoUrl} alt="Photo d'identité" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", objectPosition: photoObjectPosition(profile), border: `2px solid ${T.line}` }} />
         ) : (
           <div style={{ width: 64, height: 64, borderRadius: "50%", background: T.b600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 20 }}>
             {initiales}
@@ -153,8 +171,31 @@ export function Infos({
               Nouvelle photo en attente de validation
             </div>
           )}
+          {photoUrl && (
+            <button
+              type="button"
+              onClick={() => setCadrer(true)}
+              style={{ marginTop: 4, padding: 0, background: "none", border: "none", color: T.b600, fontSize: 11, fontWeight: 600, cursor: "pointer" }}
+            >
+              Ajuster le cadrage
+            </button>
+          )}
         </div>
       </div>
+
+      {cadrer && photoUrl && (
+        <PhotoFocusEditor
+          imageUrl={photoUrl}
+          initialFocus={
+            profile?.photo_focus_x != null && profile?.photo_focus_y != null
+              ? { x: profile.photo_focus_x, y: profile.photo_focus_y }
+              : null
+          }
+          busy={cadreBusy}
+          onCancel={() => setCadrer(false)}
+          onConfirm={(focus) => void enregistrerCadrage(focus)}
+        />
+      )}
 
       {unlocked && (
         <div style={{ background: T.warnbg, border: `1px solid ${T.warn}`, borderRadius: 13, padding: 13, margin: "10px 0 4px" }}>
