@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { type MembreProfile, getDemandes, getPhotoUrl, photoObjectPosition, setPhotoFocus } from "../api.js";
 import { type Focus, PhotoFocusEditor } from "./PhotoFocusEditor.js";
-import { displayName } from "../name.js";
+import { civilName, civilNameComplet, fonctionLabel } from "../name.js";
 import { T } from "../proto.js";
 import { ModifierChamps } from "./ModifierChamps.js";
 
@@ -66,8 +66,13 @@ function telephone(indicatif: string | null | undefined, numero: string | null |
 }
 
 function fullName(profile: MembreProfile | null): string {
-  const s = displayName({ titre: profile?.titre, prenoms: profile?.prenoms, nom: profile?.nom });
-  return s || "-";
+  // Header: capped civil name (family name first), never a function.
+  return (profile ? civilName(profile) : "") || "-";
+}
+
+function fullNameComplet(profile: MembreProfile | null): string {
+  // Detailed file: full civil name (family name + all given names).
+  return (profile ? civilNameComplet(profile) : "") || "-";
 }
 
 function Group({ title, children }: { title: string; children: React.ReactNode }): JSX.Element {
@@ -166,6 +171,12 @@ export function Infos({
         <div style={{ minWidth: 0 }}>
           <div style={{ fontFamily: T.fd, fontWeight: 700, fontSize: 16, color: T.ink }}>{fullName(profile)}</div>
           <div style={{ fontSize: 11.5, color: T.mut, fontFamily: T.fm }}>{profile?.matricule ?? ""}</div>
+          {profile?.est_berger && profile?.nom_pastoral_affiche && (
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: "#a06a12", marginTop: 3 }}>{profile.nom_pastoral_affiche}</div>
+          )}
+          {fonctionLabel(profile ?? {}) && (
+            <div style={{ fontSize: 11.5, color: T.mut, marginTop: 2 }}>{fonctionLabel(profile ?? {})}</div>
+          )}
           {profile?.photo_pending && (
             <div style={{ fontSize: 10.5, color: T.warn, marginTop: 3, fontWeight: 600 }}>
               Nouvelle photo en attente de validation
@@ -215,7 +226,13 @@ export function Infos({
       )}
 
       <Group title="Identité">
-        <Row label="Nom complet" value={fullName(profile)} />
+        <Row label="Nom complet" value={fullNameComplet(profile)} />
+        {profile?.nom_naissance && <Row label="Nom de naissance" value={profile.nom_naissance} />}
+        {profile?.nom_marital && <Row label="Nom marital" value={profile.nom_marital} />}
+        {profile?.est_berger && profile?.nom_pastoral_affiche && (
+          <Row label="Nom pastoral" value={profile.nom_pastoral_affiche} />
+        )}
+        {fonctionLabel(profile ?? {}) && <Row label="Fonction" value={fonctionLabel(profile ?? {}) ?? "-"} />}
         <Row label="Genre" value={pretty(profile?.genre)} />
         <Row label={profile?.naissance_annee_visible ? "Date de naissance" : "Anniversaire"} value={naissance(profile?.date_naissance, !!profile?.naissance_annee_visible)} />
         <Row label="Matricule" value={profile?.matricule ?? "-"} last />

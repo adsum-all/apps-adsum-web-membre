@@ -18,6 +18,14 @@ export interface MembreProfile {
   email: string;
   nom: string | null;
   prenoms: string | null;
+  nom_affichage: string;
+  nom_naissance: string | null;
+  nom_marital: string | null;
+  nom_affiche: string | null;
+  est_berger: boolean;
+  nom_pastoral: string | null;
+  nom_pastoral_affiche: string | null;
+  fonction_perimetre: string | null;
   telephone: string | null;
   indicatif_telephone: string | null;
   groupe: string | null;

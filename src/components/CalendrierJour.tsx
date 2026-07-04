@@ -1,6 +1,6 @@
 import { type AnniversaireOut, type EvenementOut } from "../api.js";
 import { useT } from "../i18n.js";
-import { displayName } from "../name.js";
+import { civilName } from "../name.js";
 import { formatTime } from "../format.js";
 import { T } from "../proto.js";
 
@@ -72,7 +72,7 @@ export function CalendrierJour({
               <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 13 }} aria-hidden="true">🎂</span>
                 <span style={{ fontSize: 12.5, color: T.ink }}>
-                  {displayName({ titre: a.titre, prenoms: a.prenoms })}
+                  {civilName({ prenoms: a.prenoms })}
                   {a.est_vip && <span style={{ color: T.warn, marginLeft: 6, fontSize: 10 }}>★</span>}
                 </span>
               </div>
