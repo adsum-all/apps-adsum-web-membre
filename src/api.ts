@@ -88,6 +88,9 @@ export interface EvenementOut {
   mode?: string | null;
   type_diffusion: "embed" | "externe" | "aucun";
   visibilite: "public" | "membres" | "prive";
+  cible_type?: "general" | "coordination" | "commission" | "intendance" | "tribu";
+  cible_id?: string | null;
+  cible_libelle?: string | null;
   phase: "a_venir" | "bientot" | "en_cours" | "termine";
   joignable: boolean;
   formulaire_ouvert: boolean;

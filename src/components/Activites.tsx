@@ -88,7 +88,15 @@ function Section({
                 <span className="list-sub">{formatDateTime(e.debut)}</span>
               </div>
               <div className="list-meta">
+                {e.mode && (
+                  <span className="list-place">
+                    {e.mode === "en_ligne" ? "En ligne" : e.mode === "hybride" ? "Hybride" : "Présentiel"}
+                  </span>
+                )}
                 {e.lieu && <span className="list-place">{e.lieu}</span>}
+                {e.cible_type && e.cible_type !== "general" && e.cible_libelle && (
+                  <span className="list-place" style={{ color: T.warn }}>Réservé : {e.cible_libelle}</span>
+                )}
                 <PhaseBadge phase={e.phase} volet={e.volet} />
               </div>
             </div>
