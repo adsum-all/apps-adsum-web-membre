@@ -29,6 +29,25 @@ interface QrCardProps {
   // Face focal point (0-100) so the photo is framed the same way everywhere.
   focusX?: number | null;
   focusY?: number | null;
+  // Distinguished line under the name: the consecration name takes priority
+  // (Berger/Bergere), otherwise the primary function title. Absent for a plain
+  // member, in which case no extra line is shown.
+  estBerger?: boolean;
+  nomPastoral?: string | null;
+  fonctionPrincipale?: string | null;
+  fonctionPerimetre?: string | null;
+}
+
+/**
+ * Shorten the longest role words so a commission title still fits on one line.
+ * CSS ellipsis is the final safety net; this keeps the readable start intact.
+ */
+function abregerRole(texte: string): string {
+  return texte
+    .replace(/\bResponsable\b/gi, "Respo.")
+    .replace(/\bCoordination\b/gi, "Coord.")
+    .replace(/\bCoordinateur\b/gi, "Coord.")
+    .replace(/\bCoordinatrice\b/gi, "Coord.");
 }
 
 const ENGAGEMENT_LABELS: Record<string, string> = {
@@ -55,6 +74,10 @@ export function QrCard({
   memberNom,
   focusX,
   focusY,
+  estBerger,
+  nomPastoral,
+  fonctionPrincipale,
+  fonctionPerimetre,
 }: QrCardProps): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [previewToken] = useState(() => {
@@ -100,6 +123,13 @@ export function QrCard({
   const engagementLabel = engagement ? (ENGAGEMENT_LABELS[engagement] ?? engagement) : "Membre";
   const avatarInitials = initials({ prenoms, nom: memberNom });
 
+  // The distinguished line: consecration name first, otherwise the primary
+  // function (with its scope). A plain member shows nothing here.
+  const consecration = estBerger && nomPastoral ? nomPastoral : null;
+  const fonctionLigne = !consecration && fonctionPrincipale
+    ? abregerRole(fonctionPerimetre ? `${fonctionPrincipale} - ${fonctionPerimetre}` : fonctionPrincipale)
+    : null;
+
   return (
     <div className="card">
       <div className="card-top">
@@ -118,9 +148,27 @@ export function QrCard({
         </div>
         <div className="card-identity-text">
           {nom && <p className="card-name">{nom}</p>}
+          {consecration && (
+            <p
+              className="card-role"
+              style={{ margin: "1px 0 0", fontSize: 12.5, fontWeight: 700, color: "#ffd98a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}
+              title={consecration}
+            >
+              {consecration}
+            </p>
+          )}
+          {fonctionLigne && (
+            <p
+              className="card-role"
+              style={{ margin: "1px 0 0", fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.92)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}
+              title={fonctionLigne}
+            >
+              {fonctionLigne}
+            </p>
+          )}
           <p className="card-tribu">
             {tribu ? `Tribu ${tribu}` : "Sacerdoce Royal"}
-            {patriarche ? ` . ${patriarche}` : ""}
+            {patriarche ? ` · ${patriarche}` : ""}
           </p>
         </div>
       </div>

@@ -12,7 +12,7 @@ import {
   photoObjectPosition,
 } from "./api.js";
 import { type Lang, LangContext } from "./i18n.js";
-import { civilName, fonctionLabel, initials as memberInitials } from "./name.js";
+import { civilName, initials as memberInitials } from "./name.js";
 import { T } from "./proto.js";
 import { CompleterProfil } from "./components/CompleterProfil.js";
 import { Activites } from "./components/Activites.js";
@@ -551,7 +551,7 @@ function Profil({
       ? civilName(profile)
       : (profile?.email ?? "Membre ADSUM");
   const initials = profile ? memberInitials(profile) : "?";
-  const fonction = profile ? fonctionLabel(profile) : null;
+  const fonctionsList = profile?.fonctions ?? [];
   const bergerLabel = profile?.est_berger ? profile.nom_pastoral_affiche : null;
   const verified = profile?.verifie ?? false;
   const since = profile?.date_entree ? new Date(profile.date_entree).getFullYear() : null;
@@ -580,15 +580,27 @@ function Profil({
           </div>
         )}
         <h2 style={{ marginBottom: 4 }}>{fullName}</h2>
-        <p className="profil-role" style={{ marginBottom: bergerLabel || fonction ? 6 : 8 }}>
+        <p className="profil-role" style={{ marginBottom: 8 }}>
           {profile?.matricule ?? ""}
         </p>
-        {bergerLabel && (
-          <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 700, color: "#ffd98a" }}>{bergerLabel}</p>
-        )}
-        {fonction && (
-          <p style={{ margin: "0 0 8px", fontSize: 12, color: "rgba(255,255,255,0.85)" }}>{fonction}</p>
-        )}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", marginBottom: 8 }}>
+          {bergerLabel && (
+            <span style={{ fontSize: 12.5, fontWeight: 700, color: T.warn, background: T.warnbg, border: `1px solid ${T.warn}33`, padding: "3px 11px", borderRadius: 20 }}>
+              {bergerLabel}
+            </span>
+          )}
+          {fonctionsList.map((f, i) => (
+            <span key={i} style={{ fontSize: 12, fontWeight: 600, color: T.b600, background: "#eef2fb", border: `1px solid ${T.b600}33`, padding: "3px 11px", borderRadius: 20 }}>
+              {f.libelle}
+              {f.perimetre ? ` - ${f.perimetre}` : ""}
+            </span>
+          ))}
+          {!bergerLabel && fonctionsList.length === 0 && (
+            <span style={{ fontSize: 12, fontWeight: 600, color: T.mut, background: "#f2f4f8", border: `1px solid ${T.line}`, padding: "3px 11px", borderRadius: 20 }}>
+              Membre
+            </span>
+          )}
+        </div>
         <span
           style={{
             fontSize: 11,

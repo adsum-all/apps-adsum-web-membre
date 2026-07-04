@@ -26,6 +26,7 @@ export interface MembreProfile {
   nom_pastoral: string | null;
   nom_pastoral_affiche: string | null;
   fonction_perimetre: string | null;
+  fonctions: { libelle: string; perimetre: string | null }[];
   telephone: string | null;
   indicatif_telephone: string | null;
   groupe: string | null;
@@ -87,6 +88,9 @@ export interface EvenementOut {
   mode?: string | null;
   type_diffusion: "embed" | "externe" | "aucun";
   visibilite: "public" | "membres" | "prive";
+  cible_type?: "general" | "coordination" | "commission" | "intendance" | "tribu";
+  cible_id?: string | null;
+  cible_libelle?: string | null;
   phase: "a_venir" | "bientot" | "en_cours" | "termine";
   joignable: boolean;
   formulaire_ouvert: boolean;
