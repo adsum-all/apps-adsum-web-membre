@@ -227,6 +227,14 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
   const commissionNom = commissions.find((c) => c.id === f.commission_id)?.nom ?? "";
   const tribuNom = tribus.find((x) => x.id === f.tribu_id)?.nom ?? "";
 
+  // Given names are stored in a single field but captured as two guided inputs:
+  // the first given name and the other given names, recombined on every change.
+  const prenomsParts = (f.prenoms ?? "").trim().split(/\s+/).filter(Boolean);
+  const premierPrenom = prenomsParts[0] ?? "";
+  const autresPrenoms = prenomsParts.slice(1).join(" ");
+  const setPrenoms = (premier: string, autres: string): void =>
+    set("prenoms", `${premier} ${autres}`.replace(/\s+/g, " ").trim());
+
   return (
     <div ref={topRef} className="scr" style={{ padding: "10px 18px 28px" }}>
       <div style={{ fontFamily: T.fd, fontWeight: 700, fontSize: 19 }}>Compléter mon inscription</div>
@@ -256,8 +264,9 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
       {step === 0 && (
         <>
           <TelegramInvite token={token} />
-          <Field label="Prénoms" required highlight={hl("prenoms")} info="Vos prénoms tels qu'ils figurent sur votre pièce d'identité."><input style={inp("prenoms")} value={f.prenoms} onChange={(e) => set("prenoms", e.target.value)} /></Field>
-          <Field label="Nom" required highlight={hl("nom")} info="Votre nom de famille, tel qu'il figure sur votre pièce d'identité."><input style={inp("nom")} value={f.nom} onChange={(e) => set("nom", e.target.value)} /></Field>
+          <Field label="Nom de famille" required highlight={hl("nom")} info="Votre nom de famille, tel qu'il figure sur votre pièce d'identité. Il s'affichera en MAJUSCULES."><input style={inp("nom")} value={f.nom} onChange={(e) => set("nom", e.target.value)} placeholder="Ex. LABEL" /></Field>
+          <Field label="Premier prénom" required highlight={hl("prenoms")} info="Votre prénom usuel, tel qu'il figure sur votre pièce d'identité."><input style={inp("prenoms")} value={premierPrenom} onChange={(e) => setPrenoms(e.target.value, autresPrenoms)} placeholder="Ex. Shema" /></Field>
+          <Field label="Autres prénoms" info="Vos autres prénoms, séparés par des espaces (facultatif)."><input style={baseInp} value={autresPrenoms} onChange={(e) => setPrenoms(premierPrenom, e.target.value)} placeholder="Ex. Emmanuel" /></Field>
           <Field label="Genre" required highlight={hl("genre")}>
             <select style={inp("genre")} value={f.genre} onChange={(e) => set("genre", e.target.value)}>
               <option value="">Sélectionner...</option>
