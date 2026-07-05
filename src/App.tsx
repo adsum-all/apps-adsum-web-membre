@@ -104,6 +104,8 @@ export function App(): JSX.Element {
   const [authView, setAuthView] = useState<"login" | "forgot">("login");
   const [firstLogin, setFirstLogin] = useState<AuthContext | null>(null);
   const [inscription, setInscription] = useState<InscriptionStatut | null>(null);
+  // A technical/admin account (no member profile) logging into the member app.
+  const [compteNonMembre, setCompteNonMembre] = useState(false);
 
   const refreshInscription = useCallback((jwt: string) => {
     void getInscription(jwt)
@@ -126,10 +128,15 @@ export function App(): JSX.Element {
       // paint does not wait on a second round trip (the card fills in when ready).
       saveToken(jwt);
       setToken(jwt);
+      setCompteNonMembre(false);
       refreshInscription(jwt);
       void getMembreProfile(jwt)
         .then(setProfile)
-        .catch(() => undefined);
+        .catch((e: unknown) => {
+          // A technical/admin account has no member space: say so clearly instead
+          // of showing an empty card.
+          if (e instanceof ApiError && e.status === 403) setCompteNonMembre(true);
+        });
     },
     [refreshInscription],
   );
@@ -223,6 +230,38 @@ export function App(): JSX.Element {
         ) : (
           <Login onAuth={onAuth} onForgot={() => setAuthView("forgot")} />
         )}
+      </Shell>
+    );
+  }
+
+  // A technical or administrative account (super-admin, staff) has no member
+  // space: it must use the back office, not this app. Say so clearly.
+  if (compteNonMembre) {
+    return (
+      <Shell>
+        <header className="topbar">
+          <span className="topbar-title">ADSUM</span>
+          <button type="button" className="bell" onClick={logout} aria-label="Quitter">
+            ⏻
+          </button>
+        </header>
+        <main className="screen">
+          <div style={{ textAlign: "center", padding: "2rem 1rem", maxWidth: 420, margin: "0 auto" }}>
+            <h2>Compte administrateur</h2>
+            <p style={{ color: "#676b73", lineHeight: 1.6 }}>
+              Ce compte ne dispose pas d&apos;espace membre : c&apos;est un compte technique ou administratif.
+              Connectez-vous au back-office ADSUM pour accéder à vos outils.
+            </p>
+            <p style={{ color: "#676b73" }}>
+              <a href="https://adsum-back-office.pages.dev" style={{ color: "#2a4fad", fontWeight: 600 }}>
+                Ouvrir le back-office ADSUM
+              </a>
+            </p>
+            <button type="button" className="btn-secondary" onClick={logout} style={{ marginTop: 12 }}>
+              Se déconnecter
+            </button>
+          </div>
+        </main>
       </Shell>
     );
   }
