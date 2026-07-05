@@ -265,7 +265,7 @@ export function Infos({
 
       <Group title="Identité ecclésiale">
         <Row label="Tribu" value={profile?.tribu ?? "-"} />
-        <Row label="Patriarche" value={profile?.patriarche ?? ""} />
+        <Row label="Patriarche" value={profile?.patriarche ?? "-"} />
         <Row label="Niveau d'engagement" value={engagement} />
         <Row label="Promotion" value={profile?.promotion ?? "-"} />
         <Row label="Cheminement" value={pretty(profile?.cheminement_pastoral)} last />
@@ -274,8 +274,9 @@ export function Infos({
       <Group title="Organisation">
         <Row label="Commission" value={profile?.commission ?? "-"} />
         <Row label="Intendance" value={profile?.intendance ?? "-"} />
+        <Row label={profile?.intendant_titre ?? "Intendant"} value={profile?.intendant ?? "-"} />
         <Row label="Coordination" value={profile?.coordination ?? "-"} />
-        <Row label="Coordinateur" value={profile?.coordinateur ?? "-"} last />
+        <Row label={profile?.coordinateur_titre ?? "Coordinateur"} value={profile?.coordinateur ?? "-"} last />
       </Group>
 
       <Group title="Vie personnelle">

@@ -57,12 +57,17 @@ export interface MembreProfile {
   confirme: boolean | null;
   premiere_communion: boolean | null;
   commission: string | null;
+  commission_type: string | null;
   intendance: string | null;
+  intendant: string | null;
+  intendant_titre: string | null;
   berger: string | null;
   tribu: string | null;
   patriarche: string | null;
   coordination: string | null;
+  coordination_id?: string | null;
   coordinateur: string | null;
+  coordinateur_titre: string | null;
   champs_deverrouilles: string[];
   langue: string;
   titre?: string | null;

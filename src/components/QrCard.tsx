@@ -17,7 +17,7 @@ interface QrCardProps {
   serverToken?: string | null;
   nom?: string | null;
   tribu?: string | null;
-  patriarche?: string | null;
+  commission?: string | null;
   engagement?: string | null;
   // Session token used to fetch the short-lived signed photo URL. When absent
   // (offline preview) the identity avatar simply shows the initials fallback.
@@ -80,7 +80,7 @@ export function QrCard({
   serverToken,
   nom,
   tribu,
-  patriarche,
+  commission,
   engagement,
   authToken,
   prenoms,
@@ -181,7 +181,7 @@ export function QrCard({
           )}
           <p className="card-tribu">
             {tribu ? `Tribu ${tribu}` : "Sacerdoce Royal"}
-            {patriarche ? ` · ${patriarche}` : ""}
+            {commission ? ` · ${commission}` : ""}
           </p>
         </div>
       </div>

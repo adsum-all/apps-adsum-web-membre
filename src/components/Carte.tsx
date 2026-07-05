@@ -63,7 +63,7 @@ export function Carte({ token, profile }: { token: string; profile: MembreProfil
         serverToken={serverToken}
         nom={profile ? civilName(profile) || null : null}
         tribu={profile?.tribu}
-        patriarche={profile?.patriarche}
+        commission={profile?.commission}
         engagement={engagementLabel}
         authToken={token}
         prenoms={profile?.prenoms}
