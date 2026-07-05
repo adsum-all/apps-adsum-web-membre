@@ -19,6 +19,7 @@ import { CompleterProfil } from "./components/CompleterProfil.js";
 import { Activites } from "./components/Activites.js";
 import { Calendrier } from "./components/Calendrier.js";
 import { Carte } from "./components/Carte.js";
+import { Consultations } from "./components/Consultations.js";
 import { DetailPresence } from "./components/DetailPresence.js";
 import { Document } from "./components/Document.js";
 import { Dossier } from "./components/Dossier.js";
@@ -49,7 +50,8 @@ type ViewId =
   | "session"
   | "sent"
   | "infos"
-  | "demandes";
+  | "demandes"
+  | "consultations";
 
 const VIEW_TITLES: Record<ViewId, string> = {
   identite: "Mon identité",
@@ -63,6 +65,7 @@ const VIEW_TITLES: Record<ViewId, string> = {
   sent: "Participation",
   infos: "Mes informations",
   demandes: "Mes demandes",
+  consultations: "Consultations",
 };
 
 const HIDE_CHROME: ViewId[] = ["session", "sent"];
@@ -305,6 +308,8 @@ export function App(): JSX.Element {
           <Infos token={token} profile={profile} onDemande={() => setView("demandes")} onProfileChange={reloadProfile} />
         ) : view === "demandes" ? (
           <Demandes token={token} />
+        ) : view === "consultations" ? (
+          <Consultations token={token} />
         ) : view === "secu" ? (
           <Secu token={token} onSettings={() => setView("settings")} />
         ) : view === "session" && activeEvent ? (
@@ -377,6 +382,7 @@ export function App(): JSX.Element {
                 onSettings={() => setView("settings")}
                 onInfos={() => setView("infos")}
                 onDemandes={() => setView("demandes")}
+                onConsultations={() => setView("consultations")}
               />
             )}
           </>
@@ -537,6 +543,7 @@ function Profil({
   onSettings,
   onInfos,
   onDemandes,
+  onConsultations,
 }: {
   token: string;
   profile: MembreProfile | null;
@@ -547,6 +554,7 @@ function Profil({
   onSettings: () => void;
   onInfos: () => void;
   onDemandes: () => void;
+  onConsultations: () => void;
 }): JSX.Element {
   const fullName =
     profile && (profile.prenoms || profile.nom || profile.nom_affichage)
@@ -636,6 +644,7 @@ function Profil({
       <NavRow glyph="✓" title="Mon identité" subtitle="Pièces & validation d'identité" onClick={onIdentite} accent={verified} />
       <NavRow glyph="≣" title="Mes informations" subtitle="Détails & demande de modification" onClick={onInfos} />
       <NavRow glyph="✉" title="Mes demandes" subtitle="Messagerie avec l'administration" onClick={onDemandes} />
+      <NavRow glyph="🗳" title="Consultations" subtitle="Sondages et confirmations de présence" onClick={onConsultations} />
       <NavRow glyph="🗎" title="Mon dossier" subtitle="Documents, engagements, suivi" onClick={onDossier} />
       <NavRow glyph="🔒" title="Sécurité & connexions" subtitle="Mot de passe, 2FA, sessions" onClick={onSecu} />
       <NavRow glyph="⚙" title="Paramètres" subtitle="Langue, notifications, RGPD" onClick={onSettings} />

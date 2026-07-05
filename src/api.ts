@@ -305,6 +305,44 @@ export function getMembreProfile(token: string): Promise<MembreProfile> {
   return authedGet<MembreProfile>("/api/v1/membres/me", token, "Profil indisponible");
 }
 
+export interface MembreConsultation {
+  id: string;
+  titre: string;
+  description: string | null;
+  evenement_id: string | null;
+}
+
+export interface ConsultationQuestion {
+  id: string;
+  libelle: string;
+  type: string;
+  options: string[];
+}
+
+export interface ConsultationDetail {
+  id: string;
+  titre: string;
+  description: string | null;
+  statut: string;
+  questions: ConsultationQuestion[];
+}
+
+export function getMesConsultations(token: string): Promise<MembreConsultation[]> {
+  return authedGet<MembreConsultation[]>("/api/v1/membres/me/consultations", token, "Consultations indisponibles");
+}
+
+export function getConsultationDetail(token: string, id: string): Promise<ConsultationDetail> {
+  return authedGet<ConsultationDetail>(`/api/v1/membres/me/consultations/${id}`, token, "Consultation indisponible");
+}
+
+export function repondreConsultation(
+  token: string,
+  id: string,
+  reponses: { question_id: string; valeur: string }[],
+): Promise<{ ok: boolean; enregistrees: number }> {
+  return authedPost(`/api/v1/membres/me/consultations/${id}/reponses`, token, { reponses }, "Envoi impossible");
+}
+
 export function getEvenements(token: string): Promise<EvenementOut[]> {
   return authedGet<EvenementOut[]>("/api/v1/membres/me/evenements", token, "Activités indisponibles");
 }
