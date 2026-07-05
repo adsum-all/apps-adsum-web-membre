@@ -44,8 +44,21 @@ export function Activites({
   if (error) return <Centered text={error} />;
   if (!data || data.length === 0) return <Centered text={t("act.empty")} />;
 
+  const fuseau = (() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch {
+      return "";
+    }
+  })();
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {fuseau && (
+        <p style={{ margin: "0 0 2px", color: T.faint, fontSize: 12 }}>
+          Heures affichées dans votre fuseau : {fuseau}
+        </p>
+      )}
       <Section title={t("act.enCours")} events={groups.enCours} token={token} onJoin={onJoin} accent={T.ok} />
       <Section title={t("act.aVenir")} events={groups.aVenir} token={token} onJoin={onJoin} accent={T.b600} />
       <Section title={t("act.passees")} events={groups.passees} token={token} onJoin={onJoin} accent={T.faint} />

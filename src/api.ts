@@ -301,6 +301,25 @@ export function getMe(token: string): Promise<Me> {
   return authedGet<Me>("/api/v1/auth/me", token, "Session expirée");
 }
 
+/** Detect the device IANA time zone (e.g. "Europe/Paris"), no geolocation prompt. */
+export function detectFuseau(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+  } catch {
+    return "";
+  }
+}
+
+/** Report the member's detected time zone so server messages localize correctly. */
+export async function setFuseau(token: string, fuseau: string): Promise<void> {
+  if (!fuseau) return;
+  await fetch(`${BASE}/api/v1/membres/me/fuseau`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ fuseau }),
+  });
+}
+
 export function getMembreProfile(token: string): Promise<MembreProfile> {
   return authedGet<MembreProfile>("/api/v1/membres/me", token, "Profil indisponible");
 }

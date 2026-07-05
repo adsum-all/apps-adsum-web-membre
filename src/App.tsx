@@ -6,11 +6,13 @@ import {
   type InscriptionStatut,
   type MembreProfile,
   type PresenceOut,
+  detectFuseau,
   getInscription,
   getMembreProfile,
   getPhotoUrl,
   logoutSession,
   photoObjectPosition,
+  setFuseau,
 } from "./api.js";
 import { type Lang, LangContext } from "./i18n.js";
 import { civilName, initials as memberInitials } from "./name.js";
@@ -131,6 +133,22 @@ export function App(): JSX.Element {
     },
     [refreshInscription],
   );
+
+  // Report the device time zone once per session so server-rendered times
+  // (notifications, surveys, reminders) localize to the member's real zone.
+  useEffect(() => {
+    if (!token) return;
+    const tz = detectFuseau();
+    const key = "adsum.tz.sent";
+    const already = typeof localStorage !== "undefined" ? localStorage.getItem(key) : null;
+    if (tz && already !== tz) {
+      void setFuseau(token, tz)
+        .then(() => {
+          if (typeof localStorage !== "undefined") localStorage.setItem(key, tz);
+        })
+        .catch(() => undefined);
+    }
+  }, [token]);
 
   const [lang, setLang] = useState<Lang>(() => {
     const stored = typeof localStorage !== "undefined" ? localStorage.getItem("adsum.lang") : null;
