@@ -1,11 +1,67 @@
-/* ADSUM member app, mobile first, premium light theme from @adsum/tokens. */
+/* ADSUM member app, mobile first, from @adsum/tokens. Theme is driven by the
+   member's preference: <html data-theme="light|dark"> forces a theme, and the
+   absence of the attribute (preference "system") lets prefers-color-scheme drive
+   the tokens. Default stays light (index.html sets data-theme="light"), so the
+   app is never dark by default; a member opts into dark explicitly. */
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+  }
+}
+
+/* Semantic tint tokens for the member app. The prototype used many hardcoded
+   light hex tints (soft blue, soft red, soft amber) that would stay bright and
+   become illegible on the dark surfaces. These variables give each tint a dark
+   equivalent with a legible paired foreground, so a chip or banner reads well in
+   both themes. Referenced from proto.ts (T.warn, T.warnbg, T.tintb, ...). */
+:root,
+:root[data-theme="light"] {
+  --adsum-warn: #b5731a;
+  --adsum-warn-bg: #f7eede;
+  --adsum-tint-blue-bg: #eef3fc;
+  --adsum-tint-blue-fg: #2a4fad;
+  --adsum-tint-red-bg: #fae9e7;
+  --adsum-tint-red-fg: #c0392b;
+  --adsum-tint-red-line: #e0a59c;
+  --adsum-chip-bg: #f2f4f8;
+}
+:root[data-theme="dark"] {
+  --adsum-warn: #e6ab63;
+  --adsum-warn-bg: #33280f;
+  --adsum-tint-blue-bg: #1c2740;
+  --adsum-tint-blue-fg: #9cb8ef;
+  --adsum-tint-red-bg: #3a1c18;
+  --adsum-tint-red-fg: #f0a79c;
+  --adsum-tint-red-line: #5c2a24;
+  --adsum-chip-bg: #1c1f27;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --adsum-warn: #e6ab63;
+    --adsum-warn-bg: #33280f;
+    --adsum-tint-blue-bg: #1c2740;
+    --adsum-tint-blue-fg: #9cb8ef;
+    --adsum-tint-red-bg: #3a1c18;
+    --adsum-tint-red-fg: #f0a79c;
+    --adsum-tint-red-line: #5c2a24;
+    --adsum-chip-bg: #1c1f27;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  background: #dfe3ea;
+  background: var(--adsum-bg);
   color: var(--adsum-ink);
   font-family: var(--adsum-font-ui);
   font-size: var(--adsum-text-base);
@@ -91,7 +147,9 @@ body {
 .screen {
   flex: 1;
   overflow-y: auto;
-  padding: 14px 18px 96px;
+  /* Bottom reserve clears the ~64px tab bar (which carries its own safe-area
+     padding) with a small gap, without wasting vertical budget. */
+  padding: 14px 18px 80px;
 }
 
 /* Login */
@@ -305,14 +363,59 @@ body {
 }
 .card-meta {
   display: flex;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  gap: 12px;
   margin-top: 16px;
+}
+
+/* Matricule ADSUM and member code, side by side, each in its own bordered
+   capsule so the two are clearly separated and never confused. Mobile-first:
+   equal halves, min-width 0 + ellipsis keep long values from overflowing. */
+.card-codes {
+  display: flex;
+  gap: 9px;
+}
+.card-code-box {
+  flex: 1 1 0;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 6px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.card-code-box span {
+  font-size: 8.5px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card-code-box strong {
+  font-family: var(--adsum-font-mono);
+  font-size: 13px;
+  line-height: 1.2;
+  color: #fff;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 8px;
 }
 .card-meta-item {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 .card-meta-item span {
   font-size: 10px;
@@ -325,6 +428,11 @@ body {
   font-size: 14px;
   color: #fff;
   letter-spacing: 0.5px;
+}
+.card-meta-matricule strong {
+  font-size: 16px;
+  letter-spacing: 1px;
+  white-space: nowrap;
 }
 .card-id {
   display: flex;
@@ -358,6 +466,76 @@ body {
   color: rgba(255, 255, 255, 0.82);
   font-size: 13px;
   margin: 14px 0 0;
+}
+
+/* "Ma carte": the card, its QR, the essential info and the primary action fit
+   the viewport without scroll, adapting by HEIGHT (mobile-first, from compact
+   phones up). min-height keeps the layout centred and lets it scroll only in the
+   rare case a tall attestation banner is present. */
+.card-view {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+.card-view .card {
+  margin: 0;
+}
+/* The QR is sized in JS (QrCard) from the available height, so on a short screen
+   it shrinks to keep the whole card above the fold, and reaches its natural size
+   on tall screens. The fullscreen view stays available for close scanning. */
+.card-view .btn-ghost {
+  margin: 0;
+  flex-shrink: 0;
+}
+/* Short viewports: tighten the internal rhythm so nothing is pushed off screen.
+   The top chrome is compacted too (it is shared by every view). The notch
+   safe-area on .topbar is preserved by its own padding rule. */
+@media (max-height: 720px) {
+  .topbar {
+    padding: 12px 18px 8px;
+  }
+  .card-view {
+    gap: 8px;
+  }
+  .card-view .card {
+    padding: 16px;
+  }
+  .card-view .card-identity {
+    margin: 2px 0 10px;
+  }
+  .card-view .card-photo {
+    width: 52px;
+    height: 66px;
+  }
+  .card-view .card-qr {
+    padding: 10px;
+  }
+  .card-view .card-meta {
+    margin-top: 10px;
+    gap: 8px;
+  }
+  .card-view .card-hint {
+    margin-top: 8px;
+    font-size: 11.5px;
+  }
+  .card-view .btn-ghost {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+}
+@media (max-height: 600px) {
+  .card-view .card-hint {
+    display: none;
+  }
+  .card-view .card-identity {
+    margin: 2px 0 8px;
+  }
+  .card-view .card-photo {
+    width: 46px;
+    height: 58px;
+  }
 }
 
 /* Section heading inside screens */
@@ -634,6 +812,7 @@ body {
   font-size: 18px;
   letter-spacing: 1px;
   margin: 0;
+  white-space: nowrap;
 }
 .fs-qr-close {
   max-width: 220px;
@@ -679,8 +858,8 @@ body {
   color: var(--adsum-acc);
 }
 .banner-warn {
-  background: #fdf1dd;
-  color: #b6791b;
+  background: var(--adsum-warn-bg);
+  color: var(--adsum-warn);
 }
 .banner-ok {
   background: var(--adsum-ok-bg);

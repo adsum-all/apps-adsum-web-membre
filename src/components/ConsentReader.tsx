@@ -40,6 +40,15 @@ export function ConsentReader({ token, doc, accepted, onAccept }: Props): JSX.El
     };
   }, [open, content, token, doc.cle, t]);
 
+  // A short document that fits on screen has nothing to scroll, so the scroll-based
+  // gate would never open and the member could never tick "I have read and accept".
+  // Once the content is rendered, if it does not overflow, enable acceptance.
+  useEffect(() => {
+    if (!open || !content) return;
+    const el = bodyRef.current;
+    if (el && el.scrollHeight <= el.clientHeight + 8) setReachedEnd(true);
+  }, [open, content]);
+
   function onScroll(): void {
     const el = bodyRef.current;
     if (!el) return;
@@ -159,7 +168,7 @@ export function ConsentReader({ token, doc, accepted, onAccept }: Props): JSX.El
             {error ? (
               <p style={{ color: T.dng, fontSize: 13 }}>{error}</p>
             ) : content ? (
-              <div style={{ fontFamily: 'Georgia, "Times New Roman", serif', color: "#1b2333" }}>
+              <div style={{ fontFamily: 'Georgia, "Times New Roman", serif', color: T.ink }}>
                 <div style={{ textAlign: "center", fontFamily: T.fd, fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{content.titre}</div>
                 <div style={{ textAlign: "center", fontSize: 10.5, color: T.mut, fontFamily: T.fu, borderBottom: `1px solid ${T.line}`, paddingBottom: 10, marginBottom: 14 }}>
                   Version {content.version}

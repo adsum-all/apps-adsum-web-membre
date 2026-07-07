@@ -7,10 +7,10 @@ const inp = { width: "100%", border: `1px solid ${T.line}`, borderRadius: 11, pa
 const lbl = { fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "12px 0 5px", display: "block" } as const;
 
 const PIECE_TYPES = [
-  { value: "piece_identite", label: "Carte nationale d'identité" },
-  { value: "passeport", label: "Passeport" },
-  { value: "permis", label: "Permis de conduire" },
-  { value: "carte_consulaire", label: "Carte consulaire" },
+  { value: "piece_identite", labelKey: "pieces.typeCni" },
+  { value: "passeport", labelKey: "pieces.typePassport" },
+  { value: "permis", labelKey: "pieces.typePermis" },
+  { value: "carte_consulaire", labelKey: "pieces.typeConsulaire" },
 ];
 
 /** Border colour for a field flagged in champs_a_corriger. */
@@ -77,7 +77,7 @@ export function DocumentPicker({
           className="tap"
           style={{ ...inp, border: `1px solid ${fieldBorder(highlight)}`, color: file ? T.ink : T.mut, display: "flex", alignItems: "center", justifyContent: "space-between" }}
         >
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file ? file.name : "Choisir un fichier..."}</span>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file ? file.name : t("pieces.chooseFile")}</span>
           <span style={{ color: file ? T.ok : T.b600 }}>{file ? "✓" : "⤴"}</span>
         </div>
       )}
@@ -112,12 +112,13 @@ export function PiecesJustificatives({
   onPieceFile: (f: File | null) => void;
   onPieceType: (t: string) => void;
 }): JSX.Element {
+  const t = useT();
   const [expanded, setExpanded] = useState(false);
   return (
     <>
-      <p style={{ fontFamily: T.fm, fontSize: 9, letterSpacing: 0.8, color: T.b600, margin: "18px 2px 2px" }}>PIÈCES JUSTIFICATIVES</p>
+      <p style={{ fontFamily: T.fm, fontSize: 9, letterSpacing: 0.8, color: T.b600, margin: "18px 2px 2px" }}>{t("pieces.section")}</p>
       <DocumentPicker
-        label="Photo d'identité"
+        label={t("pieces.photoLabel")}
         accept="image/*"
         alreadyProvided={photoProvided}
         highlight={photoHighlight}
@@ -125,7 +126,7 @@ export function PiecesJustificatives({
         onFile={onPhotoFile}
       />
       <div>
-        <span style={lbl}>TYPE DE PIÈCE {!pieceProvided && <span style={{ color: T.dng }}>*</span>}</span>
+        <span style={lbl}>{t("pieces.typeLabel")} {!pieceProvided && <span style={{ color: T.dng }}>*</span>}</span>
         <select
           style={inp}
           value={pieceType}
@@ -135,13 +136,13 @@ export function PiecesJustificatives({
         >
           {PIECE_TYPES.map((p) => (
             <option key={p.value} value={p.value}>
-              {p.label}
+              {t(p.labelKey)}
             </option>
           ))}
         </select>
       </div>
       <DocumentPicker
-        label="Document (pièce d'identité)"
+        label={t("pieces.docLabel")}
         accept="image/*,application/pdf"
         alreadyProvided={pieceProvided}
         highlight={pieceHighlight}

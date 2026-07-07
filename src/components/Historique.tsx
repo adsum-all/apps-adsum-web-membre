@@ -1,6 +1,8 @@
 import { type PresenceOut, getHistorique } from "../api.js";
 import { formatDateTime } from "../format.js";
+import { useT } from "../i18n.js";
 import { useResource } from "../useResource.js";
+import { EmptyState } from "./ui.js";
 
 // The member attendance history, read-only and traced to the audit, fetched live.
 export function Historique({
@@ -10,12 +12,13 @@ export function Historique({
   token: string;
   onSelect?: (presence: PresenceOut) => void;
 }): JSX.Element {
+  const t = useT();
   const { data, loading, error } = useResource(() => getHistorique(token), [token]);
 
-  if (loading) return <Centered text="Chargement de l'historique..." />;
-  if (error) return <Centered text={error} />;
+  if (loading) return <EmptyState variant="loading" text={t("hist.loading")} />;
+  if (error) return <EmptyState variant="error" title={t("act.errorTitle")} text={error} />;
   if (!data || data.length === 0) {
-    return <Centered text="Aucune présence enregistrée pour le moment." />;
+    return <EmptyState variant="empty" title={t("hist.emptyTitle")} text={t("hist.emptyText")} />;
   }
 
   return (
@@ -31,20 +34,11 @@ export function Historique({
             <span className="list-sub">{formatDateTime(p.arrivee ?? p.debut)}</span>
           </div>
           <div className="list-meta">
-            {p.methode && <span className="list-place">via {p.methode.toUpperCase()}</span>}
-            <span className="badge badge-ok">Présent</span>
+            {p.methode && <span className="list-place">{t("hist.via").replace("{m}", p.methode.toUpperCase())}</span>}
+            <span className="badge badge-ok">{t("part.present")}</span>
           </div>
         </li>
       ))}
     </ul>
-  );
-}
-
-function Centered({ text }: { text: string }): JSX.Element {
-  return (
-    <div className="empty">
-      <div className="empty-glyph" aria-hidden="true">↻</div>
-      <p>{text}</p>
-    </div>
   );
 }

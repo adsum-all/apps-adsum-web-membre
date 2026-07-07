@@ -6,19 +6,22 @@ import {
   type InscriptionStatut,
   type MembreProfile,
   type PresenceOut,
+  detectFuseau,
   getInscription,
   getMembreProfile,
   getPhotoUrl,
   logoutSession,
   photoObjectPosition,
+  setFuseau,
 } from "./api.js";
-import { type Lang, LangContext } from "./i18n.js";
+import { type Lang, LangContext, tr, useT } from "./i18n.js";
 import { civilName, initials as memberInitials } from "./name.js";
 import { T } from "./proto.js";
 import { CompleterProfil } from "./components/CompleterProfil.js";
 import { Activites } from "./components/Activites.js";
 import { Calendrier } from "./components/Calendrier.js";
 import { Carte } from "./components/Carte.js";
+import { Consultations } from "./components/Consultations.js";
 import { DetailPresence } from "./components/DetailPresence.js";
 import { Document } from "./components/Document.js";
 import { Dossier } from "./components/Dossier.js";
@@ -49,20 +52,23 @@ type ViewId =
   | "session"
   | "sent"
   | "infos"
-  | "demandes";
+  | "demandes"
+  | "consultations";
 
+/** i18n key of each screen title, resolved through the translator at render. */
 const VIEW_TITLES: Record<ViewId, string> = {
-  identite: "Mon identité",
-  suivi: "Suivi de mon dossier",
-  detail: "Détail de la présence",
-  engage: "Engagements à signer",
-  document: "Document demandé",
-  settings: "Paramètres & sécurité",
-  secu: "Sécurité & connexions",
-  session: "Session en cours",
-  sent: "Participation",
-  infos: "Mes informations",
-  demandes: "Mes demandes",
+  identite: "profilNav.identite.title",
+  suivi: "app.viewTitle.suivi",
+  detail: "app.viewTitle.detail",
+  engage: "app.viewTitle.engage",
+  document: "app.viewTitle.document",
+  settings: "settings.title",
+  secu: "profilNav.secu.title",
+  session: "app.viewTitle.session",
+  sent: "app.viewTitle.sent",
+  infos: "profilNav.infos.title",
+  demandes: "profilNav.demandes.title",
+  consultations: "profilNav.consultations.title",
 };
 
 const HIDE_CHROME: ViewId[] = ["session", "sent"];
@@ -99,20 +105,21 @@ export function App(): JSX.Element {
   const [authView, setAuthView] = useState<"login" | "forgot">("login");
   const [firstLogin, setFirstLogin] = useState<AuthContext | null>(null);
   const [inscription, setInscription] = useState<InscriptionStatut | null>(null);
+  const [inscriptionError, setInscriptionError] = useState(false);
+  // A technical/admin account (no member profile) logging into the member app.
+  const [compteNonMembre, setCompteNonMembre] = useState(false);
 
   const refreshInscription = useCallback((jwt: string) => {
+    setInscriptionError(false);
     void getInscription(jwt)
-      .then(setInscription)
-      .catch(() =>
-        setInscription({
-          statut: "approuve",
-          motif_refus: null,
-          champs_a_corriger: [],
-          soumis_le: null,
-          decision_le: null,
-          verifie: true,
-        }),
-      );
+      .then((s) => {
+        setInscription(s);
+        setInscriptionError(false);
+      })
+      // Never fabricate a status on error: assuming "approuve" would let an
+      // incomplete member into the full app (skipping the wizard) or hide a
+      // submitted member's tracking. Keep the last known value and surface a retry.
+      .catch(() => setInscriptionError(true));
   }, []);
 
   const enter = useCallback(
@@ -121,21 +128,56 @@ export function App(): JSX.Element {
       // paint does not wait on a second round trip (the card fills in when ready).
       saveToken(jwt);
       setToken(jwt);
+      setCompteNonMembre(false);
       refreshInscription(jwt);
       void getMembreProfile(jwt)
         .then(setProfile)
-        .catch(() => undefined);
+        .catch((e: unknown) => {
+          // A technical/admin account has no member space: say so clearly instead
+          // of showing an empty card.
+          if (e instanceof ApiError && e.status === 403) setCompteNonMembre(true);
+        });
     },
     [refreshInscription],
   );
+
+  // Report the device time zone once per session so server-rendered times
+  // (notifications, surveys, reminders) localize to the member's real zone.
+  useEffect(() => {
+    if (!token) return;
+    const tz = detectFuseau();
+    const key = "adsum.tz.sent";
+    const already = typeof localStorage !== "undefined" ? localStorage.getItem(key) : null;
+    if (tz && already !== tz) {
+      void setFuseau(token, tz)
+        .then(() => {
+          if (typeof localStorage !== "undefined") localStorage.setItem(key, tz);
+        })
+        .catch(() => undefined);
+    }
+  }, [token]);
 
   const [lang, setLang] = useState<Lang>(() => {
     const stored = typeof localStorage !== "undefined" ? localStorage.getItem("adsum.lang") : null;
     return stored === "en" || stored === "fr" ? stored : "fr";
   });
+  // App is the LangContext provider, so it cannot read it through useT here (that
+  // would return the default). Translate against the live lang state instead.
+  const t = (key: string): string => tr(lang, key);
   useEffect(() => {
     if (profile?.langue === "en" || profile?.langue === "fr") setLang(profile.langue);
   }, [profile?.langue]);
+
+  // Apply the member's display theme. light/dark set data-theme explicitly (fixed);
+  // system removes it so the device preference (prefers-color-scheme) drives the
+  // @adsum/tokens variables. Default stays light until a profile says otherwise.
+  useEffect(() => {
+    const root = document.documentElement;
+    const th = profile?.theme;
+    if (th === "dark") root.setAttribute("data-theme", "dark");
+    else if (th === "system") root.removeAttribute("data-theme");
+    else root.setAttribute("data-theme", "light");
+  }, [profile?.theme]);
   useEffect(() => {
     if (typeof localStorage !== "undefined") localStorage.setItem("adsum.lang", lang);
   }, [lang]);
@@ -179,6 +221,28 @@ export function App(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
+  // While a member is on the "inscription en cours d'examen" waiting screen, poll
+  // the status so an administration approval reflects WITHOUT a manual re-login:
+  // refresh on a timer and whenever the app returns to the foreground. Stops as
+  // soon as access is granted (approved or identity verified). This fixes the case
+  // where a member validated by the administration keeps seeing "en cours de
+  // traitement" because their open session never re-fetched the new status.
+  const waitingForDecision =
+    inscription !== null && inscription.verifie !== true && (inscription.statut === "soumis" || inscription.statut === "en_revue");
+  useEffect(() => {
+    if (!token || !waitingForDecision) return;
+    const tick = (): void => refreshInscription(token);
+    const id = window.setInterval(tick, 25000);
+    const onVisible = (): void => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [token, waitingForDecision, refreshInscription]);
+
   if (firstLogin) {
     return (
       <Shell>
@@ -206,36 +270,105 @@ export function App(): JSX.Element {
     );
   }
 
-  // Registration gating: a member whose dossier is not yet approved sees the
-  // completion form or the tracking screen, not the full app.
-  const st = inscription?.statut;
-  if (st === "incomplet" || st === "modification_demandee") {
+  // A technical or administrative account (super-admin, staff) has no member
+  // space: it must use the back office, not this app. Say so clearly.
+  if (compteNonMembre) {
     return (
       <Shell>
         <header className="topbar">
-          <span className="topbar-title">Inscription</span>
-          <button type="button" className="bell" onClick={logout} aria-label="Quitter">
+          <span className="topbar-title">ADSUM</span>
+          <button type="button" className="bell" onClick={logout} aria-label={t("app.aria.quit")}>
             ⏻
           </button>
         </header>
         <main className="screen">
-          <CompleterProfil
-            token={token}
-            profile={profile}
-            statut={st}
-            motif={inscription?.motif_refus}
-            champsACorriger={inscription?.champs_a_corriger ?? []}
-            onSubmitted={() => refreshInscription(token)}
-          />
+          <div style={{ textAlign: "center", padding: "2rem 1rem", maxWidth: 420, margin: "0 auto" }}>
+            <h2>{t("app.nonMembre.title")}</h2>
+            <p style={{ color: T.mut, lineHeight: 1.6 }}>{t("app.nonMembre.body")}</p>
+            <p style={{ color: T.mut }}>
+              <a href="https://adsum-back-office.pages.dev" style={{ color: T.tintbf, fontWeight: 600 }}>
+                {t("app.nonMembre.link")}
+              </a>
+            </p>
+            <button type="button" className="btn-secondary" onClick={logout} style={{ marginTop: 12 }}>
+              {t("settings.logout")}
+            </button>
+          </div>
         </main>
       </Shell>
     );
   }
-  if (st === "soumis" || st === "en_revue" || st === "refuse") {
+
+  // Registration status not loaded yet (or its fetch failed): show a loading /
+  // retry screen rather than falling through to the full app on a guessed status.
+  if (inscription === null) {
     return (
       <Shell>
-        <InscriptionAttente statut={st} motif={inscription?.motif_refus} onLogout={logout} />
+        <header className="topbar">
+          <span className="topbar-title">{t("app.title.inscription")}</span>
+          <button type="button" className="bell" onClick={logout} aria-label={t("app.aria.quit")}>
+            ⏻
+          </button>
+        </header>
+        <main className="screen">
+          <div style={{ textAlign: "center", padding: "2rem 1rem", maxWidth: 420, margin: "0 auto" }}>
+            {inscriptionError ? (
+              <>
+                <h2>{t("app.inscriptionLoad.errorTitle")}</h2>
+                <p style={{ color: T.mut, lineHeight: 1.6 }}>{t("app.inscriptionLoad.errorBody")}</p>
+                <button type="button" className="btn-primary" onClick={() => refreshInscription(token)} style={{ marginTop: 12 }}>
+                  {t("app.inscriptionLoad.retry")}
+                </button>
+              </>
+            ) : (
+              <p style={{ color: T.mut }}>{t("app.inscriptionLoad.loading")}</p>
+            )}
+          </div>
+        </main>
       </Shell>
+    );
+  }
+
+  // Registration gating: a member whose dossier is not yet approved sees the
+  // completion form or the tracking screen, not the full app.
+  const st = inscription?.statut;
+  // A member whose identity the administration has VERIFIED has access to their
+  // space, even when the inscription-decision path left statut_inscription at
+  // "soumis"/"en_revue": the back office shows such a member VERIFIE + ACTIF, so
+  // the app must stay consistent and never keep a verified member on the waiting
+  // screen. A correction request or a refusal still take priority over this.
+  const verifie = inscription?.verifie === true;
+  if (st === "incomplet" || st === "modification_demandee") {
+    return (
+      <LangContext.Provider value={lang}>
+        <Shell>
+          <header className="topbar">
+            <span className="topbar-title">{t("app.title.inscription")}</span>
+            <button type="button" className="bell" onClick={logout} aria-label={t("app.aria.quit")}>
+              ⏻
+            </button>
+          </header>
+          <main className="screen">
+            <CompleterProfil
+              token={token}
+              profile={profile}
+              statut={st}
+              motif={inscription?.motif_refus}
+              champsACorriger={inscription?.champs_a_corriger ?? []}
+              onSubmitted={() => refreshInscription(token)}
+            />
+          </main>
+        </Shell>
+      </LangContext.Provider>
+    );
+  }
+  if (st === "refuse" || (!verifie && (st === "soumis" || st === "en_revue"))) {
+    return (
+      <LangContext.Provider value={lang}>
+        <Shell>
+          <InscriptionAttente statut={st} motif={inscription?.motif_refus} onLogout={logout} onRefresh={() => refreshInscription(token)} />
+        </Shell>
+      </LangContext.Provider>
     );
   }
 
@@ -248,14 +381,14 @@ export function App(): JSX.Element {
         <header className="topbar">
           <span className="topbar-title">
             {view
-              ? VIEW_TITLES[view]
+              ? t(VIEW_TITLES[view])
               : recensementOpen
-                ? "Recensement"
+                ? t("app.title.recensement")
                 : dossierOpen
-                  ? "Mon dossier"
+                  ? t("profilNav.dossier.title")
                   : notifOpen
-                    ? "Notifications"
-                    : tabTitle(tab)}
+                    ? t("app.title.notifications")
+                    : tabTitle(tab, t)}
           </span>
           {view ? (
             <button
@@ -263,7 +396,7 @@ export function App(): JSX.Element {
               className="bell"
               onClick={() => setView(view === "suivi" || view === "engage" ? "identite" : null)}
             >
-              Fermer
+              {t("common.close")}
             </button>
           ) : recensementOpen || dossierOpen ? (
             <button
@@ -274,16 +407,16 @@ export function App(): JSX.Element {
                 setDossierOpen(false);
               }}
             >
-              Fermer
+              {t("common.close")}
             </button>
           ) : (
             <button
               type="button"
               className="bell"
-              aria-label={notifOpen ? "Fermer les notifications" : "Notifications"}
+              aria-label={notifOpen ? t("app.aria.notifsClose") : t("app.title.notifications")}
               onClick={() => setNotifOpen((v) => !v)}
             >
-              {notifOpen ? "Fermer" : "◉"}
+              {notifOpen ? t("common.close") : "◉"}
             </button>
           )}
         </header>
@@ -305,6 +438,8 @@ export function App(): JSX.Element {
           <Infos token={token} profile={profile} onDemande={() => setView("demandes")} onProfileChange={reloadProfile} />
         ) : view === "demandes" ? (
           <Demandes token={token} />
+        ) : view === "consultations" ? (
+          <Consultations token={token} />
         ) : view === "secu" ? (
           <Secu token={token} onSettings={() => setView("settings")} />
         ) : view === "session" && activeEvent ? (
@@ -377,6 +512,7 @@ export function App(): JSX.Element {
                 onSettings={() => setView("settings")}
                 onInfos={() => setView("infos")}
                 onDemandes={() => setView("demandes")}
+                onConsultations={() => setView("consultations")}
               />
             )}
           </>
@@ -412,16 +548,19 @@ function InscriptionAttente({
   statut,
   motif,
   onLogout,
+  onRefresh,
 }: {
   statut: string;
   motif?: string | null;
   onLogout: () => void;
+  onRefresh?: () => void;
 }): JSX.Element {
+  const t = useT();
   const refuse = statut === "refuse";
   const steps = [
-    { key: "soumis", label: "Dossier soumis" },
-    { key: "en_revue", label: "En cours d'examen" },
-    { key: "decision", label: refuse ? "Refusé" : "Décision finale" },
+    { key: "soumis", label: t("inscription.stepSubmitted") },
+    { key: "en_revue", label: t("inscription.stepReview") },
+    { key: "decision", label: refuse ? t("inscription.stepRefused") : t("inscription.stepDecision") },
   ];
   const reached = refuse ? 3 : statut === "en_revue" ? 2 : 1;
   return (
@@ -434,13 +573,9 @@ function InscriptionAttente({
         {refuse ? "!" : "⏳"}
       </div>
       <div style={{ fontFamily: T.fd, fontWeight: 700, fontSize: 21, textAlign: "center" }}>
-        {refuse ? "Inscription refusée" : "Inscription en cours d'examen"}
+        {refuse ? t("inscription.refusedTitle") : t("inscription.reviewTitle")}
       </div>
-      <p className="login-sub">
-        {refuse
-          ? "Votre dossier n'a pas été validé. Vous pouvez contacter l'administration."
-          : "Votre dossier a été soumis. L'administration l'examine. Vous serez notifié(e) de la décision."}
-      </p>
+      <p className="login-sub">{refuse ? t("inscription.refusedSub") : t("inscription.reviewSub")}</p>
       <div style={{ margin: "10px 0 18px" }}>
         {steps.map((s, i) => {
           const done = i + 1 < reached;
@@ -457,19 +592,29 @@ function InscriptionAttente({
         })}
       </div>
       {refuse && motif && (
-        <p style={{ background: "#fae9e7", border: "1px solid #e0a59c", borderRadius: 11, padding: 12, fontSize: 12.5, color: "#922b21" }}>
-          Motif : {motif}
+        <p style={{ background: T.tintr, border: `1px solid ${T.tintrl}`, borderRadius: 11, padding: 12, fontSize: 12.5, color: T.tintrf }}>
+          {t("attest.motif").replace("{m}", motif)}
         </p>
       )}
-      <button type="button" className="btn btn-ghost btn-block" onClick={onLogout} style={{ marginTop: 14 }}>
-        Se déconnecter
+      {!refuse && onRefresh && (
+        <>
+          <button type="button" className="btn btn-primary btn-block" onClick={onRefresh} style={{ marginTop: 14 }}>
+            {t("inscription.refresh")}
+          </button>
+          <p style={{ fontSize: 11, color: T.mut, textAlign: "center", margin: "8px 0 0" }}>
+            {t("inscription.autoRefresh")}
+          </p>
+        </>
+      )}
+      <button type="button" className="btn btn-ghost btn-block" onClick={onLogout} style={{ marginTop: refuse ? 14 : 8 }}>
+        {t("settings.logout")}
       </button>
     </div>
   );
 }
 
-function tabTitle(tab: TabId): string {
-  return { carte: "Ma carte", activites: "Activités", calendrier: "Calendrier", historique: "Historique", profil: "Profil" }[tab];
+function tabTitle(tab: TabId, t: (key: string) => string): string {
+  return { carte: t("nav.carte"), activites: t("nav.activites"), calendrier: t("nav.calendrier"), historique: t("nav.historique"), profil: t("nav.profil") }[tab];
 }
 
 function NavRow({
@@ -506,8 +651,8 @@ function NavRow({
           height: 36,
           borderRadius: 10,
           flexShrink: 0,
-          background: accent ? T.ok : "#eaeefb",
-          color: accent ? "#fff" : T.b600,
+          background: accent ? T.ok : T.tintb,
+          color: accent ? "#fff" : T.tintbf,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -537,6 +682,7 @@ function Profil({
   onSettings,
   onInfos,
   onDemandes,
+  onConsultations,
 }: {
   token: string;
   profile: MembreProfile | null;
@@ -547,11 +693,13 @@ function Profil({
   onSettings: () => void;
   onInfos: () => void;
   onDemandes: () => void;
+  onConsultations: () => void;
 }): JSX.Element {
+  const t = useT();
   const fullName =
     profile && (profile.prenoms || profile.nom || profile.nom_affichage)
       ? civilName(profile)
-      : (profile?.email ?? "Membre ADSUM");
+      : (profile?.email ?? t("app.profil.fallbackName"));
   const initials = profile ? memberInitials(profile) : "?";
   const fonctionsList = profile?.fonctions ?? [];
   const bergerLabel = profile?.est_berger ? profile.nom_pastoral_affiche : null;
@@ -575,7 +723,7 @@ function Profil({
     <div className="profil" style={{ padding: "10px 2px 14px" }}>
       <div className="profil-head">
         {photoUrl ? (
-          <img className="avatar avatar-photo" src={photoUrl} alt="Photo d'identité" style={{ objectPosition: photoObjectPosition(profile) }} />
+          <img className="avatar avatar-photo" src={photoUrl} alt={t("app.profil.photoAlt")} style={{ objectPosition: photoObjectPosition(profile) }} />
         ) : (
           <div className="avatar" aria-hidden="true">
             {initials}
@@ -587,19 +735,19 @@ function Profil({
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", marginBottom: 8 }}>
           {bergerLabel && (
-            <span style={{ fontSize: 12.5, fontWeight: 700, color: T.warn, background: T.warnbg, border: `1px solid ${T.warn}33`, padding: "3px 11px", borderRadius: 20 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 700, color: T.warn, background: T.warnbg, border: `1px solid ${T.warn}`, padding: "3px 11px", borderRadius: 20 }}>
               {bergerLabel}
             </span>
           )}
           {fonctionsList.map((f, i) => (
-            <span key={i} style={{ fontSize: 12, fontWeight: 600, color: T.b600, background: "#eef2fb", border: `1px solid ${T.b600}33`, padding: "3px 11px", borderRadius: 20 }}>
+            <span key={i} style={{ fontSize: 12, fontWeight: 600, color: T.tintbf, background: T.tintb, border: `1px solid ${T.b600}33`, padding: "3px 11px", borderRadius: 20 }}>
               {f.libelle}
               {f.perimetre ? ` - ${f.perimetre}` : ""}
             </span>
           ))}
           {!bergerLabel && fonctionsList.length === 0 && (
-            <span style={{ fontSize: 12, fontWeight: 600, color: T.mut, background: "#f2f4f8", border: `1px solid ${T.line}`, padding: "3px 11px", borderRadius: 20 }}>
-              Membre
+            <span style={{ fontSize: 12, fontWeight: 600, color: T.mut, background: T.chip, border: `1px solid ${T.line}`, padding: "3px 11px", borderRadius: 20 }}>
+              {t("app.profil.memberChip")}
             </span>
           )}
         </div>
@@ -613,15 +761,15 @@ function Profil({
             color: verified ? T.ok : T.warn,
           }}
         >
-          {verified ? "● Identité vérifiée" : "● En attente de vérification"}
+          {verified ? t("app.profil.verified") : t("app.profil.unverified")}
         </span>
       </div>
 
       <div style={{ background: T.surf, border: `1px solid ${T.line}`, borderRadius: 14, overflow: "hidden", margin: "4px 0 16px" }}>
         {[
-          ["Commission", profile?.commission ?? "-"],
-          ["Tribu", profile?.tribu ?? "-"],
-          ["Membre depuis", since ? String(since) : "-"],
+          [t("app.profil.commission"), profile?.commission ?? "-"],
+          [t("app.profil.tribu"), profile?.tribu ?? "-"],
+          [t("app.profil.since"), since ? String(since) : "-"],
         ].map(([label, value], i) => (
           <div
             key={label}
@@ -633,13 +781,14 @@ function Profil({
         ))}
       </div>
 
-      <NavRow glyph="✓" title="Mon identité" subtitle="Pièces & validation d'identité" onClick={onIdentite} accent={verified} />
-      <NavRow glyph="≣" title="Mes informations" subtitle="Détails & demande de modification" onClick={onInfos} />
-      <NavRow glyph="✉" title="Mes demandes" subtitle="Messagerie avec l'administration" onClick={onDemandes} />
-      <NavRow glyph="🗎" title="Mon dossier" subtitle="Documents, engagements, suivi" onClick={onDossier} />
-      <NavRow glyph="🔒" title="Sécurité & connexions" subtitle="Mot de passe, 2FA, sessions" onClick={onSecu} />
-      <NavRow glyph="⚙" title="Paramètres" subtitle="Langue, notifications, RGPD" onClick={onSettings} />
-      <NavRow glyph="↻" title="Recensement annuel" subtitle="Confirmer mon engagement" onClick={onRecensement} />
+      <NavRow glyph="✓" title={t("profilNav.identite.title")} subtitle={t("profilNav.identite.sub")} onClick={onIdentite} accent={verified} />
+      <NavRow glyph="≣" title={t("profilNav.infos.title")} subtitle={t("profilNav.infos.sub")} onClick={onInfos} />
+      <NavRow glyph="✉" title={t("profilNav.demandes.title")} subtitle={t("profilNav.demandes.sub")} onClick={onDemandes} />
+      <NavRow glyph="🗳" title={t("profilNav.consultations.title")} subtitle={t("profilNav.consultations.sub")} onClick={onConsultations} />
+      <NavRow glyph="🗎" title={t("profilNav.dossier.title")} subtitle={t("profilNav.dossier.sub")} onClick={onDossier} />
+      <NavRow glyph="🔒" title={t("profilNav.secu.title")} subtitle={t("profilNav.secu.sub")} onClick={onSecu} />
+      <NavRow glyph="⚙" title={t("profilNav.settings.title")} subtitle={t("profilNav.settings.sub")} onClick={onSettings} />
+      <NavRow glyph="↻" title={t("profilNav.recensement.title")} subtitle={t("profilNav.recensement.sub")} onClick={onRecensement} />
     </div>
   );
 }

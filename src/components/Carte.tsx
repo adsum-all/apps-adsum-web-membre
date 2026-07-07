@@ -2,6 +2,7 @@ import QRCode from "qrcode";
 import { useEffect, useRef, useState } from "react";
 
 import { type MembreProfile, type NiveauItem, getNiveaux, getQrToken } from "../api.js";
+import { useT } from "../i18n.js";
 import { civilName } from "../name.js";
 import { AttestationManuelle } from "./AttestationManuelle.js";
 import { QrCard } from "./QrCard.js";
@@ -11,6 +12,7 @@ import { QrCard } from "./QrCard.js";
 const REFRESH_MS = 60_000;
 
 export function Carte({ token, profile }: { token: string; profile: MembreProfile | null }): JSX.Element {
+  const t = useT();
   const [serverToken, setServerToken] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
@@ -41,7 +43,7 @@ export function Carte({ token, profile }: { token: string; profile: MembreProfil
           }
         })
         .catch(() => {
-          if (alive) setNote("QR momentanément indisponible, réessai en cours.");
+          if (alive) setNote(t("carte.qrUnavailable"));
         });
     };
     load();
@@ -53,17 +55,18 @@ export function Carte({ token, profile }: { token: string; profile: MembreProfil
   }, [token]);
 
   return (
-    <>
+    <div className="card-view">
       <AttestationManuelle token={token} />
       <QrCard
         matricule={profile?.matricule ?? "ADS-000000"}
+        codeMembre={profile?.code_membre ?? null}
         membreId={profile?.id ?? "00000000-0000-0000-0000-000000000000"}
         verifie={profile?.verifie ?? false}
         preview={false}
         serverToken={serverToken}
         nom={profile ? civilName(profile) || null : null}
         tribu={profile?.tribu}
-        patriarche={profile?.patriarche}
+        commission={profile?.commission}
         engagement={engagementLabel}
         authToken={token}
         prenoms={profile?.prenoms}
@@ -76,7 +79,7 @@ export function Carte({ token, profile }: { token: string; profile: MembreProfil
         fonctionPerimetre={profile?.fonctions?.[0]?.perimetre ?? null}
       />
       <button type="button" className="btn btn-ghost" onClick={() => setFullscreen(true)} disabled={!serverToken}>
-        Afficher en plein écran
+        {t("carte.fullscreen")}
       </button>
       {note && <p className="card-hint">{note}</p>}
       {fullscreen && serverToken && (
@@ -86,7 +89,7 @@ export function Carte({ token, profile }: { token: string; profile: MembreProfil
           onClose={() => setFullscreen(false)}
         />
       )}
-    </>
+    </div>
   );
 }
 
@@ -99,6 +102,7 @@ function FullscreenQr({
   matricule: string;
   onClose: () => void;
 }): JSX.Element {
+  const t = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -112,12 +116,12 @@ function FullscreenQr({
   }, [token]);
 
   return (
-    <div className="fs-qr" role="dialog" aria-label="QR plein écran" onClick={onClose}>
-      <p className="fs-qr-hint">Luminosité maximale recommandée</p>
-      <canvas ref={canvasRef} width={300} height={300} aria-label="QR signé du membre" />
+    <div className="fs-qr" role="dialog" aria-label={t("carte.fsAria")} onClick={onClose}>
+      <p className="fs-qr-hint">{t("carte.brightness")}</p>
+      <canvas ref={canvasRef} width={300} height={300} aria-label={t("carte.qrAria")} />
       <p className="fs-qr-id">{matricule}</p>
       <button type="button" className="btn btn-primary fs-qr-close" onClick={onClose}>
-        Fermer
+        {t("common.close")}
       </button>
     </div>
   );

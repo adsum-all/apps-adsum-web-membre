@@ -1,4 +1,5 @@
 import { type MembreProfile, getDocuments } from "../api.js";
+import { useT } from "../i18n.js";
 import { T } from "../proto.js";
 import { useResource } from "../useResource.js";
 
@@ -28,6 +29,7 @@ function fmt(iso: string | null): string {
 }
 
 export function Suivi({ token, profile }: { token: string; profile: MembreProfile | null }): JSX.Element {
+  const t = useT();
   const docs = useResource(() => getDocuments(token), [token]);
   const verified = profile?.verifie ?? false;
   const documents = docs.data ?? [];
@@ -39,21 +41,21 @@ export function Suivi({ token, profile }: { token: string; profile: MembreProfil
   const traiteEnCours = !verified && documents.some((d) => d.statut === "lu");
 
   const steps: Step[] = [
-    { titre: "Dossier soumis", sousTitre: dernier?.demande_le ? fmt(dernier.demande_le) : "Compte créé par l'administration", state: "done" },
-    { titre: "Reçu par l'administration", sousTitre: recu ? "Bien reçu" : "En attente", state: recu ? "done" : "current" },
-    { titre: "Lu par un administrateur", sousTitre: lu ? fmt(dernier?.recu_le ?? null) || "Consulté" : "En attente", state: lu ? "done" : recu ? "current" : "pending" },
+    { titre: t("inscription.stepSubmitted"), sousTitre: dernier?.demande_le ? fmt(dernier.demande_le) : t("suivi.accountCreated"), state: "done" },
+    { titre: t("suivi.stepReceived"), sousTitre: recu ? t("suivi.received") : t("suivi.pending"), state: recu ? "done" : "current" },
+    { titre: t("suivi.stepRead"), sousTitre: lu ? fmt(dernier?.recu_le ?? null) || t("suivi.consulted") : t("suivi.pending"), state: lu ? "done" : recu ? "current" : "pending" },
     {
-      titre: verified ? "Identité validée" : "En cours de traitement",
-      sousTitre: verified ? "Carte & QR actifs" : "Délai estimé : 48-72 h",
+      titre: verified ? t("suivi.identityValidated") : t("suivi.processing"),
+      sousTitre: verified ? t("suivi.cardQrActive") : t("suivi.estimatedDelay"),
       state: verified ? "done" : lu || traiteEnCours ? "current" : "pending",
     },
-    { titre: "Décision finale", sousTitre: verified ? "Validée" : "En attente", state: verified ? "done" : "pending" },
+    { titre: t("inscription.stepDecision"), sousTitre: verified ? t("suivi.validated") : t("suivi.pending"), state: verified ? "done" : "pending" },
   ];
 
   return (
     <div className="scr" style={{ padding: "6px 18px 14px" }}>
       <div style={{ fontSize: 11, color: T.mut, marginBottom: 18 }}>
-        {verified ? "Identité validée" : "Validation d'identité en cours"}
+        {verified ? t("suivi.identityValidated") : t("suivi.validationInProgress")}
       </div>
       <div style={{ position: "relative", paddingLeft: 24 }}>
         <div style={{ position: "absolute", left: 8, top: 5, bottom: 14, width: 2, background: T.line }} />
@@ -68,7 +70,7 @@ export function Suivi({ token, profile }: { token: string; profile: MembreProfil
         ))}
       </div>
       <div style={{ marginTop: 18, background: T.bg, border: `1px solid ${T.line}`, borderRadius: 12, padding: 12, fontSize: 10.5, color: T.mut, lineHeight: 1.5 }}>
-        ⓘ Le traitement par l'administration peut prendre du temps. Vous êtes notifié à chaque étape.
+        {t("suivi.footer")}
       </div>
     </div>
   );

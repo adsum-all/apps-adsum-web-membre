@@ -79,7 +79,7 @@ function PlatformBadge({ platform }: { platform: PlatformInfo }): JSX.Element {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
       <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: platform.color, color: "#fff", borderRadius: 999, padding: "4px 11px", fontSize: 11.5, fontWeight: 700 }}>
-        <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#fff" }} />
+        <span style={{ width: 7, height: 7, borderRadius: "50%", background: T.surf }} />
         {platform.label}
       </span>
       <span style={{ fontSize: 11, color: T.mut }}>

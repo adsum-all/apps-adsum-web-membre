@@ -29,6 +29,14 @@ export function SignatureEngagement({ token, onSigned }: { token: string; onSign
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Anti-spam cooldown (seconds) before the code can be resent.
+  const [renvoiRestant, setRenvoiRestant] = useState(0);
+
+  useEffect(() => {
+    if (renvoiRestant <= 0) return;
+    const id = setTimeout(() => setRenvoiRestant((s) => s - 1), 1000);
+    return () => clearTimeout(id);
+  }, [renvoiRestant]);
 
   useEffect(() => {
     let alive = true;
@@ -71,6 +79,7 @@ export function SignatureEngagement({ token, onSigned }: { token: string; onSign
         .map((d) => ({ cle: d.cle, version: accepted.get(d.cle) as string }));
       await demanderSignature(token, documents);
       setPhase("code");
+      setRenvoiRestant(30);
     } catch {
       setError(t("consent.requestError"));
     } finally {
@@ -146,6 +155,36 @@ export function SignatureEngagement({ token, onSigned }: { token: string; onSign
             disabled={code.trim().length === 0 || busy}
             marginTop={10}
           />
+          <p style={{ fontSize: 10.5, color: T.faint, lineHeight: 1.5, margin: "10px 0 0" }}>{t("consent.codeValidity")}</p>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 8, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => void demander()}
+              disabled={busy || renvoiRestant > 0}
+              style={{
+                border: "none",
+                background: "transparent",
+                color: busy || renvoiRestant > 0 ? T.faint : T.b600,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: busy || renvoiRestant > 0 ? "default" : "pointer",
+                padding: 0,
+              }}
+            >
+              {renvoiRestant > 0 ? t("consent.resendIn").replace("{s}", String(renvoiRestant)) : t("consent.resend")}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPhase("reading");
+                setCode("");
+                setError(null);
+              }}
+              style={{ border: "none", background: "transparent", color: T.mut, fontSize: 12, cursor: "pointer", padding: 0 }}
+            >
+              {t("consent.editAcceptances")}
+            </button>
+          </div>
         </div>
       )}
     </div>

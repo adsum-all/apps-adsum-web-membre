@@ -22,7 +22,16 @@ export function useResource<T>(loader: () => Promise<T>, deps: unknown[]): Resou
       })
       .catch((err: unknown) => {
         if (alive) {
-          const message = err instanceof ApiError ? err.message : "Erreur réseau";
+          // ApiError messages are already localized; the raw fallback is picked
+          // from the persisted language so it is bilingual too.
+          const fallback = (() => {
+            try {
+              return typeof localStorage !== "undefined" && localStorage.getItem("adsum.lang") === "en" ? "Network error" : "Erreur réseau";
+            } catch {
+              return "Erreur réseau";
+            }
+          })();
+          const message = err instanceof ApiError ? err.message : fallback;
           setState({ data: null, loading: false, error: message });
         }
       });

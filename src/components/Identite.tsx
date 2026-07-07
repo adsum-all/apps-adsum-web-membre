@@ -1,4 +1,5 @@
 import { type MembreProfile, getDocuments, getEngagements } from "../api.js";
+import { useT } from "../i18n.js";
 import { T } from "../proto.js";
 import { useResource } from "../useResource.js";
 
@@ -39,6 +40,7 @@ export function Identite({
   onEngagements: () => void;
   onSuivi: () => void;
 }): JSX.Element {
+  const t = useT();
   const docs = useResource(() => getDocuments(token), [token]);
   const engs = useResource(() => getEngagements(token), [token]);
 
@@ -59,11 +61,11 @@ export function Identite({
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <Piece titre="Photo d'identité" sousTitre={photoOk ? "Validée" : "À fournir"} done={photoOk} />
-        <Piece titre="Pièce officielle" sousTitre={pieceOk ? "Conservée et protégée" : "À fournir"} done={pieceOk} />
+        <Piece titre={t("app.profil.photoAlt")} sousTitre={photoOk ? t("suivi.validated") : t("identite.toProvide")} done={photoOk} />
+        <Piece titre={t("identite.officialDoc")} sousTitre={pieceOk ? t("identite.keptProtected") : t("identite.toProvide")} done={pieceOk} />
         <Piece
-          titre="Engagements signés"
-          sousTitre={engagementsOk ? "Consentement · confidentialité · lettre" : "À lire et signer"}
+          titre={t("identite.engagementsSigned")}
+          sousTitre={engagementsOk ? t("identite.engagementsDetail") : t("identite.toReadSign")}
           done={engagementsOk}
           onClick={onEngagements}
         />
@@ -71,28 +73,28 @@ export function Identite({
 
       {verified ? (
         <div style={{ marginTop: 14, background: T.okbg, border: `1px solid ${T.ok}`, borderRadius: 14, padding: 14, textAlign: "center" }}>
-          <div style={{ fontFamily: T.fd, fontWeight: 700, fontSize: 15, color: T.ok }}>Identité validée</div>
+          <div style={{ fontFamily: T.fd, fontWeight: 700, fontSize: 15, color: T.ok }}>{t("suivi.identityValidated")}</div>
           <div style={{ fontSize: 11, color: T.mut, marginTop: 4, lineHeight: 1.5 }}>
-            Validée par l'administration.
+            {t("identite.validatedBy")}
             <br />
-            Carte &amp; QR pleinement actifs.
+            {t("identite.cardQrFullyActive")}
           </div>
         </div>
       ) : (
         <div style={{ marginTop: 14, background: T.warnbg, border: `1px solid ${T.warn}`, borderRadius: 14, padding: 14, textAlign: "center" }}>
-          <div style={{ fontFamily: T.fd, fontWeight: 700, fontSize: 15, color: T.warn }}>En attente de vérification</div>
+          <div style={{ fontFamily: T.fd, fontWeight: 700, fontSize: 15, color: T.warn }}>{t("identite.awaitingVerification")}</div>
           <div style={{ fontSize: 11, color: T.mut, marginTop: 4, lineHeight: 1.5 }}>
-            Aucun compte pleinement actif tant que l'identité n'est pas validée par l'administration.
+            {t("identite.notFullyActive")}
           </div>
         </div>
       )}
 
       <div onClick={onSuivi} className="tap" style={{ marginTop: 12, height: 44, border: `1.5px solid ${T.ink}`, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12.5, fontWeight: 600 }}>
-        Suivre le traitement de mon dossier
+        {t("identite.trackProcessing")}
       </div>
 
       <div style={{ textAlign: "center", fontFamily: T.fm, fontSize: 8.5, color: T.faint, marginTop: 14 }}>
-        Minimisation RGPD : la pièce officielle est supprimée après validation.
+        {t("identite.gdprNote")}
       </div>
     </div>
   );

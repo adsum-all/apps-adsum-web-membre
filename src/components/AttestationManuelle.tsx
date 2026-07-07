@@ -31,9 +31,9 @@ function imprimerAttestation(titre: string, texte: string): void {
 function StatusBadge({ info, t }: { info: AttestationInfo; t: (k: string) => string }): JSX.Element {
   const map: Record<string, { key: string; bg: string; fg: string; bd: string }> = {
     under_review: { key: "attest.statusUnderReview", bg: T.okbg, fg: T.ok, bd: T.ok },
-    rejected: { key: "attest.statusRejected", bg: "#fae9e7", fg: T.dng, bd: T.dng },
+    rejected: { key: "attest.statusRejected", bg: T.tintr, fg: T.dng, bd: T.dng },
     reminded: { key: "attest.statusReminded", bg: T.warnbg, fg: T.warn, bd: T.warn },
-    overdue: { key: "attest.statusOverdue", bg: "#fae9e7", fg: T.dng, bd: T.dng },
+    overdue: { key: "attest.statusOverdue", bg: T.tintr, fg: T.dng, bd: T.dng },
   };
   const meta = map[info.statut] ?? { key: "attest.statusAwaiting", bg: T.warnbg, fg: T.warn, bd: T.warn };
   return (
@@ -180,12 +180,12 @@ export function AttestationManuelle({ token }: { token: string }): JSX.Element |
       {rejected && (
         <p
           style={{
-            background: "#fae9e7",
-            border: "1px solid #e0a59c",
+            background: T.tintr,
+            border: `1px solid ${T.tintrl}`,
             borderRadius: 11,
             padding: 10,
             fontSize: 11.5,
-            color: "#922b21",
+            color: T.tintrf,
             margin: "10px 0 0",
           }}
         >

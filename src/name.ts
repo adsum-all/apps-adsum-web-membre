@@ -40,6 +40,17 @@ function famUpper(nom?: string | null): string {
   return (nom ?? "").trim().replace(/\s+/g, " ").toUpperCase();
 }
 
+/** Family name in uppercase, for live normalisation while typing in a form. */
+export function nomMajuscule(nom?: string | null): string {
+  return famUpper(nom);
+}
+
+/** Given names in title case (particles lowercase), recombined into a string.
+ * Used to normalise a form field on blur without fighting the person mid-typing. */
+export function capitaliserPrenoms(prenoms?: string | null): string {
+  return prenomsList(prenoms).join(" ");
+}
+
 /**
  * Civil display name: prefers the server value (nom_affichage), else composes
  * ``Prenom1 [Prenom2] NOM`` (given names first, then the family name in

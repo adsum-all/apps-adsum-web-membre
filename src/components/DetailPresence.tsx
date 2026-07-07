@@ -1,4 +1,5 @@
 import { type PresenceOut } from "../api.js";
+import { useT } from "../i18n.js";
 import { T } from "../proto.js";
 
 function time(iso: string | null): string {
@@ -32,6 +33,7 @@ function Row({ label, value, last }: { label: string; value: string; last?: bool
 }
 
 export function DetailPresence({ presence }: { presence: PresenceOut }): JSX.Element {
+  const t = useT();
   const enLigne = presence.methode === "en_ligne" || presence.methode === "lien";
   return (
     <div className="scr" style={{ padding: "6px 18px 14px" }}>
@@ -39,19 +41,19 @@ export function DetailPresence({ presence }: { presence: PresenceOut }): JSX.Ele
         <div style={{ fontSize: 15, fontWeight: 700, fontFamily: T.fd }}>{presence.evenement_titre}</div>
         <div style={{ display: "flex", gap: 7, marginTop: 10 }}>
           <span style={{ fontFamily: T.fm, fontSize: 9, background: T.okbg, color: T.ok, padding: "4px 9px", borderRadius: 20 }}>
-            PRÉSENT · {enLigne ? "EN LIGNE" : "SALLE"}
+            {t("detail.present")} · {enLigne ? t("detail.online") : t("detail.room")}
           </span>
         </div>
       </div>
       <div style={{ background: T.surf, border: `1px solid ${T.line}`, borderRadius: 16, marginTop: 12, padding: "4px 16px" }}>
-        <Row label="Date" value={dateLong(presence.arrivee ?? presence.debut)} />
-        <Row label="Arrivée" value={time(presence.arrivee)} />
-        <Row label="Départ" value={time(presence.depart)} />
-        <Row label="Durée" value={duration(presence.arrivee, presence.depart)} />
-        <Row label="Mode" value={enLigne ? "En ligne" : "En salle"} last />
+        <Row label={t("detail.date")} value={dateLong(presence.arrivee ?? presence.debut)} />
+        <Row label={t("detail.arrival")} value={time(presence.arrivee)} />
+        <Row label={t("detail.departure")} value={time(presence.depart)} />
+        <Row label={t("detail.duration")} value={duration(presence.arrivee, presence.depart)} />
+        <Row label={t("detail.mode")} value={enLigne ? t("part.modEnLigne") : t("detail.modeRoom")} last />
       </div>
       <div style={{ textAlign: "center", fontFamily: T.fm, fontSize: 8.5, color: T.faint, marginTop: 14 }}>
-        Donnée en lecture seule · tracée à l'audit
+        {t("detail.footer")}
       </div>
     </div>
   );

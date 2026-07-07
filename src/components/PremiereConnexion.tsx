@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 
 import { ApiError, premiereConnexion, requestOtp } from "../api.js";
+import { useT } from "../i18n.js";
 import { T, gradient } from "../proto.js";
+import { PasswordInput } from "./PasswordInput.js";
 
 interface Props {
   email: string;
@@ -10,6 +12,7 @@ interface Props {
 }
 
 export function PremiereConnexion({ email, motDePasseTemporaire, onDone }: Props): JSX.Element {
+  const t = useT();
   const [nouveau, setNouveau] = useState("");
   const [confirme, setConfirme] = useState("");
   const [code, setCode] = useState("");
@@ -32,15 +35,15 @@ export function PremiereConnexion({ email, motDePasseTemporaire, onDone }: Props
 
   async function submit(): Promise<void> {
     if (!strong) {
-      setError("Mot de passe trop faible (8+ caractères, 1 majuscule, 1 chiffre).");
+      setError(t("premiere.weakPw"));
       return;
     }
     if (!match) {
-      setError("Les mots de passe ne correspondent pas.");
+      setError(t("premiere.mismatch"));
       return;
     }
     if (code.length !== 6) {
-      setError("Saisissez le code à 6 chiffres reçu par e-mail.");
+      setError(t("premiere.needCode"));
       return;
     }
     setBusy(true);
@@ -49,7 +52,7 @@ export function PremiereConnexion({ email, motDePasseTemporaire, onDone }: Props
       const token = await premiereConnexion(email, motDePasseTemporaire, nouveau, code);
       onDone(token);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Erreur réseau");
+      setError(err instanceof ApiError ? err.message : t("common.networkError"));
     } finally {
       setBusy(false);
     }
@@ -63,23 +66,21 @@ export function PremiereConnexion({ email, motDePasseTemporaire, onDone }: Props
       <div className="login-logo" aria-hidden="true">
         A
       </div>
-      <div style={{ fontFamily: T.fd, fontWeight: 700, fontSize: 22, textAlign: "center" }}>Première connexion</div>
-      <p className="login-sub">
-        Vous êtes connecté(e) avec le mot de passe temporaire. Choisissez votre propre mot de passe pour sécuriser votre compte.
-      </p>
+      <div style={{ fontFamily: T.fd, fontWeight: 700, fontSize: 22, textAlign: "center" }}>{t("premiere.title")}</div>
+      <p className="login-sub">{t("premiere.intro")}</p>
 
-      <span style={lbl}>NOUVEAU MOT DE PASSE</span>
-      <input type="password" value={nouveau} onChange={(e) => setNouveau(e.target.value)} style={inp} />
+      <span style={lbl}>{t("settings.pwNewLabel")}</span>
+      <PasswordInput value={nouveau} onChange={setNouveau} autoComplete="new-password" style={inp} />
       <div style={{ display: "flex", gap: 10, fontSize: 9.5, marginTop: 6, color: strong ? T.ok : T.mut }}>
-        <span>{long ? "✓" : "○"} 8+ car.</span>
-        <span>{maj ? "✓" : "○"} majuscule</span>
-        <span>{num ? "✓" : "○"} chiffre</span>
+        <span>{long ? "✓" : "○"} {t("settings.pwLen")}</span>
+        <span>{maj ? "✓" : "○"} {t("settings.pwUpper")}</span>
+        <span>{num ? "✓" : "○"} {t("settings.pwDigit")}</span>
       </div>
 
-      <span style={lbl}>CONFIRMER</span>
-      <input type="password" value={confirme} onChange={(e) => setConfirme(e.target.value)} style={inp} />
+      <span style={lbl}>{t("settings.pwConfirmLabel")}</span>
+      <PasswordInput value={confirme} onChange={setConfirme} autoComplete="new-password" style={inp} />
 
-      <span style={lbl}>CODE REÇU PAR E-MAIL</span>
+      <span style={lbl}>{t("premiere.codeLabel")}</span>
       <input
         inputMode="numeric"
         value={code}
@@ -88,9 +89,7 @@ export function PremiereConnexion({ email, motDePasseTemporaire, onDone }: Props
         style={{ ...inp, letterSpacing: 8, fontFamily: T.fm }}
       />
       {provider === "console" && (
-        <p style={{ fontSize: 10.5, color: T.warn, marginTop: 6 }}>
-          (Fournisseur e-mail non encore configuré pour cet envoi : le code n'arrivera qu'une fois le domaine d'envoi vérifié.)
-        </p>
+        <p style={{ fontSize: 10.5, color: T.warn, marginTop: 6 }}>{t("premiere.providerWarn")}</p>
       )}
 
       {error && <p style={{ color: T.dng, fontSize: 12.5, marginTop: 10 }}>{error}</p>}
@@ -100,7 +99,7 @@ export function PremiereConnexion({ email, motDePasseTemporaire, onDone }: Props
         className="tap"
         style={{ marginTop: 18, height: 50, background: busy ? T.faint : gradient, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 600, fontSize: 15 }}
       >
-        {busy ? "Validation..." : "Valider et continuer"}
+        {busy ? t("common.validating") : t("premiere.submit")}
       </div>
     </div>
   );
