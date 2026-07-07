@@ -137,6 +137,7 @@ export interface AnniversaireOut {
 }
 
 export type AnniversaireCategorie =
+  | "moi"
   | "vip"
   | "responsables"
   | "commission"
