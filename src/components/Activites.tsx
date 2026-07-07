@@ -55,9 +55,9 @@ export function Activites({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <Section title={t("act.enCours")} events={groups.enCours} token={token} onJoin={onJoin} accent={T.ok} />
-      <Section title={t("act.aVenir")} events={groups.aVenir} token={token} onJoin={onJoin} accent={T.b600} />
-      <Section title={t("act.passees")} events={groups.passees} token={token} onJoin={onJoin} accent={T.faint} />
+      <Section title={t("act.enCours")} groupe="enCours" events={groups.enCours} token={token} onJoin={onJoin} accent={T.ok} />
+      <Section title={t("act.aVenir")} groupe="aVenir" events={groups.aVenir} token={token} onJoin={onJoin} accent={T.b600} />
+      <Section title={t("act.passees")} groupe="passees" events={groups.passees} token={token} onJoin={onJoin} accent={T.faint} />
       {/* Secondary technical note kept at the foot of the list, not above the
           primary content. */}
       {fuseau && (
@@ -71,12 +71,14 @@ export function Activites({
 
 function Section({
   title,
+  groupe,
   events,
   token,
   onJoin,
   accent,
 }: {
   title: string;
+  groupe: Cat;
   events: EvenementOut[];
   token: string;
   onJoin?: (evenement: EvenementOut) => void;
@@ -97,7 +99,7 @@ function Section({
       </div>
       <ul className="list" style={{ margin: 0 }}>
         {shown.map((e) => (
-          <ActiviteItem key={e.id} e={e} token={token} onJoin={onJoin} />
+          <ActiviteItem key={e.id} e={e} token={token} onJoin={onJoin} groupe={groupe} />
         ))}
       </ul>
       {rest > 0 && (
@@ -117,7 +119,7 @@ function Section({
 // behind a single action so the list stays a scannable preview; opening one is a
 // deliberate act. Secondary meta (mode, place, reservation) sits under the title
 // rather than piling up in a tall right column.
-function ActiviteItem({ e, token, onJoin }: { e: EvenementOut; token: string; onJoin?: (evenement: EvenementOut) => void }): JSX.Element {
+function ActiviteItem({ e, token, onJoin, groupe }: { e: EvenementOut; token: string; onJoin?: (evenement: EvenementOut) => void; groupe: Cat }): JSX.Element {
   const t = useT();
   const [open, setOpen] = useState(false);
   const modeLabel = e.mode === "en_ligne" ? t("part.modEnLigne") : e.mode === "hybride" ? t("act.modeHybride") : e.mode === "presentiel" ? t("caljour.modePresentiel") : null;
@@ -133,7 +135,11 @@ function ActiviteItem({ e, token, onJoin }: { e: EvenementOut; token: string; on
             <span className="list-sub" style={{ color: T.warn }}>{t("act.reserved").replace("{c}", e.cible_libelle)}</span>
           )}
         </div>
-        <PhaseBadge phase={e.phase} volet={e.volet} />
+        {groupe === "aVenir" ? (
+          <PhaseBadge phase={e.phase} volet={e.volet} />
+        ) : (
+          <span className="badge badge-mut" style={{ flexShrink: 0 }}>{t("act.voletLabel").replace("{v}", e.volet)}</span>
+        )}
       </div>
       {/* The join button appears only when the session is truly joinable (in the
           time window and a link is available), never just because a link was
