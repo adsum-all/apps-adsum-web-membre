@@ -148,11 +148,10 @@ export function Calendrier({
     if (!prefs) return;
     let alive = true;
     const active = CATEGORIES.filter((c) => prefs[c.pref]);
-    const cats: AnniversaireCategorie[] = [...active.map((c) => c.key), ...Array.from(famillesAnniv)];
-    if (cats.length === 0) {
-      setBirthdays([]);
-      return;
-    }
+    // The member's own birthday ("moi") is always fetched, independent of the
+    // category toggles and of the peer-directory opt-out: a member must always
+    // see their own birthday on their own calendar, every year.
+    const cats: AnniversaireCategorie[] = ["moi", ...active.map((c) => c.key), ...Array.from(famillesAnniv)];
     const mois = cursor.month + 1;
     Promise.all(cats.map((cat) => getAnniversaires(token, { categorie: cat, mois }).catch(() => [])))
       .then((lists) => {
