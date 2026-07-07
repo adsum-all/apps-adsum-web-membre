@@ -2,42 +2,43 @@ import { useEffect, useState } from "react";
 
 import { type MembreProfile, getDemandes, getPhotoUrl, photoObjectPosition, setPhotoFocus } from "../api.js";
 import { type Focus, PhotoFocusEditor } from "./PhotoFocusEditor.js";
+import { useT } from "../i18n.js";
 import { civilName, civilNameComplet } from "../name.js";
 import { T } from "../proto.js";
 import { ModifierChamps } from "./ModifierChamps.js";
 
-/** Member-facing labels of the unlockable elements (mirror of the server
- * catalog): fields, identity photo and official identity document. */
+/** i18n keys for the unlockable elements (mirror of the server catalog): fields,
+ * identity photo and official identity document. */
 const ELEMENT_LABELS: Record<string, string> = {
-  nom: "Nom",
-  prenoms: "Prénoms",
-  telephone: "Téléphone",
-  date_naissance: "Date de naissance",
-  genre: "Genre",
-  pays: "Pays",
-  ville: "Ville",
-  profession: "Profession",
-  niveau_etudes: "Niveau d'études",
-  situation_matrimoniale: "Situation matrimoniale",
-  photo_identite: "Photo d'identité",
-  piece_identite: "Pièce d'identité officielle",
+  nom: "infos.elemNom",
+  prenoms: "infos.elemPrenoms",
+  telephone: "completer.fTelephone",
+  date_naissance: "completer.fDateNaissance",
+  genre: "completer.fGenre",
+  pays: "completer.fPays",
+  ville: "completer.fVille",
+  profession: "completer.fProfession",
+  niveau_etudes: "completer.fNiveauEtudes",
+  situation_matrimoniale: "completer.fSituation",
+  photo_identite: "app.profil.photoAlt",
+  piece_identite: "infos.elemPiece",
 };
 
 const ENGAGEMENT: Record<string, string> = {
-  membre_simple: "Membre simple",
-  nouveau_engage: "Nouvel engagé",
-  aspirant: "Aspirant",
-  engage: "Engagé",
-  berger: "Berger",
-  responsable: "Responsable",
+  membre_simple: "profil.statutSimple",
+  nouveau_engage: "infos.engNouvelEngage",
+  aspirant: "infos.engAspirant",
+  engage: "infos.engEngage",
+  berger: "infos.engBerger",
+  responsable: "infos.engResponsable",
 };
 const MATRIMONIAL: Record<string, string> = {
-  celibataire: "Célibataire",
-  en_couple: "En couple",
-  marie: "Marié(e)",
-  fiance: "Fiancé(e)",
-  veuf: "Veuf(ve)",
-  divorce: "Divorcé(e)",
+  celibataire: "completer.sitCelibataire",
+  en_couple: "completer.sitEnCouple",
+  marie: "completer.sitMarie",
+  fiance: "completer.sitFiance",
+  veuf: "completer.sitVeuf",
+  divorce: "completer.sitDivorce",
 };
 
 function pretty(v: string | null | undefined): string {
@@ -104,6 +105,7 @@ export function Infos({
   onDemande: () => void;
   onProfileChange: () => void;
 }): JSX.Element {
+  const t = useT();
   const deverrouilles = profile?.champs_deverrouilles ?? [];
   const unlocked = deverrouilles.length > 0;
   const pieceDebloquee = deverrouilles.includes("piece_identite");
@@ -159,9 +161,9 @@ export function Infos({
   }, [token, unlocked]);
 
   const initiales = `${(profile?.prenoms ?? " ")[0] ?? ""}${(profile?.nom ?? " ")[0] ?? ""}`.trim().toUpperCase() || "?";
-  const engagement = profile?.type_membre ? (ENGAGEMENT[profile.type_membre] ?? pretty(profile.type_membre)) : "-";
+  const engagement = profile?.type_membre ? (t(ENGAGEMENT[profile.type_membre] ?? "") || pretty(profile.type_membre)) : "-";
   const matrimonial = profile?.situation_matrimoniale
-    ? (MATRIMONIAL[profile.situation_matrimoniale] ?? pretty(profile.situation_matrimoniale))
+    ? (t(MATRIMONIAL[profile.situation_matrimoniale] ?? "") || pretty(profile.situation_matrimoniale))
     : "-";
   const marriage = profile?.type_mariage ? ` (${pretty(profile.type_mariage)})` : "";
 
@@ -172,7 +174,7 @@ export function Infos({
     <div className="scr" style={{ padding: "6px 18px 24px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 2px 4px" }}>
         {photoUrl ? (
-          <img src={photoUrl} alt="Photo d'identité" style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", objectPosition: photoObjectPosition(profile), border: `2px solid ${T.line}` }} />
+          <img src={photoUrl} alt={t("app.profil.photoAlt")} style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", objectPosition: photoObjectPosition(profile), border: `2px solid ${T.line}` }} />
         ) : (
           <div style={{ width: 64, height: 64, borderRadius: "50%", background: T.b600, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 20 }}>
             {initiales}
@@ -182,7 +184,7 @@ export function Infos({
           <div style={{ fontFamily: T.fd, fontWeight: 700, fontSize: 16, color: T.ink }}>{fullName(profile)}</div>
           <div style={{ fontSize: 11.5, color: T.mut, fontFamily: T.fm }}>{profile?.matricule ?? ""}</div>
           {profile?.est_berger && profile?.nom_pastoral_affiche && (
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: "#a06a12", marginTop: 3 }}>{profile.nom_pastoral_affiche}</div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: T.warn, marginTop: 3 }}>{profile.nom_pastoral_affiche}</div>
           )}
           {(profile?.fonctions ?? []).map((f, i) => (
             <div key={i} style={{ fontSize: 11.5, color: T.b600, fontWeight: 600, marginTop: 2 }}>
@@ -191,11 +193,11 @@ export function Infos({
             </div>
           ))}
           {!(profile?.est_berger && profile?.nom_pastoral_affiche) && (profile?.fonctions ?? []).length === 0 && (
-            <div style={{ fontSize: 11.5, color: T.mut, marginTop: 2 }}>Membre</div>
+            <div style={{ fontSize: 11.5, color: T.mut, marginTop: 2 }}>{t("app.profil.memberChip")}</div>
           )}
           {profile?.photo_pending && (
             <div style={{ fontSize: 10.5, color: T.warn, marginTop: 3, fontWeight: 600 }}>
-              Nouvelle photo en attente de validation
+              {t("infos.photoPending")}
             </div>
           )}
           {photoUrl && (
@@ -204,7 +206,7 @@ export function Infos({
               onClick={() => setCadrer(true)}
               style={{ marginTop: 4, padding: 0, background: "none", border: "none", color: T.b600, fontSize: 11, fontWeight: 600, cursor: "pointer" }}
             >
-              Ajuster le cadrage
+              {t("infos.adjustFraming")}
             </button>
           )}
         </div>
@@ -226,79 +228,77 @@ export function Infos({
 
       {unlocked && (
         <div style={{ background: T.warnbg, border: `1px solid ${T.warn}`, borderRadius: 13, padding: 13, margin: "10px 0 4px" }}>
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: "#8a5a12" }}>
-            L'administration a débloqué pour vous : {deverrouilles.map((c) => ELEMENT_LABELS[c] ?? c).join(", ")}.
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: T.warn }}>
+            {t("infos.unlockedBanner").replace("{elements}", deverrouilles.map((c) => (ELEMENT_LABELS[c] ? t(ELEMENT_LABELS[c]) : c)).join(", "))}
           </div>
-          <div style={{ fontSize: 11.5, color: "#8a5a12", marginTop: 4, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 11.5, color: T.warn, marginTop: 4, lineHeight: 1.5 }}>
             {echeance
-              ? `À faire avant le ${new Date(echeance).toLocaleDateString("fr-FR")}, sinon la demande sera clôturée sans suite. `
+              ? t("infos.deadlineNote").replace("{date}", new Date(echeance).toLocaleDateString("fr-FR"))
               : ""}
             {deverrouilles.some((c) => ELEMENT_LABELS[c] && c !== "piece_identite")
-              ? "Corrigez le tout dans le formulaire ci-dessous puis soumettez une seule fois. "
+              ? t("infos.correctBelow")
               : ""}
-            {pieceDebloquee ? "Pour la pièce d'identité : joignez le nouveau document dans votre demande (trombone). " : ""}
+            {pieceDebloquee ? t("infos.piecePaperclip") : ""}
           </div>
         </div>
       )}
 
-      <Group title="Identité">
-        <Row label="Nom complet" value={fullNameComplet(profile)} />
-        {profile?.nom_naissance && <Row label="Nom de naissance" value={profile.nom_naissance} />}
-        {profile?.nom_marital && <Row label="Nom marital" value={profile.nom_marital} />}
+      <Group title={t("infos.groupIdentite")}>
+        <Row label={t("completer.recapNom")} value={fullNameComplet(profile)} />
+        {profile?.nom_naissance && <Row label={t("infos.rowNomNaissance")} value={profile.nom_naissance} />}
+        {profile?.nom_marital && <Row label={t("infos.rowNomMarital")} value={profile.nom_marital} />}
         {profile?.est_berger && profile?.nom_pastoral_affiche && (
-          <Row label="Nom pastoral" value={profile.nom_pastoral_affiche} />
+          <Row label={t("infos.rowNomPastoral")} value={profile.nom_pastoral_affiche} />
         )}
         {(profile?.fonctions ?? []).map((f, i) => (
-          <Row key={i} label={i === 0 ? "Fonction" : ""} value={f.perimetre ? `${f.libelle} - ${f.perimetre}` : f.libelle} />
+          <Row key={i} label={i === 0 ? t("infos.rowFonction") : ""} value={f.perimetre ? `${f.libelle} - ${f.perimetre}` : f.libelle} />
         ))}
-        <Row label="Genre" value={pretty(profile?.genre)} />
-        <Row label={profile?.naissance_annee_visible ? "Date de naissance" : "Anniversaire"} value={naissance(profile?.date_naissance, !!profile?.naissance_annee_visible)} />
-        <Row label="Matricule" value={profile?.matricule ?? "-"} last />
+        <Row label={t("completer.fGenre")} value={pretty(profile?.genre)} />
+        <Row label={profile?.naissance_annee_visible ? t("completer.fDateNaissance") : t("infos.rowAnniversaire")} value={naissance(profile?.date_naissance, !!profile?.naissance_annee_visible)} />
+        <Row label={t("infos.rowMatricule")} value={profile?.matricule ?? "-"} />
+        <Row label={t("infos.rowCodeMembre")} value={profile?.code_membre ?? "-"} last />
       </Group>
 
-      <Group title="Coordonnées">
-        <Row label="Téléphone" value={telephone(profile?.indicatif_telephone, profile?.telephone)} />
-        <Row label="Courriel" value={profile?.email ?? "-"} />
-        <Row label="Localisation" value={localisation || "-"} />
-        <Row label="Adresse" value={adresse || "-"} last />
+      <Group title={t("infos.groupCoordonnees")}>
+        <Row label={t("completer.fTelephone")} value={telephone(profile?.indicatif_telephone, profile?.telephone)} />
+        <Row label={t("infos.rowCourriel")} value={profile?.email ?? "-"} />
+        <Row label={t("infos.rowLocalisation")} value={localisation || "-"} />
+        <Row label={t("infos.rowAdresse")} value={adresse || "-"} last />
       </Group>
 
-      <Group title="Identité ecclésiale">
-        <Row label="Tribu" value={profile?.tribu ?? "-"} />
-        <Row label="Patriarche" value={profile?.patriarche ?? "-"} />
-        <Row label="Niveau d'engagement" value={engagement} />
-        <Row label="Promotion" value={profile?.promotion ?? "-"} />
-        <Row label="Cheminement" value={pretty(profile?.cheminement_pastoral)} last />
+      <Group title={t("infos.groupEcclesiale")}>
+        <Row label={t("app.profil.tribu")} value={profile?.tribu ?? "-"} />
+        <Row label={t("infos.rowPatriarche")} value={profile?.patriarche ?? "-"} />
+        <Row label={t("infos.rowNiveauEngagement")} value={engagement} />
+        <Row label={t("infos.rowPromotion")} value={profile?.promotion ?? "-"} />
+        <Row label={t("infos.rowCheminement")} value={pretty(profile?.cheminement_pastoral)} last />
       </Group>
 
-      <Group title="Organisation">
-        <Row label="Commission" value={profile?.commission ?? "-"} />
-        <Row label="Intendance" value={profile?.intendance ?? "-"} />
-        <Row label={profile?.intendant_titre ?? "Intendant"} value={profile?.intendant ?? "-"} />
-        <Row label="Coordination" value={profile?.coordination ?? "-"} />
-        <Row label={profile?.coordinateur_titre ?? "Coordinateur"} value={profile?.coordinateur ?? "-"} last />
+      <Group title={t("infos.groupOrganisation")}>
+        <Row label={t("app.profil.commission")} value={profile?.commission ?? "-"} />
+        <Row label={t("completer.axeIntendance")} value={profile?.intendance ?? "-"} />
+        <Row label={profile?.intendant_titre ?? t("infos.rowIntendant")} value={profile?.intendant ?? "-"} />
+        <Row label={t("completer.axeCoordination")} value={profile?.coordination ?? "-"} />
+        <Row label={profile?.coordinateur_titre ?? t("infos.rowCoordinateur")} value={profile?.coordinateur ?? "-"} last />
       </Group>
 
-      <Group title="Vie personnelle">
-        <Row label="Situation" value={matrimonial + marriage} />
-        <Row label="Profession" value={profile?.profession ?? "-"} />
-        <Row label="Niveau d'études" value={profile?.niveau_etudes ?? "-"} last />
+      <Group title={t("infos.groupVie")}>
+        <Row label={t("infos.rowSituation")} value={matrimonial + marriage} />
+        <Row label={t("completer.fProfession")} value={profile?.profession ?? "-"} />
+        <Row label={t("completer.fNiveauEtudes")} value={profile?.niveau_etudes ?? "-"} last />
       </Group>
 
       {unlocked && token && profile && (
         <ModifierChamps token={token} profile={profile} onSubmitted={onProfileChange} />
       )}
 
-      <p style={{ fontSize: 11, color: T.mut, lineHeight: 1.5, margin: "14px 2px 10px" }}>
-        Certains champs sont gérés par l'administration. Pour les corriger, envoyez une demande motivée avec justificatif :
-        l'équipe débloque alors la modification.
-      </p>
+      <p style={{ fontSize: 11, color: T.mut, lineHeight: 1.5, margin: "14px 2px 10px" }}>{t("infos.footer")}</p>
       <div
         onClick={onDemande}
         className="tap"
         style={{ height: 48, background: `linear-gradient(180deg,${T.b500},${T.b600})`, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 600, fontSize: 14, boxShadow: "0 10px 22px -10px rgba(42,79,173,.7)" }}
       >
-        Demander une modification
+        {t("infos.requestChange")}
       </div>
     </div>
   );

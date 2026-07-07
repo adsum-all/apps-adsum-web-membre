@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 import { useEffect, useRef, useState } from "react";
 
 import { getPhotoUrl } from "../api.js";
+import { useT } from "../i18n.js";
 import { initials } from "../name.js";
 
 // The member digital card. When logged in, the QR holds the real token signed by
@@ -11,6 +12,8 @@ import { initials } from "../name.js";
 
 interface QrCardProps {
   matricule: string;
+  // Member-entered code (SR-...), shown next to the ADSUM matricule on the card.
+  codeMembre?: string | null;
   membreId: string;
   verifie: boolean;
   preview: boolean;
@@ -51,29 +54,30 @@ function abregerRole(texte: string): string {
 }
 
 const ENGAGEMENT_LABELS: Record<string, string> = {
-  membre_simple: "Membre simple",
-  membre_actif: "Membre actif",
-  nouveau_engage: "Nouvel engagé",
-  nouvel_engage: "Nouvel engagé",
-  aspirant: "Aspirant",
-  engage: "Engagé",
-  berger: "Berger",
-  responsable: "Responsable",
+  membre_simple: "profil.statutSimple",
+  membre_actif: "profil.statutActif",
+  nouveau_engage: "infos.engNouvelEngage",
+  nouvel_engage: "infos.engNouvelEngage",
+  aspirant: "infos.engAspirant",
+  engage: "infos.engEngage",
+  berger: "infos.engBerger",
+  responsable: "infos.engResponsable",
 };
 
 /** Human label for an engagement value: mapped when known, otherwise the raw
  * slug is prettified (underscores to spaces, first letter capitalised) so a raw
  * snake_case value can never appear on the card. */
-function engagementDisplay(value?: string | null): string {
-  if (!value) return "Membre";
+function engagementDisplay(value: string | null | undefined, t: (key: string) => string): string {
+  if (!value) return t("app.profil.memberChip");
   const known = ENGAGEMENT_LABELS[value];
-  if (known) return known;
+  if (known) return t(known);
   const words = value.replace(/_/g, " ").trim();
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 export function QrCard({
   matricule,
+  codeMembre,
   membreId,
   verifie,
   preview,
@@ -92,6 +96,7 @@ export function QrCard({
   fonctionPrincipale,
   fonctionPerimetre,
 }: QrCardProps): JSX.Element {
+  const t = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [previewToken] = useState(() => {
     const kp = generateKeyPair();
@@ -105,15 +110,30 @@ export function QrCard({
   // fallback instead, without any console noise.
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
 
+  // Responsive QR size driven by the available viewport height, so the whole
+  // card fits without scroll on short phones while staying at its natural size on
+  // tall screens. The QR is re-rendered at this exact pixel size (crisp, no CSS
+  // upscaling). Close scanning uses the dedicated fullscreen view.
+  const [qrSize, setQrSize] = useState(190);
+  useEffect(() => {
+    const compute = (): void => {
+      const h = typeof window !== "undefined" ? window.innerHeight : 844;
+      setQrSize(Math.max(120, Math.min(190, Math.round(h - 500))));
+    };
+    compute();
+    window.addEventListener("resize", compute);
+    return () => window.removeEventListener("resize", compute);
+  }, []);
+
   useEffect(() => {
     if (canvasRef.current) {
       void QRCode.toCanvas(canvasRef.current, token, {
-        width: 190,
+        width: qrSize,
         margin: 1,
         color: { dark: "#101218", light: "#ffffff" },
       });
     }
-  }, [token]);
+  }, [token, qrSize]);
 
   useEffect(() => {
     if (!authToken) {
@@ -133,7 +153,7 @@ export function QrCard({
     };
   }, [authToken]);
 
-  const engagementLabel = engagementDisplay(engagement);
+  const engagementLabel = engagementDisplay(engagement, t);
   const avatarInitials = initials({ prenoms, nom: memberNom });
 
   // The distinguished line: consecration name first, otherwise the primary
@@ -152,7 +172,7 @@ export function QrCard({
       <div className="card-identity">
         <div className="card-photo">
           {photoUrl ? (
-            <img className="card-photo-img" src={photoUrl} alt="Photo d'identité" style={{ objectPosition: `${focusX ?? 50}% ${focusY ?? 30}%` }} />
+            <img className="card-photo-img" src={photoUrl} alt={t("app.profil.photoAlt")} style={{ objectPosition: `${focusX ?? 50}% ${focusY ?? 30}%` }} />
           ) : (
             <span className="card-photo-fallback" aria-hidden="true">
               {avatarInitials}
@@ -180,31 +200,39 @@ export function QrCard({
             </p>
           )}
           <p className="card-tribu">
-            {tribu ? `Tribu ${tribu}` : "Sacerdoce Royal"}
+            {tribu ? t("qrcard.tribu").replace("{tribu}", tribu) : "Sacerdoce Royal"}
             {commission ? ` · ${commission}` : ""}
           </p>
         </div>
       </div>
       <div className="card-qr">
-        <canvas ref={canvasRef} width={190} height={190} aria-label="QR signé du membre" />
+        <canvas ref={canvasRef} width={qrSize} height={qrSize} aria-label={t("carte.qrAria")} />
       </div>
       <div className="card-meta">
-        <div className="card-meta-item">
-          <span>Matricule</span>
-          <strong>{matricule}</strong>
+        <div className="card-codes">
+          <div className="card-code-box">
+            <span>{t("infos.rowMatricule")}</span>
+            <strong title={matricule}>{matricule}</strong>
+          </div>
+          <div className="card-code-box">
+            <span>{t("infos.rowCodeMembre")}</span>
+            <strong title={codeMembre ?? undefined}>{codeMembre && codeMembre.trim() ? codeMembre : "-"}</strong>
+          </div>
         </div>
-        <div className="card-meta-item">
-          <span>Engagement</span>
-          <strong>{engagementLabel}</strong>
+        <div className="card-meta-row">
+          <div className="card-meta-item">
+            <span>{t("qrcard.engagement")}</span>
+            <strong>{engagementLabel}</strong>
+          </div>
+          <span className={`badge ${verifie ? "badge-ok" : "badge-mut"}`}>{verifie ? t("qrcard.verified") : t("qrcard.pending")}</span>
         </div>
-        <span className={`badge ${verifie ? "badge-ok" : "badge-mut"}`}>{verifie ? "VÉRIFIÉ" : "EN ATTENTE"}</span>
       </div>
       <p className="card-hint">
         {serverToken
-          ? "QR signé par le serveur, valable quelques minutes. Présentez-le au contrôleur."
+          ? t("qrcard.hintServer")
           : preview
-            ? "Aperçu : QR signé Ed25519 dans le navigateur. En production il est signé par le serveur."
-            : "Présentez ce code au contrôleur à l'entrée."}
+            ? t("qrcard.hintPreview")
+            : t("qrcard.hintDefault")}
       </p>
     </div>
   );

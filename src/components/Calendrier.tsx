@@ -13,17 +13,66 @@ import { type Lang, useLang, useT } from "../i18n.js";
 import { dayKey, monthGrid, monthLabel } from "../format.js";
 import { T } from "../proto.js";
 import { useResource } from "../useResource.js";
+import { CalendrierFiltres } from "./CalendrierFiltres.js";
 import { CalendrierJour } from "./CalendrierJour.js";
+import { EmptyState } from "./ui.js";
+
+const FILTERS_KEY = "adsum.cal.filters.v1";
+
+/** Load the persisted activity/family/tag filters (session preferences applied
+ * over the server birthday prefs). Corrupt or absent storage yields empty sets. */
+function loadStoredFilters(): { filtres: Set<string>; familles: Set<AnniversaireCategorie>; tags: string[] } {
+  const empty = { filtres: new Set<string>(), familles: new Set<AnniversaireCategorie>(), tags: [] as string[] };
+  if (typeof localStorage === "undefined") return empty;
+  try {
+    const raw = localStorage.getItem(FILTERS_KEY);
+    if (!raw) return empty;
+    const p = JSON.parse(raw) as { filtres?: unknown; familles?: unknown; tags?: unknown };
+    return {
+      filtres: new Set(Array.isArray(p.filtres) ? (p.filtres as string[]) : []),
+      familles: new Set(Array.isArray(p.familles) ? (p.familles as AnniversaireCategorie[]) : []),
+      tags: Array.isArray(p.tags) ? (p.tags as string[]) : [],
+    };
+  } catch {
+    return empty;
+  }
+}
 
 const WEEKDAYS: Record<Lang, string[]> = {
   fr: ["L", "M", "M", "J", "V", "S", "D"],
   en: ["M", "T", "W", "T", "F", "S", "S"],
 };
 
-const CATEGORIES: { key: AnniversaireCategorie; pref: keyof NotifPreferences; label: string }[] = [
-  { key: "vip", pref: "cal_vip", label: "calendar.filterVip" },
-  { key: "responsables", pref: "cal_responsables", label: "calendar.filterResponsables" },
-  { key: "commission", pref: "cal_commission", label: "calendar.filterCommission" },
+// Birthday categories tied to a saved preference. The `group` splits them for a
+// legible presentation in the filters sheet (leaders vs organisational scope)
+// while keeping the exact same keys/handlers as before.
+export const CATEGORIES: { key: AnniversaireCategorie; pref: keyof NotifPreferences; label: string; group: "responsables" | "perimetre" }[] = [
+  { key: "vip", pref: "cal_vip", label: "calendar.filterVip", group: "responsables" },
+  { key: "responsables", pref: "cal_responsables", label: "calendar.filterResponsables", group: "responsables" },
+  { key: "commission", pref: "cal_commission", label: "calendar.filterCommission", group: "perimetre" },
+  { key: "tribu", pref: "cal_tribu", label: "calendar.filterTribu", group: "perimetre" },
+  { key: "coordination", pref: "cal_coordination", label: "calendar.filterCoordination", group: "perimetre" },
+  { key: "intendance", pref: "cal_intendance", label: "calendar.filterIntendance", group: "perimetre" },
+];
+
+// Birthday overlays by function family (taxonomy 0092), as calendar view toggles.
+// label holds an i18n key (translated at render), like CATEGORIES.
+export const FAMILLES_ANNIV: { key: AnniversaireCategorie; label: string }[] = [
+  { key: "direction", label: "calendar.famDirection" },
+  { key: "coordinateurs", label: "calendar.famCoordinateurs" },
+  { key: "bergers", label: "calendar.famBergers" },
+  { key: "patriarches", label: "calendar.famPatriarches" },
+];
+
+// Quick activity filters (client-side, combinable). `group` structures them in
+// the sheet (type / format / scope) without changing the filtering logic. label
+// holds an i18n key.
+export const FILTRES_ACTIVITE: { key: string; label: string; group: "type" | "format" | "perimetre" }[] = [
+  { key: "formation", label: "calendar.actFormation", group: "type" },
+  { key: "en_ligne", label: "calendar.actEnLigne", group: "format" },
+  { key: "presentiel", label: "calendar.actPresentiel", group: "format" },
+  { key: "coordination", label: "calendar.actMaCoordination", group: "perimetre" },
+  { key: "commission", label: "calendar.actMaCommission", group: "perimetre" },
 ];
 
 function eventDayKey(iso: string): string {
@@ -45,6 +94,47 @@ export function Calendrier({
   const [selected, setSelected] = useState<string>(dayKey(now));
   const [prefs, setPrefs] = useState<NotifPreferences | null>(null);
   const [birthdays, setBirthdays] = useState<AnniversaireOut[]>([]);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  // Filters are hydrated from localStorage so a member keeps their selection
+  // across tab switches and app reloads, then serialised on every change.
+  const initialFilters = useMemo(() => loadStoredFilters(), []);
+  // Selected activity tags to filter the agenda (empty = show every activity).
+  const [tagFiltre, setTagFiltre] = useState<string[]>(initialFilters.tags);
+  // Quick activity filters (mode / type / perimeter). Empty = no restriction.
+  const [filtres, setFiltres] = useState<Set<string>>(initialFilters.filtres);
+  function toggleFiltre(k: string): void {
+    setFiltres((s) => {
+      const n = new Set(s);
+      if (n.has(k)) n.delete(k);
+      else n.add(k);
+      return n;
+    });
+  }
+  // Birthday overlays by FUNCTION FAMILY (taxonomy), as view toggles.
+  const [famillesAnniv, setFamillesAnniv] = useState<Set<AnniversaireCategorie>>(initialFilters.familles);
+  function toggleFamille(k: AnniversaireCategorie): void {
+    setFamillesAnniv((s) => {
+      const n = new Set(s);
+      if (n.has(k)) n.delete(k);
+      else n.add(k);
+      return n;
+    });
+  }
+  function resetFiltres(): void {
+    setFiltres(new Set());
+    setFamillesAnniv(new Set());
+    setTagFiltre([]);
+  }
+
+  // Persist the session filters (activity filters, family overlays, tags).
+  useEffect(() => {
+    if (typeof localStorage === "undefined") return;
+    try {
+      localStorage.setItem(FILTERS_KEY, JSON.stringify({ filtres: Array.from(filtres), familles: Array.from(famillesAnniv), tags: tagFiltre }));
+    } catch {
+      /* storage may be unavailable (private mode / quota); ignore. */
+    }
+  }, [filtres, famillesAnniv, tagFiltre]);
 
   const { data: events, loading, error } = useResource(() => getEvenements(token), [token]);
 
@@ -58,12 +148,13 @@ export function Calendrier({
     if (!prefs) return;
     let alive = true;
     const active = CATEGORIES.filter((c) => prefs[c.pref]);
-    if (active.length === 0) {
+    const cats: AnniversaireCategorie[] = [...active.map((c) => c.key), ...Array.from(famillesAnniv)];
+    if (cats.length === 0) {
       setBirthdays([]);
       return;
     }
     const mois = cursor.month + 1;
-    Promise.all(active.map((c) => getAnniversaires(token, { categorie: c.key, mois }).catch(() => [])))
+    Promise.all(cats.map((cat) => getAnniversaires(token, { categorie: cat, mois }).catch(() => [])))
       .then((lists) => {
         if (!alive) return;
         const seen = new Set<string>();
@@ -81,13 +172,48 @@ export function Calendrier({
     return () => {
       alive = false;
     };
-  }, [token, prefs, cursor.year, cursor.month]);
+  }, [token, prefs, cursor.year, cursor.month, famillesAnniv]);
 
   const cells = useMemo(() => monthGrid(cursor.year, cursor.month), [cursor.year, cursor.month]);
 
+  // Distinct tags present on the loaded activities, for the filter chips.
+  const tousTags = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const e of events ?? []) for (const t of e.tags ?? []) m.set(t.id, t.libelle);
+    return [...m.entries()].map(([id, libelle]) => ({ id, libelle }));
+  }, [events]);
+  // Activities kept after the filters. Filters of the SAME group combine with OR
+  // (e.g. "En ligne" + "Présentiel" shows both, not an impossible AND); different
+  // groups combine with AND. Stale tag ids no longer present on any loaded activity
+  // are ignored, so a leftover filter can never silently hide everything.
+  const eventsVisibles = useMemo(
+    () =>
+      (events ?? []).filter((e) => {
+        const validTags = tagFiltre.filter((id) => tousTags.some((tg) => tg.id === id));
+        if (validTags.length > 0 && !(e.tags ?? []).some((t) => validTags.includes(t.id))) return false;
+        const formats = ["en_ligne", "presentiel"].filter((f) => filtres.has(f));
+        if (formats.length > 0 && !formats.some((f) => e.mode === f || e.mode === "hybride")) return false;
+        const perims = ["coordination", "commission"].filter((p) => filtres.has(p));
+        if (perims.length > 0 && !perims.includes(e.cible_type ?? "")) return false;
+        if (filtres.has("formation") && (e.type ?? "") !== "formation") return false;
+        return true;
+      }),
+    [events, tagFiltre, filtres, tousTags],
+  );
+
+  // Drop persisted tag filters that no longer match any loaded activity, so the
+  // stored selection and the visible summary stay consistent.
+  useEffect(() => {
+    if (!events) return;
+    setTagFiltre((s) => {
+      const pruned = s.filter((id) => tousTags.some((tg) => tg.id === id));
+      return pruned.length === s.length ? s : pruned;
+    });
+  }, [tousTags, events]);
+
   const eventsByDay = useMemo(() => {
     const map = new Map<string, EvenementOut[]>();
-    for (const e of events ?? []) {
+    for (const e of eventsVisibles) {
       const key = eventDayKey(e.debut);
       if (!key) continue;
       const list = map.get(key) ?? [];
@@ -95,7 +221,7 @@ export function Calendrier({
       map.set(key, list);
     }
     return map;
-  }, [events]);
+  }, [eventsVisibles]);
 
   const birthdaysByDay = useMemo(() => {
     const map = new Map<string, AnniversaireOut[]>();
@@ -122,12 +248,24 @@ export function Calendrier({
     });
   }
 
-  if (loading) return <Centered text={t("calendar.loading")} />;
-  if (error) return <Centered text={error} />;
+  if (loading) return <EmptyState variant="loading" text={t("calendar.loading")} />;
+  if (error) return <EmptyState variant="error" title={t("act.errorTitle")} text={error} />;
 
   const selectedEvents = eventsByDay.get(selected) ?? [];
   const selectedBirthdays = birthdaysByDay.get(selected) ?? [];
   const todayKey = dayKey(now);
+
+  // Active-filter summary for the compact bar (birthday prefs + families +
+  // activity filters + still-valid tags). The badge count is derived from these
+  // visible labels, so it never counts a filter the member cannot see.
+  const activeCategs = prefs ? CATEGORIES.filter((c) => prefs[c.pref]) : [];
+  const activeLabels = [
+    ...activeCategs.map((c) => t(c.label)),
+    ...FAMILLES_ANNIV.filter((f) => famillesAnniv.has(f.key)).map((f) => t(f.label)),
+    ...FILTRES_ACTIVITE.filter((f) => filtres.has(f.key)).map((f) => t(f.label)),
+    ...tousTags.filter((tg) => tagFiltre.includes(tg.id)).map((tg) => tg.libelle),
+  ];
+  const activeCount = activeLabels.length;
 
   return (
     <div style={{ paddingBottom: 4 }}>
@@ -139,29 +277,50 @@ export function Calendrier({
         <button type="button" aria-label={t("calendar.next")} onClick={() => shift(1)} style={navBtn}>›</button>
       </div>
 
-      <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
-        {CATEGORIES.map((c) => {
-          const on = prefs ? prefs[c.pref] : false;
-          return (
-            <button
-              key={c.key}
-              type="button"
-              onClick={() => togglePref(c.pref)}
-              style={{
-                padding: "5px 11px",
-                borderRadius: 999,
-                fontSize: 11,
-                fontWeight: 600,
-                border: `1px solid ${on ? T.b600 : T.line}`,
-                background: on ? T.b600 : T.surf,
-                color: on ? "#fff" : T.mut,
-                cursor: "pointer",
-              }}
-            >
-              {t(c.label)}
-            </button>
-          );
-        })}
+      {/* Compact filter bar: one "Filtres" trigger + a read-only summary of the
+          active filters. The full grouped controls live in the bottom sheet, so
+          the calendar grid stays visible immediately. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+        <button
+          type="button"
+          onClick={() => setSheetOpen(true)}
+          aria-haspopup="dialog"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            flexShrink: 0,
+            padding: "6px 12px",
+            borderRadius: 999,
+            border: `1px solid ${activeCount > 0 ? T.b600 : T.line}`,
+            background: activeCount > 0 ? T.tintb : T.surf,
+            color: activeCount > 0 ? T.tintbf : T.ink,
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          <span aria-hidden="true">☰</span>
+          {t("calendar.filtersBtn")}
+          {activeCount > 0 && (
+            <span style={{ minWidth: 16, height: 16, padding: "0 4px", borderRadius: 999, background: T.b600, color: "#fff", fontSize: 10, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+              {activeCount}
+            </span>
+          )}
+        </button>
+        <div style={{ flex: 1, minWidth: 0, display: "flex", gap: 6, overflowX: "auto", whiteSpace: "nowrap", alignItems: "center" }}>
+          {activeLabels.length === 0 ? (
+            <span style={{ fontSize: 11.5, color: T.faint }}>{t("calendar.allEvents")}</span>
+          ) : (
+            activeLabels.map((l, i) => (
+              <span key={i} style={{ flexShrink: 0, fontSize: 11, fontWeight: 600, color: T.mut, background: T.chip, borderRadius: 999, padding: "3px 9px" }}>{l}</span>
+            ))
+          )}
+        </div>
+        {activeCount > 0 && (
+          <button type="button" onClick={resetFiltres} aria-label={t("calendar.resetFilters")} style={{ flexShrink: 0, border: "none", background: "transparent", color: T.mut, fontSize: 18, lineHeight: 1, cursor: "pointer", fontFamily: "inherit" }}>×</button>
+        )}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 3, marginBottom: 4 }}>
@@ -205,6 +364,23 @@ export function Calendrier({
       </div>
 
       <CalendrierJour events={selectedEvents} anniversaires={selectedBirthdays} onJoin={onJoin} />
+
+      {sheetOpen && (
+        <CalendrierFiltres
+          prefs={prefs}
+          onTogglePref={togglePref}
+          famillesAnniv={famillesAnniv}
+          onToggleFamille={toggleFamille}
+          filtres={filtres}
+          onToggleFiltre={toggleFiltre}
+          tousTags={tousTags}
+          tagFiltre={tagFiltre}
+          onToggleTag={(id) => setTagFiltre((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))}
+          resultCount={eventsVisibles.length}
+          onReset={resetFiltres}
+          onClose={() => setSheetOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -220,11 +396,3 @@ const navBtn = {
   cursor: "pointer",
 } as const;
 
-function Centered({ text }: { text: string }): JSX.Element {
-  return (
-    <div className="empty">
-      <div className="empty-glyph" aria-hidden="true">▦</div>
-      <p>{text}</p>
-    </div>
-  );
-}

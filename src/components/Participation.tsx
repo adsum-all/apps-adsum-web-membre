@@ -16,7 +16,7 @@ const OPTIONS: { value: "present" | "partiel" | "absent"; labelKey: string; hint
  * to change their status, rating or opinion. A scanned member is already present
  * and only confirms their feedback.
  */
-export function Participation({ token, eventId }: { token: string; eventId: string }): JSX.Element | null {
+export function Participation({ token, eventId, flat = false }: { token: string; eventId: string; flat?: boolean }): JSX.Element | null {
   const [data, setData] = useState<ParticipationMembre | null>(null);
   const [choix, setChoix] = useState<"present" | "partiel" | "absent" | null>(null);
   const [modalite, setModalite] = useState<"presentiel" | "en_ligne" | null>(null);
@@ -32,8 +32,8 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
         setData(d);
         setChoix(d.statut);
         setModalite(d.modalite ?? null);
-        setAvis(d.avis ?? "");
-        setNote(d.note);
+        // The evaluation is anonymous: a member's own rating/comment is never read
+        // back to them (no member link exists), so the inputs always start empty.
       })
       .catch(() => undefined);
   }, [token, eventId]);
@@ -53,7 +53,7 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
   // showing a form the server would reject (no misleading state, ever).
   if (data.cloture && !locked && !scanned && data.statut == null) {
     return (
-      <Card>
+      <Card flat={flat}>
         <Title text={t("part.title")} />
         <div style={{ display: "flex", alignItems: "center", gap: 8, background: T.bg, border: `1px dashed ${T.line}`, borderRadius: 10, padding: "10px 12px" }}>
           <span style={{ color: T.mut, fontWeight: 700 }}>-</span>
@@ -67,15 +67,17 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
   if (locked) {
     const statutLabel = data.statut ? t(`part.${data.statut}`) : "-";
     return (
-      <Card>
+      <Card flat={flat}>
         <Title text={t("part.recorded")} />
         <div style={{ display: "flex", alignItems: "center", gap: 8, background: T.okbg, borderRadius: 10, padding: "10px 12px", marginBottom: 8 }}>
           <span style={{ color: T.ok, fontWeight: 700 }}>✓</span>
           <span style={{ fontSize: 12.5, color: T.ink }}>
-            {t("part.yourStatus")} : <b>{statutLabel}</b>{data.note ? ` · ${data.note}/5` : ""}
+            {t("part.yourStatus")} : <b>{statutLabel}</b>
           </span>
         </div>
-        {data.avis && <p style={{ fontSize: 12, color: T.mut, margin: "0 0 6px", fontStyle: "italic" }}>&laquo; {data.avis} &raquo;</p>}
+        {data.deja_evalue && (
+          <p style={{ fontSize: 11, color: T.ok, margin: "0 0 6px" }}>{t("part.anonSaved")}</p>
+        )}
         <p style={{ fontSize: 11, color: T.faint, margin: 0 }}>{t("part.immutable")}</p>
       </Card>
     );
@@ -110,12 +112,12 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
     }
   }
 
-  const showFeedback = scanned || choix === "present" || choix === "partiel";
+  const showFeedback = (scanned || choix === "present" || choix === "partiel") && !data.deja_evalue;
   const needModalite = !scanned && (choix === "present" || choix === "partiel");
   const canConfirm = scanned || choix === "absent" || (choix != null && modalite != null);
 
   return (
-    <Card>
+    <Card flat={flat}>
       <Title text={t("part.title")} />
 
       {scanned ? (
@@ -140,7 +142,7 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
                 padding: "11px 13px",
                 borderRadius: 11,
                 border: `1.5px solid ${choix === o.value ? T.b600 : T.line}`,
-                background: choix === o.value ? T.b600 : "#fff",
+                background: choix === o.value ? T.b600 : T.surf,
                 color: choix === o.value ? "#fff" : T.ink,
               }}
             >
@@ -174,7 +176,7 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
                   fontSize: 12.5,
                   fontWeight: 600,
                   border: `1.5px solid ${modalite === m.value ? T.b600 : T.line}`,
-                  background: modalite === m.value ? T.b600 : "#fff",
+                  background: modalite === m.value ? T.b600 : T.surf,
                   color: modalite === m.value ? "#fff" : T.ink,
                 }}
               >
@@ -187,6 +189,11 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
 
       {showFeedback && (
         <div style={{ marginTop: 4 }}>
+          <p style={{ fontSize: 10.5, color: T.ok, background: T.okbg, border: `1px solid ${T.ok}`, borderRadius: 9, padding: "7px 9px", margin: "0 0 8px", lineHeight: 1.5 }}>
+            {t("part.anonNoticeA")}
+            <strong>{t("part.anonNoticeBold")}</strong>
+            {t("part.anonNoticeB")}
+          </p>
           <div style={{ fontSize: 11, color: T.mut, marginBottom: 4 }}>{t("part.yourRating")}</div>
           <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
             {[1, 2, 3, 4, 5].map((n) => (
@@ -194,7 +201,7 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
                 key={n}
                 type="button"
                 onClick={() => setNote(n)}
-                style={{ width: 36, height: 36, borderRadius: 9, border: `1px solid ${note === n ? T.b600 : T.line}`, background: note === n ? T.b600 : "#fff", color: note === n ? "#fff" : T.ink, fontWeight: 600 }}
+                style={{ width: 36, height: 36, borderRadius: 9, border: `1px solid ${note === n ? T.b600 : T.line}`, background: note === n ? T.b600 : T.surf, color: note === n ? "#fff" : T.ink, fontWeight: 600 }}
               >
                 {n}
               </button>
@@ -231,8 +238,13 @@ export function Participation({ token, eventId }: { token: string; eventId: stri
   );
 }
 
-function Card({ children }: { children: ReactNode }): JSX.Element {
-  return <div style={{ background: T.surf, border: `1px solid ${T.line}`, borderRadius: 12, padding: 12, marginTop: 6 }}>{children}</div>;
+function Card({ children, flat }: { children: ReactNode; flat?: boolean }): JSX.Element {
+  // Flat variant for when the module is nested inside an already-bordered activity
+  // card: a top rule and inset rather than a second frame.
+  const style = flat
+    ? { borderTop: `1px solid ${T.line}`, paddingTop: 12, marginTop: 4 }
+    : { background: T.surf, border: `1px solid ${T.line}`, borderRadius: 12, padding: 12, marginTop: 6 };
+  return <div style={style}>{children}</div>;
 }
 
 function Title({ text }: { text: string }): JSX.Element {

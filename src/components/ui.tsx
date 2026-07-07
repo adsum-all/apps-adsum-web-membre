@@ -37,12 +37,18 @@ export function PrimaryButton({
   marginTop?: number | string;
 }): JSX.Element {
   return (
-    <div
+    <button
+      type="button"
       onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      aria-disabled={disabled}
       className="tap"
       style={{
         marginTop,
+        width: "100%",
         height: 50,
+        border: "none",
+        fontFamily: "inherit",
         background: disabled ? T.faint : gradient,
         borderRadius: 13,
         display: "flex",
@@ -53,11 +59,12 @@ export function PrimaryButton({
         fontSize: 14,
         gap: 7,
         opacity: disabled ? 0.7 : 1,
+        cursor: disabled ? "not-allowed" : "pointer",
         boxShadow: disabled ? "none" : "0 10px 22px -10px rgba(42,79,173,.7)",
       }}
     >
       {label}
-    </div>
+    </button>
   );
 }
 
@@ -66,6 +73,19 @@ export function CenteredState({ glyph, text }: { glyph: string; text: string }):
     <div className="scr" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 28 }}>
       <div style={{ fontSize: 40, color: T.b400, marginBottom: 12 }} aria-hidden="true">{glyph}</div>
       <p style={{ color: T.mut, fontSize: 13, margin: 0 }}>{text}</p>
+    </div>
+  );
+}
+
+/** Shared list state (loading / empty / error) so every screen shows a coherent,
+ * correctly-differentiated state instead of the same glyph for all three. */
+export function EmptyState({ variant, title, text }: { variant: "loading" | "empty" | "error"; title?: string; text: string }): JSX.Element {
+  const glyph = variant === "loading" ? "◌" : variant === "error" ? "!" : "▢";
+  return (
+    <div className="scr" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 28, minHeight: 220 }}>
+      <div style={{ fontSize: 38, color: variant === "error" ? T.warn : T.faint, marginBottom: 12 }} aria-hidden="true">{glyph}</div>
+      {title && <h2 style={{ fontFamily: T.fd, fontSize: 16, fontWeight: 700, color: T.ink, margin: "0 0 4px" }}>{title}</h2>}
+      <p style={{ color: T.mut, fontSize: 13, margin: 0, maxWidth: 260, lineHeight: 1.5 }}>{text}</p>
     </div>
   );
 }

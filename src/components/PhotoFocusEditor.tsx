@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import { useT } from "../i18n.js";
 import { T } from "../proto.js";
 
 /** Face focal point as CSS object-position percentages (0-100). */
@@ -65,6 +66,7 @@ export function PhotoFocusEditor({
   onCancel,
   onConfirm,
 }: PhotoFocusEditorProps): JSX.Element {
+  const t = useT();
   const [url, setUrl] = useState<string | null>(imageUrl ?? null);
   const [focus, setFocus] = useState<Focus>(initialFocus ?? DEFAULT_FOCUS);
   const [detecting, setDetecting] = useState(false);
@@ -114,11 +116,11 @@ export function PhotoFocusEditor({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{ background: "#fff", borderRadius: 18, padding: 18, width: "100%", maxWidth: 360, boxShadow: "0 20px 60px rgba(10,14,25,0.35)" }}
+        style={{ background: T.surf, borderRadius: 18, padding: 18, width: "100%", maxWidth: 360, boxShadow: "0 20px 60px rgba(10,14,25,0.35)" }}
       >
-        <p style={{ fontSize: 14, fontWeight: 700, color: T.ink, margin: "0 0 4px", fontFamily: T.fd }}>Cadrer la photo</p>
+        <p style={{ fontSize: 14, fontWeight: 700, color: T.ink, margin: "0 0 4px", fontFamily: T.fd }}>{t("photo.title")}</p>
         <p style={{ fontSize: 11.5, color: T.mut, margin: "0 0 12px", lineHeight: 1.5 }}>
-          Touchez votre visage pour le centrer dans le cercle. L'aperçu à droite montre le rendu exact, sans jamais déformer la photo.
+          {t("photo.intro")}
         </p>
 
         <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
@@ -127,7 +129,7 @@ export function PhotoFocusEditor({
               <img
                 ref={imgRef}
                 src={url}
-                alt="Photo à cadrer"
+                alt={t("photo.altToFrame")}
                 onLoad={onImageLoad}
                 onClick={onTap}
                 crossOrigin="anonymous"
@@ -142,9 +144,9 @@ export function PhotoFocusEditor({
 
           <div style={{ flex: "0 0 auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
             <div style={{ width: 96, height: 96, borderRadius: "50%", overflow: "hidden", border: `2px solid ${T.line}` }}>
-              {url && <img src={url} alt="Aperçu" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: pos }} />}
+              {url && <img src={url} alt={t("photo.altPreview")} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: pos }} />}
             </div>
-            <span style={{ fontSize: 10.5, color: T.mut }}>Aperçu rond</span>
+            <span style={{ fontSize: 10.5, color: T.mut }}>{t("photo.previewRound")}</span>
           </div>
         </div>
 
@@ -155,11 +157,11 @@ export function PhotoFocusEditor({
           className="tap"
           style={{ marginTop: 12, width: "100%", height: 38, background: T.surf, border: `1px solid ${T.line}`, borderRadius: 10, color: T.ink, fontWeight: 600, fontSize: 12.5 }}
         >
-          {detecting ? "Détection du visage..." : "Recadrer automatiquement sur le visage"}
+          {detecting ? t("photo.detecting") : t("photo.autoFrame")}
         </button>
         {noFace && (
           <p style={{ fontSize: 11, color: T.mut, margin: "6px 0 0" }}>
-            Aucun visage détecté automatiquement : touchez votre visage sur la photo pour le centrer.
+            {t("photo.noFace")}
           </p>
         )}
 
@@ -171,7 +173,7 @@ export function PhotoFocusEditor({
             className="tap"
             style={{ flex: 1, height: 44, background: T.surf, border: `1px solid ${T.line}`, borderRadius: 12, color: T.ink, fontWeight: 600, fontSize: 13.5 }}
           >
-            Annuler
+            {t("common.cancel")}
           </button>
           <button
             type="button"
@@ -180,7 +182,7 @@ export function PhotoFocusEditor({
             className="tap"
             style={{ flex: 1, height: 44, background: `linear-gradient(180deg,${T.b500},${T.b600})`, border: "none", borderRadius: 12, color: "#fff", fontWeight: 600, fontSize: 13.5, opacity: busy ? 0.6 : 1 }}
           >
-            {busy ? "..." : "Valider le cadrage"}
+            {busy ? "..." : t("photo.confirm")}
           </button>
         </div>
       </div>

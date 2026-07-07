@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { getNotifications, markNotificationsRead, marquerNotificationLue } from "../api.js";
 import { formatDateTime } from "../format.js";
+import { useT } from "../i18n.js";
 import { useResource } from "../useResource.js";
 
 function targetOf(titre: string | null, type: string | null): "document" | "recensement" | null {
@@ -34,19 +35,20 @@ export function Notifications({
   onDocument?: () => void;
   onRecensement?: () => void;
 }): JSX.Element {
+  const t = useT();
   const { data, loading, error } = useResource(() => getNotifications(token), [token]);
   // Locally-known read ids so the UI reacts instantly; the server state is
   // persisted by the per-notification endpoint (idempotent).
   const [luesLocal, setLuesLocal] = useState<Set<string>>(new Set());
   const [toutLu, setToutLu] = useState(false);
 
-  if (loading) return <div className="empty"><p>Chargement des notifications...</p></div>;
+  if (loading) return <div className="empty"><p>{t("notif.loading")}</p></div>;
   if (error) return <div className="empty"><p>{error}</p></div>;
   if (!data || data.length === 0) {
     return (
       <div className="empty">
         <div className="empty-glyph" aria-hidden="true">○</div>
-        <p>Aucune notification.</p>
+        <p>{t("notif.empty")}</p>
       </div>
     );
   }
@@ -78,7 +80,7 @@ export function Notifications({
   return (
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 2px 10px" }}>
-        <span className="list-sub">{nonLues > 0 ? `${nonLues} non lue(s)` : "Tout est lu"}</span>
+        <span className="list-sub">{nonLues > 0 ? t("notif.unreadCount").replace("{n}", String(nonLues)) : t("notif.allRead")}</span>
         <button
           type="button"
           className="login-link"
@@ -89,7 +91,7 @@ export function Notifications({
             void markNotificationsRead(token);
           }}
         >
-          Tout marquer lu
+          {t("notif.markAllRead")}
         </button>
       </div>
       {groupes.map((g) => (
@@ -98,7 +100,7 @@ export function Notifications({
             style={{ cursor: "pointer", padding: "6px 2px", fontSize: 12, fontWeight: 700, color: "var(--mut, #6b7280)", textTransform: "capitalize" }}
           >
             {g.libelle} · {g.items.length}
-            {g.items.some((n) => !estLue(n.id, n.lu)) ? " · non lues" : ""}
+            {g.items.some((n) => !estLue(n.id, n.lu)) ? t("notif.groupUnread") : ""}
           </summary>
           <ul className="list">
             {g.items.map((n) => {
@@ -115,11 +117,11 @@ export function Notifications({
                   }}
                 >
                   <div className="list-main">
-                    <strong>{n.titre ?? "Notification"}</strong>
+                    <strong>{n.titre ?? t("notif.fallbackTitle")}</strong>
                     <span className="list-sub">{n.corps ?? ""}</span>
                     <span className="list-sub faint">{formatDateTime(n.cree_le)}</span>
                   </div>
-                  {!lue && <span className="dot" aria-label="non lu" />}
+                  {!lue && <span className="dot" aria-label={t("notif.unreadAria")} />}
                 </li>
               );
             })}

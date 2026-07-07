@@ -1,9 +1,11 @@
 import { useState } from "react";
 
 import { ApiError, getRecensement, submitRecensement } from "../api.js";
+import { useT } from "../i18n.js";
 import { useResource } from "../useResource.js";
 
 export function Recensement({ token }: { token: string }): JSX.Element {
+  const t = useT();
   const { data, loading, error } = useResource(() => getRecensement(token), [token]);
   const [engagement, setEngagement] = useState(false);
   const [infos, setInfos] = useState(false);
@@ -23,19 +25,19 @@ export function Recensement({ token }: { token: string }): JSX.Element {
       });
       setDone(true);
     } catch (err) {
-      setSubmitError(err instanceof ApiError ? err.message : "Erreur réseau");
+      setSubmitError(err instanceof ApiError ? err.message : t("common.networkError"));
     } finally {
       setBusy(false);
     }
   }
 
-  if (loading) return <div className="empty"><p>Chargement...</p></div>;
+  if (loading) return <div className="empty"><p>{t("common.loading")}</p></div>;
   if (error) return <div className="empty"><p>{error}</p></div>;
   if (!data) {
     return (
       <div className="empty">
         <div className="empty-glyph" aria-hidden="true">✓</div>
-        <p>Aucun recensement ouvert pour le moment.</p>
+        <p>{t("recens.empty")}</p>
       </div>
     );
   }
@@ -44,8 +46,8 @@ export function Recensement({ token }: { token: string }): JSX.Element {
     return (
       <div className="empty">
         <div className="empty-glyph" aria-hidden="true">✓</div>
-        <h2>Recensement validé</h2>
-        <p>Merci, votre recensement {data.annee} est enregistré.</p>
+        <h2>{t("recens.validatedTitle")}</h2>
+        <p>{t("recens.thanks").replace("{annee}", String(data.annee))}</p>
       </div>
     );
   }
@@ -54,26 +56,23 @@ export function Recensement({ token }: { token: string }): JSX.Element {
 
   return (
     <div className="recensement">
-      <h2>Recensement annuel {data.annee}</h2>
-      <p className="muted">
-        Confirmez que vous êtes toujours engagé(e) au sein de la fraternité et réacceptez les engagements
-        pour l'année.
-      </p>
+      <h2>{t("recens.title").replace("{annee}", String(data.annee))}</h2>
+      <p className="muted">{t("recens.intro")}</p>
       <label className="check-row">
         <input type="checkbox" checked={engagement} onChange={(e) => setEngagement(e.target.checked)} />
-        Je suis toujours présent(e) et engagé(e)
+        {t("recens.check1")}
       </label>
       <label className="check-row">
         <input type="checkbox" checked={infos} onChange={(e) => setInfos(e.target.checked)} />
-        Mes informations sont à jour
+        {t("recens.check2")}
       </label>
       <label className="check-row">
         <input type="checkbox" checked={reaccepte} onChange={(e) => setReaccepte(e.target.checked)} />
-        Je re-accepte les engagements
+        {t("recens.check3")}
       </label>
       {submitError && <p className="login-error">{submitError}</p>}
       <button type="button" className="btn btn-primary" disabled={!ready || busy} onClick={() => void submit()}>
-        {busy ? "Envoi..." : "Valider mon recensement"}
+        {busy ? t("common.sending") : t("recens.submit")}
       </button>
     </div>
   );
