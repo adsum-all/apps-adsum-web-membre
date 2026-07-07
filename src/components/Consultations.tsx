@@ -32,8 +32,12 @@ export function Consultations({ token }: { token: string }): JSX.Element {
 
   return (
     <div style={{ padding: "8px 2px 16px" }}>
-      {error && <p style={banner}>{error}</p>}
-      {liste === null ? (
+      {error && liste === null ? (
+        <div style={{ textAlign: "center", padding: "36px 12px" }}>
+          <p style={banner}>{error}</p>
+          <button type="button" className="btn btn-ghost" onClick={() => { setError(null); reload(); }} style={{ marginTop: 12 }}>{t("common.retry")}</button>
+        </div>
+      ) : liste === null ? (
         <p style={{ color: T.mut, fontSize: 13 }}>{t("common.loading")}</p>
       ) : liste.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px 12px", color: T.mut }}>

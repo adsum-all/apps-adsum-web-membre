@@ -120,12 +120,14 @@ const DICT: Record<string, { fr: string; en: string }> = {
   "common.close": { fr: "Fermer", en: "Close" },
   "common.save": { fr: "Enregistrer", en: "Save" },
   "common.loading": { fr: "Chargement...", en: "Loading..." },
+  "common.retry": { fr: "Réessayer", en: "Retry" },
 
   "act.loading": { fr: "Chargement des activités...", en: "Loading activities..." },
   "act.empty": { fr: "Aucune activité pour le moment.", en: "No activity for now." },
   "act.emptyTitle": { fr: "Rien à l'agenda", en: "Nothing scheduled" },
   "act.errorTitle": { fr: "Chargement impossible", en: "Could not load" },
   "act.enCours": { fr: "En cours", en: "Ongoing" },
+  "act.voletLabel": { fr: "Volet {v}", en: "Section {v}" },
   "act.aVenir": { fr: "À venir", en: "Upcoming" },
   "act.passees": { fr: "Activités passées", en: "Past activities" },
   "act.voirPlus": { fr: "Voir plus", en: "Show more" },
@@ -205,6 +207,7 @@ const DICT: Record<string, { fr: string; en: string }> = {
   "consent.requestError": { fr: "Action impossible. Réessayez.", en: "Action failed. Please try again." },
 
   "attest.title": { fr: "Attestation signée à retourner", en: "Signed attestation to return" },
+  "attest.open": { fr: "Ouvrir", en: "Open" },
   "attest.intro": {
     fr: "Votre pays exige une attestation signée à la main. Imprimez le document, signez-le, puis renvoyez la version scannée ou photographiée.",
     en: "Your country requires a hand-signed attestation. Print the document, sign it, then return the scanned or photographed copy.",

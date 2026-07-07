@@ -254,17 +254,20 @@ export function Calendrier({
   const selectedBirthdays = birthdaysByDay.get(selected) ?? [];
   const todayKey = dayKey(now);
 
-  // Active-filter summary for the compact bar (birthday prefs + families +
-  // activity filters + still-valid tags). The badge count is derived from these
-  // visible labels, so it never counts a filter the member cannot see.
-  const activeCategs = prefs ? CATEGORIES.filter((c) => prefs[c.pref]) : [];
+  // Active-filter summary for the compact bar. It reflects only the SESSION
+  // filters the member actively applied (family overlays, activity filters,
+  // tags), never the persistent birthday-category preferences (cal_*), which are
+  // a saved display choice, not a filter to reset. This keeps the bar empty by
+  // default and consistent with what resetFiltres actually clears.
   const activeLabels = [
-    ...activeCategs.map((c) => t(c.label)),
     ...FAMILLES_ANNIV.filter((f) => famillesAnniv.has(f.key)).map((f) => t(f.label)),
     ...FILTRES_ACTIVITE.filter((f) => filtres.has(f.key)).map((f) => t(f.label)),
     ...tousTags.filter((tg) => tagFiltre.includes(tg.id)).map((tg) => tg.libelle),
   ];
   const activeCount = activeLabels.length;
+  // Condensed summary: at most two labels, then "+N", so the bar stays calm.
+  const summaryLabels = activeLabels.slice(0, 2);
+  const summaryExtra = activeCount - summaryLabels.length;
 
   return (
     <div style={{ paddingBottom: 4 }}>
@@ -308,13 +311,18 @@ export function Calendrier({
             </span>
           )}
         </button>
-        <div style={{ flex: 1, minWidth: 0, display: "flex", gap: 6, overflowX: "auto", whiteSpace: "nowrap", alignItems: "center" }}>
-          {activeLabels.length === 0 ? (
-            <span style={{ fontSize: 11.5, color: T.faint }}>{t("calendar.allEvents")}</span>
+        <div style={{ flex: 1, minWidth: 0, display: "flex", gap: 6, alignItems: "center", overflow: "hidden" }}>
+          {activeCount === 0 ? (
+            <span style={{ fontSize: 11.5, color: T.faint, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t("calendar.allEvents")}</span>
           ) : (
-            activeLabels.map((l, i) => (
-              <span key={i} style={{ flexShrink: 0, fontSize: 11, fontWeight: 600, color: T.mut, background: T.chip, borderRadius: 999, padding: "3px 9px" }}>{l}</span>
-            ))
+            <>
+              {summaryLabels.map((l, i) => (
+                <span key={i} style={{ flexShrink: 0, fontSize: 11, fontWeight: 600, color: T.mut, background: T.chip, borderRadius: 999, padding: "3px 9px", maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l}</span>
+              ))}
+              {summaryExtra > 0 && (
+                <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 600, color: T.mut }}>+{summaryExtra}</span>
+              )}
+            </>
           )}
         </div>
         {activeCount > 0 && (
