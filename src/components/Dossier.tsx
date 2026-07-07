@@ -1,11 +1,12 @@
 import { getDocuments, getEngagements } from "../api.js";
+import { useT } from "../i18n.js";
 import { useResource } from "../useResource.js";
 
-const DOC_STATUT: Record<string, { label: string; cls: string }> = {
-  demande: { label: "Demandé", cls: "badge-mut" },
-  recu: { label: "Reçu", cls: "badge-info" },
-  lu: { label: "En cours", cls: "badge-info" },
-  traite: { label: "Validé", cls: "badge-ok" },
+const DOC_STATUT: Record<string, { labelKey: string; cls: string }> = {
+  demande: { labelKey: "dossier.statutDemande", cls: "badge-mut" },
+  recu: { labelKey: "dossier.statutRecu", cls: "badge-info" },
+  lu: { labelKey: "dossier.statutLu", cls: "badge-info" },
+  traite: { labelKey: "dossier.statutTraite", cls: "badge-ok" },
 };
 
 function pretty(value: string | null): string {
@@ -15,50 +16,51 @@ function pretty(value: string | null): string {
 }
 
 export function Dossier({ token }: { token: string }): JSX.Element {
+  const t = useT();
   const docs = useResource(() => getDocuments(token), [token]);
   const engs = useResource(() => getEngagements(token), [token]);
 
   return (
     <div className="recensement">
-      <h2>Mon dossier</h2>
-      <span className="muted">Suivi de la validation de votre identité et de vos engagements.</span>
+      <h2>{t("profilNav.dossier.title")}</h2>
+      <span className="muted">{t("dossier.subtitle")}</span>
 
-      <p className="section-title profil-group">Pièces et validation d'identité</p>
-      {docs.loading && <p className="muted">Chargement...</p>}
+      <p className="section-title profil-group">{t("dossier.sectionPieces")}</p>
+      {docs.loading && <p className="muted">{t("common.loading")}</p>}
       {docs.error && <p className="banner banner-warn">{docs.error}</p>}
       {!docs.loading && (docs.data?.length ?? 0) === 0 && (
-        <p className="banner banner-info">Aucune pièce au dossier pour le moment.</p>
+        <p className="banner banner-info">{t("dossier.emptyPieces")}</p>
       )}
       <ul className="list">
         {(docs.data ?? []).map((d) => {
-          const s = DOC_STATUT[d.statut] ?? { label: pretty(d.statut), cls: "badge-mut" };
+          const s = DOC_STATUT[d.statut];
           return (
             <li key={d.id} className="list-item">
               <div className="list-main">
                 <strong>{pretty(d.type)}</strong>
-                {d.demande_le && <span className="list-sub">Demandé le {formatDate(d.demande_le)}</span>}
+                {d.demande_le && <span className="list-sub">{t("dossier.requestedOn").replace("{date}", formatDate(d.demande_le))}</span>}
               </div>
-              <span className={`badge ${s.cls}`}>{s.label}</span>
+              <span className={`badge ${s ? s.cls : "badge-mut"}`}>{s ? t(s.labelKey) : pretty(d.statut)}</span>
             </li>
           );
         })}
       </ul>
 
-      <p className="section-title profil-group">Engagements</p>
-      {engs.loading && <p className="muted">Chargement...</p>}
+      <p className="section-title profil-group">{t("dossier.sectionEngagements")}</p>
+      {engs.loading && <p className="muted">{t("common.loading")}</p>}
       {engs.error && <p className="banner banner-warn">{engs.error}</p>}
       {!engs.loading && (engs.data?.length ?? 0) === 0 && (
-        <p className="banner banner-info">Aucun engagement enregistré pour le moment.</p>
+        <p className="banner banner-info">{t("dossier.emptyEngagements")}</p>
       )}
       <ul className="list">
         {(engs.data ?? []).map((e) => (
           <li key={e.id} className="list-item">
             <div className="list-main">
               <strong>{pretty(e.type)}</strong>
-              <span className="list-sub">Version {e.version}</span>
+              <span className="list-sub">{t("dossier.version").replace("{v}", String(e.version))}</span>
             </div>
             <span className={`badge ${e.signe ? "badge-ok" : "badge-mut"}`}>
-              {e.signe ? "Signé" : "À signer"}
+              {e.signe ? t("dossier.signed") : t("dossier.toSign")}
             </span>
           </li>
         ))}

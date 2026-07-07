@@ -18,7 +18,7 @@ import {
   uploadPhoto,
 } from "../api.js";
 import { useT } from "../i18n.js";
-import { uniteLabel } from "../name.js";
+import { capitaliserPrenoms, nomMajuscule, uniteLabel } from "../name.js";
 import { T, gradient } from "../proto.js";
 import {
   DOC_TYPES,
@@ -50,25 +50,73 @@ interface Props {
 /** Which wizard step owns each field, used to jump straight to a correction. */
 const FIELD_STEP: Record<string, number> = {
   prenoms: 0, nom: 0, genre: 0, date_naissance: 0, telephone: 0, indicatif_telephone: 0,
-  pays: 1, region: 1, ville: 1, commission_id: 1, groupe: 1, intendance_id: 1, tribu_id: 1,
+  pays: 1, region: 1, ville: 1, commission_id: 1, groupe: 1, intendance_id: 1, coordination_id: 1,
+  rattachement: 1, tribu_id: 1,
   type_membre: 2, fonction_cle: 2, adresse: 2, adresse_complement: 2,
   situation_matrimoniale: 2, profession: 2, niveau_etudes: 2,
   photo: 3, piece: 3,
 };
 
+/** Organizational axis of a member: an intendance, a coordination, or (rarely)
+ * both. At least one is required; the default is an intendance. */
+type AxeOrga = "intendance" | "coordination" | "deux";
+const AXES: { value: AxeOrga; labelKey: string }[] = [
+  { value: "intendance", labelKey: "completer.axeIntendance" },
+  { value: "coordination", labelKey: "completer.axeCoordination" },
+  { value: "deux", labelKey: "completer.axeDeux" },
+];
+
 /** Human-readable reason for a failure while saving the profile or files, so
  * the member sees what to fix rather than a generic "Soumission impossible". */
-function saveReason(err: unknown): string {
+function saveReason(err: unknown, t: (key: string) => string): string {
   if (err instanceof ApiError) {
     const detail = err.detail as { locked_fields?: string[] } | undefined;
     if (err.status === 403 && Array.isArray(detail?.locked_fields) && detail.locked_fields.length > 0) {
-      return `Certains champs ne sont plus modifiables : ${detail.locked_fields.join(", ")}.`;
+      return t("completer.errLockedFields").replace("{fields}", detail.locked_fields.join(", "));
+    }
+    if (err.status === 403) {
+      // A photo replacement needs an administration unlock: guide, do not dead-end.
+      return t("completer.errPhotoUnlock");
     }
     if (err.status === 413) {
-      return "Un fichier est trop volumineux. Réduisez sa taille et réessayez.";
+      return t("completer.errFileTooBig");
+    }
+    if (err.status === 400) {
+      return t("completer.errFileFormat");
     }
   }
-  return "Impossible d'enregistrer vos informations. Vérifiez les champs, puis réessayez.";
+  return t("completer.errSaveGeneric");
+}
+
+/** localStorage key of the in-progress registration draft for a given member. */
+function cleBrouillon(membreId: string): string {
+  return `adsum.inscription.brouillon.${membreId}`;
+}
+
+function lireBrouillon(membreId: string): ProfilFields | null {
+  try {
+    const brut = localStorage.getItem(cleBrouillon(membreId));
+    return brut ? (JSON.parse(brut) as ProfilFields) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Split a single given-names string into (first given name, other given names). */
+function decouperPrenoms(prenoms: string | null | undefined): { premier: string; autres: string } {
+  const parts = (prenoms ?? "").trim().split(/\s+/).filter(Boolean);
+  return { premier: parts[0] ?? "", autres: parts.slice(1).join(" ") };
+}
+
+/** Merge freshly loaded profile data over the form without wiping fields the member
+ *  has already filled: a late profile load must never erase in-progress input. */
+function fusionnerProfil(base: ProfilFields, saisi: ProfilFields): ProfilFields {
+  const out: Record<string, unknown> = { ...(base as Record<string, unknown>) };
+  for (const [cle, val] of Object.entries(saisi as Record<string, unknown>)) {
+    const vide = val === "" || val === null || val === undefined || (Array.isArray(val) && val.length === 0);
+    if (!vide) out[cle] = val;
+  }
+  return out as ProfilFields;
 }
 
 export function CompleterProfil({ token, profile, statut, motif, champsACorriger = [], onSubmitted }: Props): JSX.Element {
@@ -80,52 +128,115 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
   const [tribus, setTribus] = useState<RefItem[]>([]);
   const [commissions, setCommissions] = useState<RefItem[]>([]);
   const [intendances, setIntendances] = useState<RefItem[]>([]);
+  const [coordinations, setCoordinations] = useState<RefItem[]>([]);
   const [groupes, setGroupes] = useState<RefItem[]>([]);
+  // Which organizational axis the member is filling. Null until they pick one,
+  // in which case it is derived from the loaded data (default: intendance).
+  const [axeManuel, setAxeManuel] = useState<AxeOrga | null>(null);
   const [fonctions, setFonctions] = useState<FonctionItem[]>([]);
   const [docs, setDocs] = useState<DocumentItem[]>([]);
 
   const [f, setF] = useState<ProfilFields>(() => initialFields(profile));
+  // Given names are captured as two independently-typed inputs (first name, other
+  // given names) so a space can be typed freely; f.prenoms is recomposed from them.
+  const [premierPrenom, setPremierPrenom] = useState(() => decouperPrenoms(initialFields(profile).prenoms).premier);
+  const [autresPrenoms, setAutresPrenoms] = useState(() => decouperPrenoms(initialFields(profile).prenoms).autres);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoDejaEnvoyee, setPhotoDejaEnvoyee] = useState(false);
   const [pieceType, setPieceType] = useState("piece_identite");
   const [pieceFile, setPieceFile] = useState<File | null>(null);
+  const [pieceDejaEnvoyee, setPieceDejaEnvoyee] = useState(false);
   const [signed, setSigned] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState(0);
   const topRef = useRef<HTMLDivElement | null>(null);
+  // Set once the member starts typing, so a late profile load merges without wiping
+  // in-progress input.
+  const dirty = useRef(false);
 
-  // Reset the form when a profile finishes loading after first paint, so late
-  // data still prefills every field (the member must never lose entered data).
+  // When a profile finishes loading after first paint, prefill the form WITHOUT
+  // overwriting anything the member already filled (non-destructive merge).
   const loadedId = useRef<string | null>(null);
   useEffect(() => {
     if (profile && profile.id !== loadedId.current) {
       loadedId.current = profile.id;
-      setF(initialFields(profile));
+      const charge = initialFields(profile);
+      // Restore a locally saved draft (survives a page refresh / back button) over
+      // the server data, so a member never loses what they had already typed.
+      const brouillon = lireBrouillon(profile.id);
+      const base = brouillon ? fusionnerProfil(charge, brouillon) : charge;
+      setF((prev) => (dirty.current ? fusionnerProfil(base, prev) : base));
+      // Sync the given-name sub-inputs from the restored data only if the member
+      // has not started typing them.
+      if (!premierPrenom && !autresPrenoms) {
+        const d = decouperPrenoms(base.prenoms);
+        setPremierPrenom(d.premier);
+        setAutresPrenoms(d.autres);
+      }
     }
+    // premierPrenom/autresPrenoms intentionally omitted: the id guard runs this once
+    // per profile, and reading them here must not re-trigger it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile]);
 
   useEffect(() => {
     void getReference(token, "tribus").then(setTribus).catch(() => undefined);
     void getReference(token, "commissions").then(setCommissions).catch(() => undefined);
     void getReference(token, "intendances").then(setIntendances).catch(() => undefined);
+    void getReference(token, "coordinations").then(setCoordinations).catch(() => undefined);
     void getReference(token, "groupes").then(setGroupes).catch(() => undefined);
     void getFonctions(token).then((list) => setFonctions(list.filter((x) => x.actif))).catch(() => undefined);
     void getDocuments(token).then(setDocs).catch(() => undefined);
   }, [token]);
 
+  // Autosave the draft locally once the member has started editing, so a refresh or
+  // an accidental back never loses the input. Cleared on a successful submission.
+  useEffect(() => {
+    if (!profile?.id || !dirty.current) return;
+    try {
+      localStorage.setItem(cleBrouillon(profile.id), JSON.stringify(f));
+    } catch {
+      /* storage full or unavailable: the in-memory form still works */
+    }
+  }, [f, profile?.id]);
+
   function set<K extends keyof ProfilFields>(k: K, v: ProfilFields[K]): void {
+    dirty.current = true;
     setF((prev) => ({ ...prev, [k]: v }));
   }
   function inp(name: string): React.CSSProperties {
     return hl(name) ? { ...baseInp, border: `1px solid ${T.warn}` } : baseInp;
   }
 
+  // The active axis: an explicit choice wins; otherwise it is inferred from the
+  // loaded data so a returning member sees the right dropdowns pre-filled.
+  const axe: AxeOrga = axeManuel ?? (f.coordination_id ? (f.intendance_id ? "deux" : "coordination") : "intendance");
+  const montrerIntendance = axe === "intendance" || axe === "deux";
+  const montrerCoordination = axe === "coordination" || axe === "deux";
+  // Switching axis clears the now-irrelevant field so a stale value is never
+  // submitted (e.g. keeping an old intendance after choosing a coordination).
+  function choisirAxe(next: AxeOrga): void {
+    setAxeManuel(next);
+    if (next === "intendance") set("coordination_id", "");
+    else if (next === "coordination") set("intendance_id", "");
+  }
+  // At least one axis must be provided; "deux" requires both.
+  const axeOk = axe === "deux" ? !!f.intendance_id && !!f.coordination_id : axe === "coordination" ? !!f.coordination_id : !!f.intendance_id;
+
   const photoProvided = !!profile?.photo_url;
-  const pieceProvided = docs.some((d) => d.type != null && DOC_TYPES.includes(d.type));
+  // A document counts as provided only when it has really been uploaded (statut
+  // 'recu' / a recu_le), not when the administration merely REQUESTED it (statut
+  // 'demande', no file). Otherwise the recap says "fourni" while the server refuses
+  // the submission with needs_document, leaving the member stuck without knowing why.
+  const pieceProvided = docs.some(
+    (d) => d.type != null && DOC_TYPES.includes(d.type) && (d.statut === "recu" || !!d.recu_le),
+  );
 
   const requiredOk =
     !!f.prenoms?.trim() && !!f.nom?.trim() && !!f.telephone?.trim() && !!f.indicatif_telephone?.trim() &&
-    !!f.date_naissance && !!f.genre && !!f.pays?.trim() && !!f.ville?.trim() && !!f.commission_id && !!f.tribu_id;
+    !!f.date_naissance && !!f.genre && !!f.pays?.trim() && !!f.ville?.trim() && !!f.commission_id && !!f.tribu_id &&
+    axeOk;
   // A document is required only if it is not already provided, or if it was
   // explicitly flagged for correction.
   const photoOk = photoProvided ? true : !!photoFile;
@@ -137,21 +248,25 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
   function stepBlocker(i: number): string | null {
     if (i === 0) {
       if (!f.prenoms?.trim() || !f.nom?.trim() || !f.genre || !f.date_naissance) {
-        return "Veuillez renseigner vos prénoms, nom, genre et date de naissance.";
+        return t("completer.errNamesRequired");
       }
       if (!f.telephone?.trim() || !f.indicatif_telephone?.trim()) {
-        return "Veuillez renseigner votre téléphone (indicatif et numéro).";
+        return t("completer.errPhoneRequired");
       }
       return null;
     }
     if (i === 1) {
-      if (!f.pays?.trim() || !f.ville?.trim()) return "Veuillez renseigner votre pays et votre ville.";
-      if (!f.commission_id || !f.tribu_id) return "Veuillez choisir votre commission et votre tribu.";
+      if (!f.pays?.trim() || !f.ville?.trim()) return t("completer.errCountryCity");
+      if (!f.commission_id) return t("completer.errCommission");
+      if (!axeOk) {
+        return axe === "deux" ? t("completer.errBothAxes") : t("completer.errOneAxis");
+      }
+      if (!f.tribu_id) return t("completer.errTribu");
       return null;
     }
     if (i === 3) {
-      if (!photoOk || !pieceOk) return "La photo d'identité et une pièce d'identité sont obligatoires.";
-      if (photoNeedsRedo || pieceNeedsRedo) return "Un document à corriger doit être renvoyé.";
+      if (!photoOk || !pieceOk) return t("completer.errDocsRequired");
+      if (photoNeedsRedo || pieceNeedsRedo) return t("completer.errDocRedo");
       return null;
     }
     if (i === 4 && !signed) return t("consent.signBeforeSubmit");
@@ -180,15 +295,15 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
   async function submit(): Promise<void> {
     setError(null);
     if (!requiredOk) {
-      setError("Veuillez renseigner tous les champs obligatoires (*).");
+      setError(t("completer.errAllRequired"));
       return;
     }
     if (!photoOk || !pieceOk) {
-      setError("La photo d'identité et une pièce d'identité sont obligatoires.");
+      setError(t("completer.errDocsRequired"));
       return;
     }
     if (photoNeedsRedo || pieceNeedsRedo) {
-      setError("Un document à corriger doit être renvoyé.");
+      setError(t("completer.errDocRedo"));
       return;
     }
     if (!signed) {
@@ -198,17 +313,34 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
     setBusy(true);
     try {
       // Phase 1: persist the profile and any new files. A failure here is about
-      // saving the data, not about the final submission gate.
+      // saving the data, not about the final submission gate. Each file is uploaded
+      // ONCE: on a later retry (e.g. the signature was invalidated meanwhile) the
+      // photo is not pushed again, which would hit the replacement 403 and block the
+      // member for good.
       try {
         await updateProfil(token, f);
-        if (photoFile) await uploadPhoto(token, photoFile);
-        if (pieceFile) await uploadDocument(token, pieceType, pieceFile);
+        if (photoFile && !photoDejaEnvoyee) {
+          await uploadPhoto(token, photoFile);
+          setPhotoDejaEnvoyee(true);
+        }
+        if (pieceFile && !pieceDejaEnvoyee) {
+          await uploadDocument(token, pieceType, pieceFile);
+          setPieceDejaEnvoyee(true);
+        }
       } catch (saveErr) {
-        setError(saveReason(saveErr));
+        setError(saveReason(saveErr, t));
         return;
       }
       // Phase 2: the server-side submission gate (fields, document, signature).
       await soumettreInscription(token);
+      // Dossier accepted for review: the local draft is no longer needed.
+      if (profile?.id) {
+        try {
+          localStorage.removeItem(cleBrouillon(profile.id));
+        } catch {
+          /* ignore */
+        }
+      }
       onSubmitted();
     } catch (err) {
       if (isNeedsSignature(err)) {
@@ -218,7 +350,7 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
       } else {
         // Surface the precise server reason (missing field, document) instead
         // of a generic message that hides why the submission was refused.
-        setError(soumettreReason(err) ?? "Soumission impossible. Vérifiez vos informations et réessayez.");
+        setError(soumettreReason(err) ?? t("completer.errSubmit"));
       }
     } finally {
       setBusy(false);
@@ -228,34 +360,57 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
   const commissionSel = commissions.find((c) => c.id === f.commission_id);
   const commissionNom = commissionSel ? uniteLabel(commissionSel) : "";
   const tribuNom = tribus.find((x) => x.id === f.tribu_id)?.nom ?? "";
+  const intendanceNom = intendances.find((x) => x.id === f.intendance_id)?.nom ?? "";
+  const coordinationNom = coordinations.find((x) => x.id === f.coordination_id)?.nom ?? "";
+  const rattachementTxt = [
+    coordinationNom && t("completer.rattCoordination").replace("{n}", coordinationNom),
+    intendanceNom && t("completer.rattIntendance").replace("{n}", intendanceNom),
+  ]
+    .filter(Boolean)
+    .join(" . ");
 
-  // Given names are stored in a single field but captured as two guided inputs:
-  // the first given name and the other given names, recombined on every change.
-  const prenomsParts = (f.prenoms ?? "").trim().split(/\s+/).filter(Boolean);
-  const premierPrenom = prenomsParts[0] ?? "";
-  const autresPrenoms = prenomsParts.slice(1).join(" ");
-  const setPrenoms = (premier: string, autres: string): void =>
-    set("prenoms", `${premier} ${autres}`.replace(/\s+/g, " ").trim());
+  // The two given-name inputs are the source of truth (independent state), so a
+  // space is always typable; f.prenoms is recomposed from them on every change. The
+  // recomposition trims/collapses only the STORED value, never the input text.
+  function majPremier(premier: string): void {
+    dirty.current = true;
+    setPremierPrenom(premier);
+    set("prenoms", `${premier} ${autresPrenoms}`.replace(/\s+/g, " ").trim());
+  }
+  function majAutres(autres: string): void {
+    dirty.current = true;
+    setAutresPrenoms(autres);
+    set("prenoms", `${premierPrenom} ${autres}`.replace(/\s+/g, " ").trim());
+  }
+  // On blur, normalise the given names to title case (particles lowercase) without
+  // fighting the person while they type.
+  function capitaliserPrenomsChamps(): void {
+    const p = capitaliserPrenoms(premierPrenom);
+    const a = capitaliserPrenoms(autresPrenoms);
+    setPremierPrenom(p);
+    setAutresPrenoms(a);
+    set("prenoms", `${p} ${a}`.replace(/\s+/g, " ").trim());
+  }
 
   return (
     <div ref={topRef} className="scr" style={{ padding: "10px 18px 28px" }}>
-      <div style={{ fontFamily: T.fd, fontWeight: 700, fontSize: 19 }}>Compléter mon inscription</div>
+      <div style={{ fontFamily: T.fd, fontWeight: 700, fontSize: 19 }}>{t("completer.wizardTitle")}</div>
       <p style={{ fontSize: 12.5, color: T.mut, lineHeight: 1.55, margin: "6px 0 4px" }}>
-        Avancez étape par étape. Les champs marqués <span style={{ color: T.dng }}>*</span> sont obligatoires. Vos saisies sont conservées d'une étape à l'autre.
+        {t("completer.introA")}<span style={{ color: T.dng }}>*</span>{t("completer.introB")}
       </p>
       {correction && (
         <div style={{ background: T.warnbg, border: `1px solid ${T.warn}`, borderRadius: 11, padding: 12, margin: "8px 0" }}>
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: "#8a5a12" }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: T.warn }}>
             {motif ? t("correction.banner").replace("{motif}", motif) : t("correction.bannerNoMotif")}
           </div>
           {champsACorriger.length > 0 && (
-            <div style={{ fontSize: 11, color: "#8a5a12", marginTop: 6 }}>
+            <div style={{ fontSize: 11, color: T.warn, marginTop: 6 }}>
               {t("correction.fieldsIntro")} : {champsACorriger.join(", ")}
             </div>
           )}
           {firstFlaggedStep !== null && firstFlaggedStep !== step && (
             <div onClick={() => goTo(firstFlaggedStep)} className="tap" style={{ marginTop: 8, height: 36, borderRadius: 9, background: T.warn, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 12 }}>
-              Aller au premier champ à corriger
+              {t("completer.goToFirstError")}
             </div>
           )}
         </div>
@@ -266,21 +421,21 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
       {step === 0 && (
         <>
           <TelegramInvite token={token} />
-          <Field label="Nom de famille" required highlight={hl("nom")} info="Votre nom de famille, tel qu'il figure sur votre pièce d'identité. Il s'affichera en MAJUSCULES."><input style={inp("nom")} value={f.nom} onChange={(e) => set("nom", e.target.value)} placeholder="Ex. LABEL" /></Field>
-          <Field label="Premier prénom" required highlight={hl("prenoms")} info="Votre prénom usuel, tel qu'il figure sur votre pièce d'identité."><input style={inp("prenoms")} value={premierPrenom} onChange={(e) => setPrenoms(e.target.value, autresPrenoms)} placeholder="Ex. Shema" /></Field>
-          <Field label="Autres prénoms" info="Vos autres prénoms, séparés par des espaces (facultatif)."><input style={baseInp} value={autresPrenoms} onChange={(e) => setPrenoms(premierPrenom, e.target.value)} placeholder="Ex. Emmanuel" /></Field>
-          <Field label="Genre" required highlight={hl("genre")}>
+          <Field label={t("completer.fNom")} required highlight={hl("nom")} info={t("completer.iNom")}><input style={inp("nom")} value={f.nom} onChange={(e) => set("nom", nomMajuscule(e.target.value))} placeholder={t("completer.phNom")} /></Field>
+          <Field label={t("completer.fPremierPrenom")} required highlight={hl("prenoms")} info={t("completer.iPremierPrenom")}><input style={inp("prenoms")} value={premierPrenom} onChange={(e) => majPremier(e.target.value)} onBlur={capitaliserPrenomsChamps} placeholder={t("completer.phPremierPrenom")} /></Field>
+          <Field label={t("completer.fAutresPrenoms")} info={t("completer.iAutresPrenoms")}><input style={baseInp} value={autresPrenoms} onChange={(e) => majAutres(e.target.value)} onBlur={capitaliserPrenomsChamps} placeholder={t("completer.phAutresPrenoms")} /></Field>
+          <Field label={t("completer.fGenre")} required highlight={hl("genre")}>
             <select style={inp("genre")} value={f.genre} onChange={(e) => set("genre", e.target.value)}>
-              <option value="">Sélectionner...</option>
-              {GENRES.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
+              <option value="">{t("completer.selectPlaceholder")}</option>
+              {GENRES.map((g) => <option key={g.value} value={g.value}>{t(g.labelKey)}</option>)}
             </select>
           </Field>
-          <Field label="Date de naissance" required highlight={hl("date_naissance")} info="Votre date complète. Par défaut, seuls le jour et le mois seront visibles sur votre profil (pour l'anniversaire) ; l'année reste masquée sauf si vous cochez la case ci-dessous."><input type="date" style={inp("date_naissance")} value={f.date_naissance} onChange={(e) => set("date_naissance", e.target.value)} /></Field>
+          <Field label={t("completer.fDateNaissance")} required highlight={hl("date_naissance")} info={t("completer.iDateNaissance")}><input type="date" style={inp("date_naissance")} value={f.date_naissance} onChange={(e) => set("date_naissance", e.target.value)} /></Field>
           <label style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 2px 2px", fontSize: 12, color: T.mut }}>
             <input type="checkbox" checked={!!f.naissance_annee_visible} onChange={(e) => set("naissance_annee_visible", e.target.checked)} style={{ width: 17, height: 17, accentColor: T.b600 }} />
-            Afficher mon année de naissance sur mon profil (sinon seul le jour et le mois, pour l'anniversaire, sont visibles)
+            {t("completer.anneeVisible")}
           </label>
-          <Field label="Téléphone" required highlight={hl("telephone")} info="Choisissez d'abord l'indicatif (le pays du numéro), puis saisissez votre numéro. L'indicatif peut être différent de votre pays de résidence.">
+          <Field label={t("completer.fTelephone")} required highlight={hl("telephone")} info={t("completer.iTelephone")}>
             <PhoneField
               indicatif={f.indicatif_telephone ?? ""}
               numero={f.telephone ?? ""}
@@ -293,7 +448,7 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
 
       {step === 1 && (
         <>
-          <Field label="Pays" required highlight={hl("pays")} info="Votre pays de résidence. Utilisez la recherche pour le trouver rapidement.">
+          <Field label={t("completer.fPays")} required highlight={hl("pays")} info={t("completer.iPays")}>
             <PaysSelect
               value={f.pays ?? ""}
               onChange={(nom) => {
@@ -302,29 +457,54 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
               }}
             />
           </Field>
-          <Field label="Région / État" highlight={hl("region")}><input style={inp("region")} value={f.region ?? ""} onChange={(e) => set("region", e.target.value)} placeholder="Ex. Île-de-France, Californie..." /></Field>
-          <Field label="Ville" required highlight={hl("ville")}><input style={inp("ville")} value={f.ville} onChange={(e) => set("ville", e.target.value)} /></Field>
-          <Field label="Commission" required highlight={hl("commission_id")}>
+          <Field label={t("completer.fRegion")} highlight={hl("region")}><input style={inp("region")} value={f.region ?? ""} onChange={(e) => set("region", e.target.value)} placeholder={t("completer.phRegion")} /></Field>
+          <Field label={t("completer.fVille")} required highlight={hl("ville")}><input style={inp("ville")} value={f.ville} onChange={(e) => set("ville", e.target.value)} /></Field>
+          <Field label={t("completer.fCommission")} required highlight={hl("commission_id")} info={t("completer.iCommission")}>
             <select style={inp("commission_id")} value={f.commission_id ?? ""} onChange={(e) => set("commission_id", e.target.value)}>
-              <option value="">Sélectionner...</option>
+              <option value="">{t("completer.selectPlaceholder")}</option>
               {commissions.map((c) => <option key={c.id} value={c.id}>{uniteLabel(c)}</option>)}
             </select>
           </Field>
-          <Field label="Groupe" highlight={hl("groupe")}>
+          <Field label={t("completer.fSousCommission")} highlight={hl("groupe")} info={t("completer.iSousCommission")}>
             <select style={inp("groupe")} value={f.groupe ?? ""} onChange={(e) => set("groupe", e.target.value)}>
-              <option value="">Sélectionner...</option>
+              <option value="">{t("completer.selectPlaceholder")}</option>
               {groupes.map((g) => <option key={g.id} value={g.nom}>{g.nom}</option>)}
             </select>
           </Field>
-          <Field label="Intendance" highlight={hl("intendance_id")}>
-            <select style={inp("intendance_id")} value={f.intendance_id ?? ""} onChange={(e) => set("intendance_id", e.target.value)}>
-              <option value="">Sélectionner...</option>
-              {intendances.map((i) => <option key={i.id} value={i.id}>{i.nom}</option>)}
-            </select>
+          <Field label={t("completer.fRattachement")} required highlight={hl("intendance_id") || hl("coordination_id")} info={t("completer.iRattachement")}>
+            <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+              {AXES.map((a) => {
+                const actif = axe === a.value;
+                return (
+                  <button
+                    type="button"
+                    key={a.value}
+                    onClick={() => choisirAxe(a.value)}
+                    className="tap"
+                    aria-pressed={actif}
+                    style={{ flex: 1, height: 42, borderRadius: 10, border: `1.5px solid ${actif ? T.b600 : T.line}`, background: actif ? T.tintb : T.surf, color: actif ? T.b600 : T.ink, fontWeight: 600, fontSize: 12.5, fontFamily: "inherit", cursor: "pointer" }}
+                  >
+                    {t(a.labelKey)}
+                  </button>
+                );
+              })}
+            </div>
+            {montrerIntendance && (
+              <select style={inp("intendance_id")} value={f.intendance_id ?? ""} onChange={(e) => set("intendance_id", e.target.value)} aria-label={t("completer.axeIntendance")}>
+                <option value="">{t("completer.selectIntendance")}</option>
+                {intendances.map((i) => <option key={i.id} value={i.id}>{i.nom}</option>)}
+              </select>
+            )}
+            {montrerCoordination && (
+              <select style={{ ...inp("coordination_id"), marginTop: montrerIntendance ? 8 : 0 }} value={f.coordination_id ?? ""} onChange={(e) => set("coordination_id", e.target.value)} aria-label={t("completer.axeCoordination")}>
+                <option value="">{t("completer.selectCoordination")}</option>
+                {coordinations.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+              </select>
+            )}
           </Field>
-          <Field label="Tribu" required highlight={hl("tribu_id")}>
+          <Field label={t("completer.fTribu")} required highlight={hl("tribu_id")}>
             <select style={inp("tribu_id")} value={f.tribu_id ?? ""} onChange={(e) => set("tribu_id", e.target.value)}>
-              <option value="">Sélectionner...</option>
+              <option value="">{t("completer.selectPlaceholder")}</option>
               {tribus.map((tr) => <option key={tr.id} value={tr.id}>{tr.nom}</option>)}
             </select>
           </Field>
@@ -333,10 +513,10 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
 
       {step === 2 && (
         <>
-          <p style={{ fontFamily: T.fm, fontSize: 9, letterSpacing: 0.8, color: T.b600, margin: "14px 2px 2px" }}>ENGAGEMENT & FONCTION</p>
+          <p style={{ fontFamily: T.fm, fontSize: 9, letterSpacing: 0.8, color: T.b600, margin: "14px 2px 2px" }}>{t("completer.secEngagement")}</p>
           <Field label={t("profil.statut")} highlight={hl("type_membre")} info={t("profil.statutInfo")}>
             <select style={inp("type_membre")} value={f.type_membre ?? ""} onChange={(e) => set("type_membre", e.target.value)}>
-              <option value="">Sélectionner...</option>
+              <option value="">{t("completer.selectPlaceholder")}</option>
               {STATUTS.map((s) => <option key={s.value} value={s.value}>{t(s.key)}</option>)}
             </select>
           </Field>
@@ -350,22 +530,20 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
             <p style={{ fontSize: 11, color: T.warn, margin: "6px 2px 0" }}>{t("profil.fonctionAttente")}</p>
           )}
 
-          <p style={{ fontFamily: T.fm, fontSize: 9, letterSpacing: 0.8, color: T.b600, margin: "18px 2px 2px" }}>ADRESSE (facultatif)</p>
-          <p style={{ fontSize: 11, color: T.mut, lineHeight: 1.5, margin: "2px 2px 6px" }}>
-            Une indication générale suffit (quartier, secteur). Ne renseignez pas d'adresse précise.
-          </p>
-          <Field label="Adresse (générale)" highlight={hl("adresse")} info="Une indication générale suffit (quartier, secteur). Ne renseignez jamais une adresse précise, pour votre sécurité."><input style={inp("adresse")} value={f.adresse ?? ""} onChange={(e) => set("adresse", e.target.value)} placeholder="Ex. Cocody, quartier des Deux-Plateaux" /></Field>
-          <Field label="Complément (facultatif)" highlight={hl("adresse_complement")}><input style={inp("adresse_complement")} value={f.adresse_complement ?? ""} onChange={(e) => set("adresse_complement", e.target.value)} placeholder="Précision libre, si vous le souhaitez" /></Field>
+          <p style={{ fontFamily: T.fm, fontSize: 9, letterSpacing: 0.8, color: T.b600, margin: "18px 2px 2px" }}>{t("completer.secAdresse")}</p>
+          <p style={{ fontSize: 11, color: T.mut, lineHeight: 1.5, margin: "2px 2px 6px" }}>{t("completer.adresseNote")}</p>
+          <Field label={t("completer.fAdresse")} highlight={hl("adresse")} info={t("completer.iAdresse")}><input style={inp("adresse")} value={f.adresse ?? ""} onChange={(e) => set("adresse", e.target.value)} placeholder={t("completer.phAdresse")} /></Field>
+          <Field label={t("completer.fComplement")} highlight={hl("adresse_complement")}><input style={inp("adresse_complement")} value={f.adresse_complement ?? ""} onChange={(e) => set("adresse_complement", e.target.value)} placeholder={t("completer.phComplement")} /></Field>
 
-          <p style={{ fontFamily: T.fm, fontSize: 9, letterSpacing: 0.8, color: T.b600, margin: "18px 2px 2px" }}>VIE PERSONNELLE (facultatif)</p>
-          <Field label="Situation matrimoniale" highlight={hl("situation_matrimoniale")}>
+          <p style={{ fontFamily: T.fm, fontSize: 9, letterSpacing: 0.8, color: T.b600, margin: "18px 2px 2px" }}>{t("completer.secVie")}</p>
+          <Field label={t("completer.fSituation")} highlight={hl("situation_matrimoniale")}>
             <select style={inp("situation_matrimoniale")} value={f.situation_matrimoniale ?? ""} onChange={(e) => set("situation_matrimoniale", e.target.value)}>
-              <option value="">Sélectionner...</option>
-              {SITUATIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+              <option value="">{t("completer.selectPlaceholder")}</option>
+              {SITUATIONS.map((s) => <option key={s.value} value={s.value}>{t(s.labelKey)}</option>)}
             </select>
           </Field>
-          <Field label="Profession" highlight={hl("profession")}><input style={inp("profession")} value={f.profession} onChange={(e) => set("profession", e.target.value)} /></Field>
-          <Field label="Niveau d'études" highlight={hl("niveau_etudes")}><input style={inp("niveau_etudes")} value={f.niveau_etudes} onChange={(e) => set("niveau_etudes", e.target.value)} /></Field>
+          <Field label={t("completer.fProfession")} highlight={hl("profession")}><input style={inp("profession")} value={f.profession} onChange={(e) => set("profession", e.target.value)} /></Field>
+          <Field label={t("completer.fNiveauEtudes")} highlight={hl("niveau_etudes")}><input style={inp("niveau_etudes")} value={f.niveau_etudes} onChange={(e) => set("niveau_etudes", e.target.value)} /></Field>
         </>
       )}
 
@@ -378,34 +556,37 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
           photoFile={photoFile}
           pieceFile={pieceFile}
           pieceType={pieceType}
-          onPhotoFile={setPhotoFile}
-          onPieceFile={setPieceFile}
+          onPhotoFile={(file) => {
+            setPhotoFile(file);
+            setPhotoDejaEnvoyee(false);
+          }}
+          onPieceFile={(file) => {
+            setPieceFile(file);
+            setPieceDejaEnvoyee(false);
+          }}
           onPieceType={setPieceType}
         />
       )}
 
       {step === 4 && (
         <>
-          <p style={{ fontSize: 12, color: T.mut, lineHeight: 1.5, margin: "10px 2px 8px" }}>
-            Lisez les documents puis signez électroniquement avec le code reçu. Cette signature valide votre engagement.
-          </p>
+          <p style={{ fontSize: 12, color: T.mut, lineHeight: 1.5, margin: "10px 2px 8px" }}>{t("completer.signatureIntro")}</p>
           <SignatureEngagement token={token} onSigned={() => setSigned(true)} />
         </>
       )}
 
       {step === 5 && (
         <>
-          <p style={{ fontSize: 12, color: T.mut, lineHeight: 1.5, margin: "10px 2px 8px" }}>
-            Vérifiez le récapitulatif. Vous pouvez revenir en arrière pour corriger avant d'envoyer.
-          </p>
-          <RecapRow label="Nom complet" value={`${f.prenoms} ${f.nom}`.trim() || "Non renseigné"} ok={!!(f.prenoms && f.nom)} />
-          <RecapRow label="Téléphone" value={f.telephone ? `${f.indicatif_telephone ?? ""} ${f.telephone}` : "Non renseigné"} ok={!!f.telephone} />
-          <RecapRow label="Pays / Ville" value={[f.pays, f.ville].filter(Boolean).join(", ") || "Non renseigné"} ok={!!(f.pays && f.ville)} />
-          <RecapRow label="Commission" value={commissionNom || "Non choisie"} ok={!!f.commission_id} />
-          <RecapRow label="Tribu" value={tribuNom || "Non choisie"} ok={!!f.tribu_id} />
-          <RecapRow label="Photo d'identité" value={photoOk ? "Fournie" : "Manquante"} ok={photoOk} />
-          <RecapRow label="Pièce d'identité" value={pieceOk ? "Fournie" : "Manquante"} ok={pieceOk} />
-          <RecapRow label="Signature électronique" value={signed ? "Vérifiée" : "Manquante"} ok={signed} />
+          <p style={{ fontSize: 12, color: T.mut, lineHeight: 1.5, margin: "10px 2px 8px" }}>{t("completer.recapIntro")}</p>
+          <RecapRow label={t("completer.recapNom")} value={`${f.prenoms} ${f.nom}`.trim() || t("completer.recapEmpty")} ok={!!(f.prenoms && f.nom)} />
+          <RecapRow label={t("completer.recapTelephone")} value={f.telephone ? `${f.indicatif_telephone ?? ""} ${f.telephone}` : t("completer.recapEmpty")} ok={!!f.telephone} />
+          <RecapRow label={t("completer.recapPaysVille")} value={[f.pays, f.ville].filter(Boolean).join(", ") || t("completer.recapEmpty")} ok={!!(f.pays && f.ville)} />
+          <RecapRow label={t("completer.recapCommission")} value={commissionNom || t("completer.recapNotChosenF")} ok={!!f.commission_id} />
+          <RecapRow label={t("completer.recapRattachement")} value={rattachementTxt || t("completer.recapNotChosenM")} ok={axeOk} />
+          <RecapRow label={t("completer.recapTribu")} value={tribuNom || t("completer.recapNotChosenF")} ok={!!f.tribu_id} />
+          <RecapRow label={t("completer.recapPhoto")} value={photoOk ? t("completer.recapProvided") : t("completer.recapMissing")} ok={photoOk} />
+          <RecapRow label={t("completer.recapPiece")} value={pieceOk ? t("completer.recapProvided") : t("completer.recapMissing")} ok={pieceOk} />
+          <RecapRow label={t("completer.recapSignature")} value={signed ? t("completer.recapVerified") : t("completer.recapMissing")} ok={signed} />
         </>
       )}
 
@@ -418,16 +599,19 @@ export function CompleterProfil({ token, profile, statut, motif, champsACorriger
           const submitDisabled = busy || !requiredOk || !photoOk || !pieceOk || photoNeedsRedo || pieceNeedsRedo || !signed;
           return (
             <div style={{ position: "sticky", bottom: 0, marginTop: 16, padding: "10px 0 6px", background: `linear-gradient(transparent, ${T.bg} 35%)`, display: "flex", gap: 10 }}>
-              <div onClick={() => goTo(4)} className="tap" style={{ flex: 1, height: 50, border: `1.5px solid ${T.line}`, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 14, background: T.surf }}>
-                Retour
-              </div>
-              <div
+              <button type="button" onClick={() => goTo(4)} className="tap" style={{ flex: 1, height: 50, border: `1.5px solid ${T.line}`, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", fontWeight: 600, fontSize: 14, background: T.surf, color: T.ink, cursor: "pointer" }}>
+                {t("completer.back")}
+              </button>
+              <button
+                type="button"
                 onClick={submitDisabled ? undefined : () => void submit()}
+                disabled={submitDisabled}
+                aria-disabled={submitDisabled}
                 className="tap"
-                style={{ flex: 2, height: 50, background: submitDisabled ? T.faint : gradient, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 600, fontSize: 15, opacity: submitDisabled ? 0.7 : 1, cursor: submitDisabled ? "not-allowed" : "pointer", boxShadow: submitDisabled ? "none" : "0 12px 24px -10px rgba(42,79,173,.7)" }}
+                style={{ flex: 2, height: 50, border: "none", fontFamily: "inherit", background: submitDisabled ? T.faint : gradient, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 600, fontSize: 15, opacity: submitDisabled ? 0.7 : 1, cursor: submitDisabled ? "not-allowed" : "pointer", boxShadow: submitDisabled ? "none" : "0 12px 24px -10px rgba(42,79,173,.7)" }}
               >
-                {busy ? "Envoi en cours..." : correction ? t("correction.resubmit") : "Soumettre mon inscription"}
-              </div>
+                {busy ? t("completer.submitting") : correction ? t("correction.resubmit") : t("completer.submit")}
+              </button>
             </div>
           );
         })()

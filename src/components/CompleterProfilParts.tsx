@@ -9,16 +9,16 @@ export const lbl = { fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "12px 
 export const baseInp = { width: "100%", border: `1px solid ${T.line}`, borderRadius: 11, padding: "11px 12px", fontSize: 13.5, fontFamily: T.fu, background: T.surf, boxSizing: "border-box" } as const;
 
 export const GENRES = [
-  { value: "homme", label: "Homme" },
-  { value: "femme", label: "Femme" },
+  { value: "homme", labelKey: "completer.genreHomme" },
+  { value: "femme", labelKey: "completer.genreFemme" },
 ];
 export const SITUATIONS = [
-  { value: "celibataire", label: "Célibataire" },
-  { value: "en_couple", label: "En couple" },
-  { value: "fiance", label: "Fiancé(e)" },
-  { value: "marie", label: "Marié(e)" },
-  { value: "veuf", label: "Veuf(ve)" },
-  { value: "divorce", label: "Divorcé(e)" },
+  { value: "celibataire", labelKey: "completer.sitCelibataire" },
+  { value: "en_couple", labelKey: "completer.sitEnCouple" },
+  { value: "fiance", labelKey: "completer.sitFiance" },
+  { value: "marie", labelKey: "completer.sitMarie" },
+  { value: "veuf", labelKey: "completer.sitVeuf" },
+  { value: "divorce", labelKey: "completer.sitDivorce" },
 ];
 export const STATUTS = [
   { value: "membre_simple", key: "profil.statutSimple" },
@@ -45,6 +45,7 @@ export function initialFields(p: MembreProfile | null): ProfilFields {
     adresse_complement: p?.adresse_complement ?? "",
     commission_id: p?.commission_id ?? "",
     intendance_id: p?.intendance_id ?? "",
+    coordination_id: p?.coordination_id ?? "",
     tribu_id: p?.tribu_id ?? "",
     groupe: p?.groupe ?? "",
     situation_matrimoniale: p?.situation_matrimoniale ?? "",
@@ -76,22 +77,24 @@ export function Field({ label, required, info, highlight, children }: { label: s
 
 /** Step definitions of the registration wizard, in order. */
 export const WIZARD_STEPS = [
-  { key: "identite", label: "Identité" },
-  { key: "rattachement", label: "Rattachement" },
-  { key: "vie", label: "Vie & fonction" },
-  { key: "pieces", label: "Pièces" },
-  { key: "signature", label: "Signature" },
-  { key: "recap", label: "Récapitulatif" },
+  { key: "identite", labelKey: "completer.stepIdentite" },
+  { key: "rattachement", labelKey: "completer.stepRattachement" },
+  { key: "vie", labelKey: "completer.stepVie" },
+  { key: "pieces", labelKey: "completer.stepPieces" },
+  { key: "signature", labelKey: "completer.stepSignature" },
+  { key: "recap", labelKey: "completer.stepRecap" },
 ] as const;
 
 /** Progress header of the wizard: step counter, title and progress bar. */
 export function Stepper({ step }: { step: number }): JSX.Element {
+  const t = useT();
   const total = WIZARD_STEPS.length;
+  const current = WIZARD_STEPS[step];
   return (
     <div style={{ margin: "10px 0 4px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <span style={{ fontFamily: T.fd, fontWeight: 700, fontSize: 16 }}>{WIZARD_STEPS[step]?.label ?? ""}</span>
-        <span style={{ fontFamily: T.fm, fontSize: 10, color: T.mut }}>Étape {step + 1} / {total}</span>
+        <span style={{ fontFamily: T.fd, fontWeight: 700, fontSize: 16 }}>{current ? t(current.labelKey) : ""}</span>
+        <span style={{ fontFamily: T.fm, fontSize: 10, color: T.mut }}>{t("completer.stepCounter").replace("{n}", String(step + 1)).replace("{total}", String(total))}</span>
       </div>
       <div style={{ display: "flex", gap: 5, marginTop: 8 }}>
         {WIZARD_STEPS.map((s, i) => (
@@ -110,20 +113,24 @@ export function WizardNav({ step, busy, nextLabel, onBack, onNext }: {
   onBack: () => void;
   onNext: () => void;
 }): JSX.Element {
+  const t = useT();
   return (
     <div style={{ position: "sticky", bottom: 0, marginTop: 16, padding: "10px 0 6px", background: `linear-gradient(transparent, ${T.bg} 35%)`, display: "flex", gap: 10 }}>
       {step > 0 && (
-        <div onClick={onBack} className="tap" style={{ flex: 1, height: 48, border: `1.5px solid ${T.line}`, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 14, background: T.surf }}>
-          Retour
-        </div>
+        <button type="button" onClick={onBack} className="tap" style={{ flex: 1, height: 48, border: `1.5px solid ${T.line}`, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", fontWeight: 600, fontSize: 14, background: T.surf, color: T.ink, cursor: "pointer" }}>
+          {t("completer.back")}
+        </button>
       )}
-      <div
+      <button
+        type="button"
         onClick={busy ? undefined : onNext}
+        disabled={busy}
+        aria-disabled={busy}
         className="tap"
-        style={{ flex: 2, height: 48, borderRadius: 13, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 600, fontSize: 14.5, background: busy ? T.faint : T.b600, opacity: busy ? 0.7 : 1, boxShadow: busy ? "none" : "0 10px 20px -10px rgba(42,79,173,.6)" }}
+        style={{ flex: 2, height: 48, borderRadius: 13, border: "none", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 600, fontSize: 14.5, background: busy ? T.faint : T.b600, opacity: busy ? 0.7 : 1, cursor: busy ? "not-allowed" : "pointer", boxShadow: busy ? "none" : "0 10px 20px -10px rgba(42,79,173,.6)" }}
       >
-        {nextLabel ?? "Continuer"}
-      </div>
+        {nextLabel ?? t("completer.continue")}
+      </button>
     </div>
   );
 }
@@ -139,6 +146,7 @@ export function RecapRow({ label, value, ok }: { label: string; value: string; o
 }
 
 export function TelegramInvite({ token }: { token: string }): JSX.Element {
+  const t = useT();
   const [done, setDone] = useState(false);
   async function rejoindre(): Promise<void> {
     try {
@@ -150,12 +158,12 @@ export function TelegramInvite({ token }: { token: string }): JSX.Element {
     }
   }
   return (
-    <div style={{ background: "linear-gradient(135deg,#eaf0ff,#f4f6fb)", border: `1px solid ${T.line}`, borderRadius: 13, padding: "12px 14px", margin: "10px 0 2px" }}>
+    <div style={{ background: T.tintb, border: `1px solid ${T.line}`, borderRadius: 13, padding: "12px 14px", margin: "10px 0 2px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ fontSize: 24 }}>✈️</div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: T.ink, fontFamily: T.fd }}>Recevez vos notifications sur Telegram</div>
-          <div style={{ fontSize: 11, color: T.mut, lineHeight: 1.45 }}>Gratuit. Une seule fois : appuyez sur « Démarrer », puis tout arrive automatiquement (rappels, événements, anniversaire).</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: T.ink, fontFamily: T.fd }}>{t("completer.tgTitle")}</div>
+          <div style={{ fontSize: 11, color: T.mut, lineHeight: 1.45 }}>{t("completer.tgHint")}</div>
         </div>
       </div>
       <div
@@ -163,7 +171,7 @@ export function TelegramInvite({ token }: { token: string }): JSX.Element {
         className="tap"
         style={{ marginTop: 10, height: 40, borderRadius: 10, background: done ? T.okbg : T.b600, color: done ? T.ok : "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 13 }}
       >
-        {done ? "Ouvert dans Telegram - appuyez sur Démarrer ✓" : "Rejoindre Telegram"}
+        {done ? t("completer.tgOpened") : t("completer.tgJoin")}
       </div>
     </div>
   );

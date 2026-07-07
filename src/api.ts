@@ -5,6 +5,16 @@ import { computePhash } from "./phash.js";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "https://adsum-api.vercel.app";
 
+/** Bilingual user-facing message for errors thrown outside React (no useT here).
+ * Reads the language the UI persists in localStorage; returns French by default. */
+function apiMsg(fr: string, en: string): string {
+  try {
+    return typeof localStorage !== "undefined" && localStorage.getItem("adsum.lang") === "en" ? en : fr;
+  } catch {
+    return fr;
+  }
+}
+
 export interface Me {
   id: string;
   email: string;
@@ -15,6 +25,7 @@ export interface Me {
 export interface MembreProfile {
   id: string;
   matricule: string;
+  code_membre: string | null;
   email: string;
   nom: string | null;
   prenoms: string | null;
@@ -70,6 +81,7 @@ export interface MembreProfile {
   coordinateur_titre: string | null;
   champs_deverrouilles: string[];
   langue: string;
+  theme: "light" | "dark" | "system";
   titre?: string | null;
   fonction_cle?: string | null;
   fonction_confirmee: boolean;
@@ -93,9 +105,10 @@ export interface EvenementOut {
   mode?: string | null;
   type_diffusion: "embed" | "externe" | "aucun";
   visibilite: "public" | "membres" | "prive";
-  cible_type?: "general" | "coordination" | "commission" | "intendance" | "tribu";
+  cible_type?: "general" | "coordination" | "commission" | "intendance" | "tribu" | "bergers" | "responsables" | "liste";
   cible_id?: string | null;
   cible_libelle?: string | null;
+  tags?: { id: string; cle: string; libelle: string }[];
   phase: "a_venir" | "bientot" | "en_cours" | "termine";
   joignable: boolean;
   formulaire_ouvert: boolean;
@@ -123,7 +136,17 @@ export interface AnniversaireOut {
   titre?: string | null;
 }
 
-export type AnniversaireCategorie = "vip" | "responsables" | "commission";
+export type AnniversaireCategorie =
+  | "vip"
+  | "responsables"
+  | "commission"
+  | "tribu"
+  | "coordination"
+  | "intendance"
+  | "direction"
+  | "coordinateurs"
+  | "bergers"
+  | "patriarches";
 
 export interface NotifPreferences {
   evenements: boolean;
@@ -138,6 +161,9 @@ export interface NotifPreferences {
   cal_vip: boolean;
   cal_responsables: boolean;
   cal_commission: boolean;
+  cal_tribu: boolean;
+  cal_coordination: boolean;
+  cal_intendance: boolean;
 }
 
 export interface QuestionItem {
@@ -252,14 +278,37 @@ async function authedGet<T>(path: string, token: string, onError: string): Promi
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) {
-    throw new ApiError(res.status === 401 ? "Session expirée" : onError, res.status);
+    throw new ApiError(res.status === 401 ? apiMsg("Session expirée", "Session expired") : onError, res.status);
   }
   return (await res.json()) as T;
 }
 
 export interface LoginResult {
-  token: string;
+  // When the second factor is required, otpRequired is true and token is empty;
+  // the caller then collects the code and calls loginVerify.
+  otpRequired: boolean;
+  token: string | null;
   doitChangerMdp: boolean;
+  canal: string | null;
+}
+
+/** Stable per-device id kept in localStorage, sent so the server can remember a
+ * trusted device for 30 days. A random UUID, never personal data. */
+export function deviceId(): string {
+  if (typeof localStorage === "undefined") return "";
+  let id = localStorage.getItem("adsum.device.id");
+  if (!id) {
+    id = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `dev-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem("adsum.device.id", id);
+  }
+  return id;
+}
+
+function loginError(status: number): ApiError {
+  if (status === 401) return new ApiError(apiMsg("Identifiants invalides ou mot de passe temporaire expiré", "Invalid credentials or expired temporary password"), status);
+  if (status === 429) return new ApiError(apiMsg("Trop de tentatives de connexion. Patientez quelques minutes, puis réessayez.", "Too many sign-in attempts. Wait a few minutes, then try again."), status);
+  if (status === 400) return new ApiError(apiMsg("Code incorrect ou expiré. Vérifiez et réessayez.", "Incorrect or expired code. Check and try again."), status);
+  return new ApiError(apiMsg("Service momentanément indisponible. Réessayez dans un instant.", "Service temporarily unavailable. Try again shortly."), status);
 }
 
 export async function login(email: string, password: string): Promise<LoginResult> {
@@ -267,25 +316,94 @@ export async function login(email: string, password: string): Promise<LoginResul
   try {
     res = await fetch(`${BASE}/api/v1/auth/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Device-Id": deviceId() },
       body: JSON.stringify({ email, password }),
     });
   } catch {
-    throw new ApiError("Connexion au serveur impossible. Vérifiez votre réseau.", 0);
+    throw new ApiError(apiMsg("Connexion au serveur impossible. Vérifiez votre réseau.", "Cannot reach the server. Check your network."), 0);
   }
-  if (!res.ok) {
-    let message: string;
-    if (res.status === 401) {
-      message = "Identifiants invalides ou mot de passe temporaire expiré";
-    } else if (res.status === 429) {
-      message = "Trop de tentatives de connexion. Patientez quelques minutes, puis réessayez.";
-    } else {
-      message = "Service momentanément indisponible. Réessayez dans un instant.";
-    }
-    throw new ApiError(message, res.status);
+  if (!res.ok) throw loginError(res.status);
+  const data = (await res.json()) as { otp_required?: boolean; access_token?: string | null; doit_changer_mdp?: boolean; canal?: string | null };
+  return {
+    otpRequired: Boolean(data.otp_required),
+    token: data.access_token ?? null,
+    doitChangerMdp: Boolean(data.doit_changer_mdp),
+    canal: data.canal ?? null,
+  };
+}
+
+/** Second step of a 2FA login: send the one-time code (and optionally trust this
+ * device for 30 days) to obtain the session token. */
+export async function loginVerify(
+  email: string,
+  password: string,
+  code: string,
+  faireConfiance: boolean,
+): Promise<LoginResult> {
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/api/v1/auth/login-verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Device-Id": deviceId() },
+      body: JSON.stringify({ email, password, code, faire_confiance: faireConfiance }),
+    });
+  } catch {
+    throw new ApiError(apiMsg("Connexion au serveur impossible. Vérifiez votre réseau.", "Cannot reach the server. Check your network."), 0);
   }
-  const data = (await res.json()) as { access_token: string; doit_changer_mdp?: boolean };
-  return { token: data.access_token, doitChangerMdp: Boolean(data.doit_changer_mdp) };
+  if (!res.ok) throw loginError(res.status);
+  const data = (await res.json()) as { access_token?: string | null; doit_changer_mdp?: boolean };
+  return { otpRequired: false, token: data.access_token ?? null, doitChangerMdp: Boolean(data.doit_changer_mdp), canal: null };
+}
+
+export interface MfaAppareil {
+  id: string;
+  libelle: string;
+  cree_le: string | null;
+  dernier_usage: string | null;
+  expire_le: string | null;
+}
+
+export interface MfaState {
+  // Reinforced mode chosen by the member (shorter trust window).
+  actif: boolean;
+  // Whether 2FA is active on the account at all (baseline enforced or opted in).
+  verification_active: boolean;
+  canal: "auto" | "telegram" | "email";
+  recommander: boolean;
+  relance_forte: boolean;
+  appareils: MfaAppareil[];
+}
+
+export async function getMfaState(token: string): Promise<MfaState> {
+  const res = await fetch(`${BASE}/api/v1/membres/me/mfa`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new ApiError(apiMsg("Impossible de charger l'état de la double authentification.", "Could not load the two-factor authentication status."), res.status);
+  return (await res.json()) as MfaState;
+}
+
+export async function setDoubleFacteur(token: string, actif: boolean): Promise<void> {
+  const res = await fetch(`${BASE}/api/v1/membres/me/double-facteur`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ actif }),
+  });
+  if (!res.ok) throw new ApiError(apiMsg("Modification impossible pour le moment.", "Change not possible right now."), res.status);
+}
+
+export async function setMfaCanal(token: string, canal: "auto" | "telegram" | "email"): Promise<void> {
+  const res = await fetch(`${BASE}/api/v1/membres/me/mfa-canal`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ canal }),
+  });
+  if (!res.ok) throw new ApiError(apiMsg("Modification impossible pour le moment.", "Change not possible right now."), res.status);
+}
+
+export async function revokeAppareilConfiance(token: string, id: string): Promise<void> {
+  const res = await fetch(`${BASE}/api/v1/membres/me/appareils-confiance/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new ApiError(apiMsg("Révocation impossible pour le moment.", "Revocation not possible right now."), res.status);
 }
 
 export async function premiereConnexion(
@@ -300,14 +418,14 @@ export async function premiereConnexion(
     body: JSON.stringify({ email, mdp_temporaire: mdpTemporaire, nouveau_mdp: nouveauMdp, code_otp: codeOtp }),
   });
   if (!res.ok) {
-    throw new ApiError(res.status === 400 ? "Code ou mot de passe invalide" : "Validation impossible", res.status);
+    throw new ApiError(res.status === 400 ? apiMsg("Code ou mot de passe invalide", "Invalid code or password") : apiMsg("Validation impossible", "Validation failed"), res.status);
   }
   const data = (await res.json()) as { access_token: string };
   return data.access_token;
 }
 
 export function getMe(token: string): Promise<Me> {
-  return authedGet<Me>("/api/v1/auth/me", token, "Session expirée");
+  return authedGet<Me>("/api/v1/auth/me", token, apiMsg("Session expirée", "Session expired"));
 }
 
 /** Detect the device IANA time zone (e.g. "Europe/Paris"), no geolocation prompt. */
@@ -330,7 +448,7 @@ export async function setFuseau(token: string, fuseau: string): Promise<void> {
 }
 
 export function getMembreProfile(token: string): Promise<MembreProfile> {
-  return authedGet<MembreProfile>("/api/v1/membres/me", token, "Profil indisponible");
+  return authedGet<MembreProfile>("/api/v1/membres/me", token, apiMsg("Profil indisponible", "Profile unavailable"));
 }
 
 export interface MembreConsultation {
@@ -356,11 +474,11 @@ export interface ConsultationDetail {
 }
 
 export function getMesConsultations(token: string): Promise<MembreConsultation[]> {
-  return authedGet<MembreConsultation[]>("/api/v1/membres/me/consultations", token, "Consultations indisponibles");
+  return authedGet<MembreConsultation[]>("/api/v1/membres/me/consultations", token, apiMsg("Consultations indisponibles", "Consultations unavailable"));
 }
 
 export function getConsultationDetail(token: string, id: string): Promise<ConsultationDetail> {
-  return authedGet<ConsultationDetail>(`/api/v1/membres/me/consultations/${id}`, token, "Consultation indisponible");
+  return authedGet<ConsultationDetail>(`/api/v1/membres/me/consultations/${id}`, token, apiMsg("Consultation indisponible", "Consultation unavailable"));
 }
 
 export function repondreConsultation(
@@ -368,15 +486,15 @@ export function repondreConsultation(
   id: string,
   reponses: { question_id: string; valeur: string }[],
 ): Promise<{ ok: boolean; enregistrees: number }> {
-  return authedPost(`/api/v1/membres/me/consultations/${id}/reponses`, token, { reponses }, "Envoi impossible");
+  return authedPost(`/api/v1/membres/me/consultations/${id}/reponses`, token, { reponses }, apiMsg("Envoi impossible", "Sending failed"));
 }
 
 export function getEvenements(token: string): Promise<EvenementOut[]> {
-  return authedGet<EvenementOut[]>("/api/v1/membres/me/evenements", token, "Activités indisponibles");
+  return authedGet<EvenementOut[]>("/api/v1/membres/me/evenements", token, apiMsg("Activités indisponibles", "Activities unavailable"));
 }
 
 export function getFonctions(token: string): Promise<FonctionItem[]> {
-  return authedGet<FonctionItem[]>("/api/v1/fonctions", token, "Fonctions indisponibles");
+  return authedGet<FonctionItem[]>("/api/v1/fonctions", token, apiMsg("Fonctions indisponibles", "Functions unavailable"));
 }
 
 export function getAnniversaires(
@@ -388,52 +506,57 @@ export function getAnniversaires(
   return authedGet<AnniversaireOut[]>(
     `/api/v1/membres/anniversaires?${query.toString()}`,
     token,
-    "Anniversaires indisponibles",
+    apiMsg("Anniversaires indisponibles", "Birthdays unavailable"),
   );
 }
 
 export function setAnniversaireVisibilite(token: string, visible: boolean): Promise<{ ok: boolean }> {
-  return authedPut("/api/v1/membres/me/anniversaire-visibilite", token, { visible }, "Mise à jour impossible");
+  return authedPut("/api/v1/membres/me/anniversaire-visibilite", token, { visible }, apiMsg("Mise à jour impossible", "Update failed"));
 }
 
 export function getNotifPreferences(token: string): Promise<NotifPreferences> {
-  return authedGet<NotifPreferences>("/api/v1/membres/me/preferences-notification", token, "Préférences indisponibles");
+  return authedGet<NotifPreferences>("/api/v1/membres/me/preferences-notification", token, apiMsg("Préférences indisponibles", "Preferences unavailable"));
 }
 
 export function exportDonneesRGPD(token: string): Promise<Record<string, unknown>> {
-  return authedGet<Record<string, unknown>>("/api/v1/membres/me/export", token, "Export impossible");
+  return authedGet<Record<string, unknown>>("/api/v1/membres/me/export", token, apiMsg("Export impossible", "Export failed"));
 }
 
 export function setLangue(token: string, langue: "fr" | "en"): Promise<{ ok: boolean; langue: string }> {
-  return authedPut("/api/v1/membres/me/langue", token, { langue }, "Changement de langue impossible");
+  return authedPut("/api/v1/membres/me/langue", token, { langue }, apiMsg("Changement de langue impossible", "Could not change language"));
+}
+
+export function setTheme(token: string, theme: "light" | "dark" | "system"): Promise<{ ok: boolean; theme: string }> {
+  return authedPut("/api/v1/membres/me/theme", token, { theme }, apiMsg("Changement de thème impossible", "Could not change theme"));
 }
 
 export function telegramLien(token: string): Promise<{ deep_link: string }> {
-  return authedPost("/api/v1/membres/me/telegram/lien", token, {}, "Lien indisponible");
+  return authedPost("/api/v1/membres/me/telegram/lien", token, {}, apiMsg("Lien indisponible", "Link unavailable"));
 }
 
 export function telegramVerifier(token: string): Promise<{ linked: boolean; message?: string }> {
-  return authedPost("/api/v1/membres/me/telegram/verifier", token, {}, "Vérification impossible");
+  return authedPost("/api/v1/membres/me/telegram/verifier", token, {}, apiMsg("Vérification impossible", "Verification failed"));
 }
 
 export function enregistrerWhatsapp(token: string, numero: string): Promise<{ ok: boolean }> {
-  return authedPut("/api/v1/membres/me/whatsapp", token, { numero }, "Enregistrement impossible");
+  return authedPut("/api/v1/membres/me/whatsapp", token, { numero }, apiMsg("Enregistrement impossible", "Save failed"));
 }
 
 export function demanderSuppression(token: string): Promise<{ ok: boolean; demande_id?: string; deja_demandee?: boolean }> {
-  return authedPost("/api/v1/membres/me/suppression", token, {}, "Demande impossible");
+  return authedPost("/api/v1/membres/me/suppression", token, {}, apiMsg("Demande impossible", "Request failed"));
 }
 
 export function setNotifPreferences(token: string, prefs: NotifPreferences): Promise<NotifPreferences> {
-  return authedPut<NotifPreferences>("/api/v1/membres/me/preferences-notification", token, prefs, "Mise à jour impossible");
+  return authedPut<NotifPreferences>("/api/v1/membres/me/preferences-notification", token, prefs, apiMsg("Mise à jour impossible", "Update failed"));
 }
 
 export interface ParticipationMembre {
   statut: "present" | "partiel" | "absent" | null;
   source: "scan" | "declaration" | null;
   valide: boolean;
-  avis: string | null;
-  note: number | null;
+  /** Whether the member has already used their one-time ANONYMOUS evaluation. The
+   * content of that evaluation is never returned (no member link exists). */
+  deja_evalue: boolean;
   deja_scanne: boolean;
   verrouille: boolean;
   ouvert: boolean;
@@ -447,7 +570,7 @@ export interface ParticipationMembre {
 }
 
 export function getParticipation(token: string, eventId: string): Promise<ParticipationMembre> {
-  return authedGet<ParticipationMembre>(`/api/v1/membres/me/evenements/${eventId}/participation`, token, "Participation indisponible");
+  return authedGet<ParticipationMembre>(`/api/v1/membres/me/evenements/${eventId}/participation`, token, apiMsg("Participation indisponible", "Participation unavailable"));
 }
 
 export function declarerParticipation(
@@ -455,14 +578,14 @@ export function declarerParticipation(
   eventId: string,
   body: { statut?: string; modalite?: "presentiel" | "en_ligne"; avis?: string; note?: number; valider?: boolean },
 ): Promise<{ ok: boolean; verrouille: boolean; statut: string; message?: string }> {
-  return authedPut(`/api/v1/membres/me/evenements/${eventId}/participation`, token, body, "Envoi impossible");
+  return authedPut(`/api/v1/membres/me/evenements/${eventId}/participation`, token, body, apiMsg("Envoi impossible", "Sending failed"));
 }
 
 export function getEventQuestionnaire(token: string, eventId: string): Promise<QuestionnaireMembre> {
   return authedGet<QuestionnaireMembre>(
     `/api/v1/membres/me/evenements/${eventId}/questionnaire`,
     token,
-    "Questionnaire indisponible",
+    apiMsg("Questionnaire indisponible", "Questionnaire unavailable"),
   );
 }
 
@@ -471,12 +594,12 @@ export function submitQuestionnaire(token: string, eventId: string, reponses: Re
     `/api/v1/membres/me/evenements/${eventId}/questionnaire`,
     token,
     { reponses },
-    "Envoi impossible",
+    apiMsg("Envoi impossible", "Sending failed"),
   );
 }
 
 export function getHistorique(token: string): Promise<PresenceOut[]> {
-  return authedGet<PresenceOut[]>("/api/v1/membres/me/historique", token, "Historique indisponible");
+  return authedGet<PresenceOut[]>("/api/v1/membres/me/historique", token, apiMsg("Historique indisponible", "History unavailable"));
 }
 
 export function getQrToken(token: string): Promise<QrToken> {
@@ -484,11 +607,11 @@ export function getQrToken(token: string): Promise<QrToken> {
 }
 
 export function getNotifications(token: string): Promise<NotificationItem[]> {
-  return authedGet<NotificationItem[]>("/api/v1/membres/me/notifications", token, "Notifications indisponibles");
+  return authedGet<NotificationItem[]>("/api/v1/membres/me/notifications", token, apiMsg("Notifications indisponibles", "Notifications unavailable"));
 }
 
 export function marquerNotificationLue(token: string, id: string): Promise<void> {
-  return authedPost<void>(`/api/v1/membres/me/notifications/${id}/lire`, token, {}, "Marquage impossible");
+  return authedPost<void>(`/api/v1/membres/me/notifications/${id}/lire`, token, {}, apiMsg("Marquage impossible", "Could not update"));
 }
 
 export async function markNotificationsRead(token: string): Promise<void> {
@@ -499,15 +622,15 @@ export async function markNotificationsRead(token: string): Promise<void> {
 }
 
 export function getRecensement(token: string): Promise<Recensement | null> {
-  return authedGet<Recensement | null>("/api/v1/membres/me/recensement", token, "Recensement indisponible");
+  return authedGet<Recensement | null>("/api/v1/membres/me/recensement", token, apiMsg("Recensement indisponible", "Census unavailable"));
 }
 
 export function getDocuments(token: string): Promise<DocumentItem[]> {
-  return authedGet<DocumentItem[]>("/api/v1/membres/me/documents", token, "Dossier indisponible");
+  return authedGet<DocumentItem[]>("/api/v1/membres/me/documents", token, apiMsg("Dossier indisponible", "File unavailable"));
 }
 
 export function getEngagements(token: string): Promise<EngagementItem[]> {
-  return authedGet<EngagementItem[]>("/api/v1/membres/me/engagements", token, "Engagements indisponibles");
+  return authedGet<EngagementItem[]>("/api/v1/membres/me/engagements", token, apiMsg("Engagements indisponibles", "Commitments unavailable"));
 }
 
 async function authedPost<T>(path: string, token: string, body: unknown, onError: string): Promise<T> {
@@ -518,21 +641,21 @@ async function authedPost<T>(path: string, token: string, body: unknown, onError
   });
   if (!res.ok) {
     const detail = await readDetail(res);
-    throw new ApiError(res.status === 400 ? "Requête invalide" : res.status === 401 ? "Session expirée" : onError, res.status, detail);
+    throw new ApiError(res.status === 400 ? apiMsg("Requête invalide", "Invalid request") : res.status === 401 ? apiMsg("Session expirée", "Session expired") : onError, res.status, detail);
   }
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
 
 export function changePassword(token: string, ancien: string, nouveau: string): Promise<void> {
-  return authedPost<void>("/api/v1/membres/me/change-password", token, { ancien, nouveau }, "Changement impossible");
+  return authedPost<void>("/api/v1/membres/me/change-password", token, { ancien, nouveau }, apiMsg("Changement impossible", "Change failed"));
 }
 
 export function acceptEngagement(token: string, type: string): Promise<EngagementItem> {
-  return authedPost<EngagementItem>("/api/v1/membres/me/engagements/accepter", token, { type }, "Signature impossible");
+  return authedPost<EngagementItem>("/api/v1/membres/me/engagements/accepter", token, { type }, apiMsg("Signature impossible", "Signing failed"));
 }
 
 export function submitDocument(token: string, type: string, libelle?: string): Promise<DocumentItem> {
-  return authedPost<DocumentItem>("/api/v1/membres/me/documents", token, { type, libelle }, "Envoi impossible");
+  return authedPost<DocumentItem>("/api/v1/membres/me/documents", token, { type, libelle }, apiMsg("Envoi impossible", "Sending failed"));
 }
 
 export function participer(token: string, evenementId: string, note?: number, commentaire?: string): Promise<void> {
@@ -540,7 +663,7 @@ export function participer(token: string, evenementId: string, note?: number, co
     "/api/v1/membres/me/participation",
     token,
     { evenement_id: evenementId, note, commentaire },
-    "Validation impossible",
+    apiMsg("Validation impossible", "Validation failed"),
   );
 }
 
@@ -551,18 +674,18 @@ async function publicPost<T>(path: string, body: unknown, onError: string): Prom
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    throw new ApiError(res.status === 400 ? "Code ou requête invalide" : onError, res.status);
+    throw new ApiError(res.status === 400 ? apiMsg("Code ou requête invalide", "Invalid code or request") : onError, res.status);
   }
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
 
 export function requestOtp(email: string, purpose: string): Promise<{ ok: boolean; sent: boolean; provider: string }> {
-  return publicPost("/api/v1/auth/request-otp", { email, purpose }, "Envoi du code impossible");
+  return publicPost("/api/v1/auth/request-otp", { email, purpose }, apiMsg("Envoi du code impossible", "Could not send the code"));
 }
 
 /** Close the current session server-side (records the logout and its duration). */
 export function logoutSession(token: string): Promise<{ ok: boolean }> {
-  return authedPost("/api/v1/auth/logout", token, {}, "Déconnexion");
+  return authedPost("/api/v1/auth/logout", token, {}, apiMsg("Déconnexion", "Sign-out failed"));
 }
 
 export interface NiveauItem {
@@ -574,7 +697,7 @@ export interface NiveauItem {
 
 /** Active engagement levels (admin catalogue), for labels on the card and lists. */
 export function getNiveaux(token: string): Promise<NiveauItem[]> {
-  return authedGet<NiveauItem[]>("/api/v1/niveaux-engagement", token, "Niveaux indisponibles");
+  return authedGet<NiveauItem[]>("/api/v1/niveaux-engagement", token, apiMsg("Niveaux indisponibles", "Levels unavailable"));
 }
 
 export interface DemandeMessage {
@@ -628,7 +751,7 @@ export interface DemandeCatalogue {
 }
 
 export function getDemandeCatalogue(token: string): Promise<DemandeCatalogue> {
-  return authedGet<DemandeCatalogue>("/api/v1/membres/me/demandes/catalogue", token, "Catalogue indisponible");
+  return authedGet<DemandeCatalogue>("/api/v1/membres/me/demandes/catalogue", token, apiMsg("Catalogue indisponible", "Catalogue unavailable"));
 }
 
 export interface DemandeDetail extends Demande {
@@ -636,18 +759,18 @@ export interface DemandeDetail extends Demande {
 }
 
 export function getDemandes(token: string): Promise<Demande[]> {
-  return authedGet<Demande[]>("/api/v1/membres/me/demandes", token, "Demandes indisponibles");
+  return authedGet<Demande[]>("/api/v1/membres/me/demandes", token, apiMsg("Demandes indisponibles", "Requests unavailable"));
 }
 
 export function getDemande(token: string, id: string): Promise<DemandeDetail> {
-  return authedGet<DemandeDetail>(`/api/v1/membres/me/demandes/${id}`, token, "Demande indisponible");
+  return authedGet<DemandeDetail>(`/api/v1/membres/me/demandes/${id}`, token, apiMsg("Demande indisponible", "Request unavailable"));
 }
 
 export function createDemande(
   token: string,
   input: { type: string; sujet: string; champ_concerne?: string; message: string; categorie?: string; sous_categorie?: string },
 ): Promise<DemandeDetail> {
-  return authedPost<DemandeDetail>("/api/v1/membres/me/demandes", token, input, "Création impossible");
+  return authedPost<DemandeDetail>("/api/v1/membres/me/demandes", token, input, apiMsg("Création impossible", "Creation failed"));
 }
 
 export function sendDemandeMessage(token: string, id: string, corps: string, documentId?: string): Promise<DemandeMessage> {
@@ -655,12 +778,12 @@ export function sendDemandeMessage(token: string, id: string, corps: string, doc
     `/api/v1/membres/me/demandes/${id}/messages`,
     token,
     documentId ? { corps, document_id: documentId } : { corps },
-    "Envoi impossible",
+    apiMsg("Envoi impossible", "Sending failed"),
   );
 }
 
 export function resetPassword(email: string, code: string, nouveau: string): Promise<void> {
-  return publicPost<void>("/api/v1/auth/reset-password", { email, code, nouveau }, "Réinitialisation impossible");
+  return publicPost<void>("/api/v1/auth/reset-password", { email, code, nouveau }, apiMsg("Réinitialisation impossible", "Reset failed"));
 }
 
 export interface RefItem {
@@ -671,7 +794,7 @@ export interface RefItem {
 }
 
 export function getReference(token: string, kind: string): Promise<RefItem[]> {
-  return authedGet<RefItem[]>(`/api/v1/reference/${kind}`, token, "Liste indisponible");
+  return authedGet<RefItem[]>(`/api/v1/reference/${kind}`, token, apiMsg("Liste indisponible", "List unavailable"));
 }
 
 export interface ProfilFields {
@@ -689,6 +812,7 @@ export interface ProfilFields {
   adresse_complement?: string;
   commission_id?: string;
   intendance_id?: string;
+  coordination_id?: string;
   tribu_id?: string;
   groupe?: string;
   profession?: string;
@@ -709,7 +833,7 @@ async function authedPatch<T>(path: string, token: string, body: unknown, onErro
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    throw new ApiError(res.status === 401 ? "Session expirée" : onError, res.status);
+    throw new ApiError(res.status === 401 ? apiMsg("Session expirée", "Session expired") : onError, res.status);
   }
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
@@ -722,7 +846,7 @@ async function authedPut<T>(path: string, token: string, body: unknown, onError:
   });
   if (!res.ok) {
     const detail = await readDetail(res);
-    throw new ApiError(res.status === 401 ? "Session expirée" : onError, res.status, detail);
+    throw new ApiError(res.status === 401 ? apiMsg("Session expirée", "Session expired") : onError, res.status, detail);
   }
   return (res.status === 204 ? undefined : await res.json()) as T;
 }
@@ -731,7 +855,7 @@ export function updateProfil(
   token: string,
   fields: ProfilFields,
 ): Promise<{ ok: boolean; pending_validation?: boolean; champs?: string[]; updated?: string[] }> {
-  return authedPatch("/api/v1/membres/me/profil", token, fields, "Mise à jour impossible");
+  return authedPatch("/api/v1/membres/me/profil", token, fields, apiMsg("Mise à jour impossible", "Update failed"));
 }
 
 /** Single, unified submission of an admin-opened modification cycle: the edited
@@ -746,13 +870,13 @@ export function soumettreModifications(
     "/api/v1/membres/me/modifications/soumettre",
     token,
     { champs, inclure_photo: inclurePhoto },
-    "Soumission impossible",
+    apiMsg("Soumission impossible", "Submission failed"),
   );
 }
 
 /** Signed preview of a replacement photo staged but not yet validated. */
 export function getPendingPhotoUrl(token: string): Promise<{ url: string | null }> {
-  return authedGet("/api/v1/membres/me/photo/pending", token, "Aperçu indisponible");
+  return authedGet("/api/v1/membres/me/photo/pending", token, apiMsg("Aperçu indisponible", "Preview unavailable"));
 }
 
 export interface InscriptionStatut {
@@ -769,7 +893,7 @@ export function getInscription(token: string): Promise<InscriptionStatut> {
 }
 
 export function soumettreInscription(token: string): Promise<unknown> {
-  return authedPost("/api/v1/membres/me/inscription/soumettre", token, {}, "Soumission impossible");
+  return authedPost("/api/v1/membres/me/inscription/soumettre", token, {}, apiMsg("Soumission impossible", "Submission failed"));
 }
 
 interface SoumettreDetail {
@@ -806,7 +930,10 @@ const FIELD_LABELS: Record<string, string> = {
   genre: "Genre",
   ville: "Ville",
   pays: "Pays",
-  commission_id: "Commission",
+  commission_id: "Commission / Mission",
+  coordination_id: "Coordination",
+  intendance_id: "Intendance",
+  rattachement: "Coordination ou intendance",
   tribu_id: "Tribu",
 };
 
@@ -821,7 +948,7 @@ export function soumettreReason(err: unknown): string | null {
     return `Ces champs sont encore incomplets : ${labels}.`;
   }
   if (d.needs_document === true) {
-    return "Une pièce d'identité est requise avant l'envoi.";
+    return apiMsg("Une pièce d'identité est requise avant l'envoi.", "An identity document is required before sending.");
   }
   if (d.needs_signature === true) {
     return null; // handled by the signature flow, not a message
@@ -855,7 +982,7 @@ export function demanderSignature(
     "/api/v1/consentements/signature/demander",
     token,
     { documents },
-    "Envoi du code impossible",
+    apiMsg("Envoi du code impossible", "Could not send the code"),
   );
 }
 
@@ -872,7 +999,7 @@ export function getSignatureEtat(token: string): Promise<{ signe: boolean }> {
   return authedGet<{ signe: boolean }>(
     "/api/v1/consentements/signature/etat",
     token,
-    "État indisponible",
+    apiMsg("État indisponible", "Status unavailable"),
   );
 }
 
@@ -883,7 +1010,7 @@ async function uploadViaSignedUrl(uploadUrl: string, file: File): Promise<void> 
     headers: { "Content-Type": file.type || "application/octet-stream", "x-upsert": "true" },
     body: file,
   });
-  if (!put.ok) throw new ApiError("Téléversement impossible", put.status);
+  if (!put.ok) throw new ApiError(apiMsg("Téléversement impossible", "Upload failed"), put.status);
 }
 
 export async function uploadPhoto(
@@ -954,7 +1081,7 @@ export async function submitRecensement(
     body: JSON.stringify(reponse),
   });
   if (!res.ok) {
-    throw new ApiError(res.status === 401 ? "Session expirée" : "Envoi impossible", res.status);
+    throw new ApiError(res.status === 401 ? apiMsg("Session expirée", "Session expired") : apiMsg("Envoi impossible", "Sending failed"), res.status);
   }
 }
 
@@ -978,7 +1105,7 @@ export function uploadAttestation(token: string, documentId: string): Promise<At
     "/api/v1/membres/me/attestation/upload",
     token,
     { document_id: documentId },
-    "Envoi impossible",
+    apiMsg("Envoi impossible", "Sending failed"),
   );
 }
 

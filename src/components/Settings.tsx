@@ -2,20 +2,27 @@ import { useEffect, useState } from "react";
 
 import {
   type MembreProfile,
+  type MfaState,
   type NotifPreferences,
   changePassword,
   demanderSuppression,
   enregistrerWhatsapp,
   exportDonneesRGPD,
+  getMfaState,
   getNotifPreferences,
+  revokeAppareilConfiance,
   setAnniversaireVisibilite,
+  setDoubleFacteur,
   setLangue,
+  setMfaCanal,
   setNotifPreferences,
+  setTheme,
   telegramLien,
   telegramVerifier,
 } from "../api.js";
 import { type Lang, useT } from "../i18n.js";
 import { T } from "../proto.js";
+import { PasswordInput } from "./PasswordInput.js";
 
 function Toggle({ label, hint, on, onChange }: { label: string; hint?: string; on: boolean; onChange: (v: boolean) => void }): JSX.Element {
   return (
@@ -29,7 +36,7 @@ function Toggle({ label, hint, on, onChange }: { label: string; hint?: string; o
         className="tap"
         style={{ width: 44, height: 26, borderRadius: 999, background: on ? T.b600 : T.line, position: "relative", transition: "background .15s" }}
       >
-        <div style={{ position: "absolute", top: 3, left: on ? 21 : 3, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left .15s", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
+        <div style={{ position: "absolute", top: 3, left: on ? 21 : 3, width: 20, height: 20, borderRadius: "50%", background: T.surf, transition: "left .15s", boxShadow: "0 1px 3px rgba(0,0,0,.2)" }} />
       </div>
     </div>
   );
@@ -39,10 +46,9 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 5 }}>
       <span style={{ fontFamily: T.fm, fontSize: 9, color: T.mut }}>{label}</span>
-      <input
-        type="password"
+      <PasswordInput
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={onChange}
         style={{ height: 44, background: T.surf, border: `1px solid ${T.line}`, borderRadius: 11, padding: "0 13px", fontSize: 14, fontFamily: T.fu }}
       />
     </label>
@@ -110,20 +116,20 @@ export function Settings({
 
   async function save(): Promise<void> {
     if (!strong || nouveau !== confirme) {
-      setMsg({ kind: "err", text: "Mot de passe trop faible ou non confirmé." });
+      setMsg({ kind: "err", text: t("settings.msgWeakPw") });
       return;
     }
     setBusy(true);
     setMsg(null);
     try {
       await changePassword(token, ancien, nouveau);
-      setMsg({ kind: "ok", text: "Mot de passe mis à jour." });
+      setMsg({ kind: "ok", text: t("settings.msgPwUpdated") });
       setAncien("");
       setNouveau("");
       setConfirme("");
       setOpen(false);
     } catch {
-      setMsg({ kind: "err", text: "Mot de passe actuel incorrect." });
+      setMsg({ kind: "err", text: t("settings.msgPwWrong") });
     } finally {
       setBusy(false);
     }
@@ -139,9 +145,9 @@ export function Settings({
       a.download = `adsum-mes-donnees-${profile?.matricule ?? "export"}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      setMsg({ kind: "ok", text: "Export complet de vos données téléchargé." });
+      setMsg({ kind: "ok", text: t("settings.msgExportOk") });
     } catch {
-      setMsg({ kind: "err", text: "Export impossible pour le moment." });
+      setMsg({ kind: "err", text: t("settings.msgExportErr") });
     }
   }
 
@@ -150,12 +156,10 @@ export function Settings({
       const r = await demanderSuppression(token);
       setMsg({
         kind: "ok",
-        text: r.deja_demandee
-          ? "Une demande de suppression est déjà en cours de traitement."
-          : "Demande de suppression transmise à l'administration.",
+        text: r.deja_demandee ? t("settings.msgDeleteAlready") : t("settings.msgDeleteOk"),
       });
     } catch {
-      setMsg({ kind: "err", text: "Demande impossible pour le moment." });
+      setMsg({ kind: "err", text: t("settings.msgDeleteErr") });
     }
   }
 
@@ -165,23 +169,24 @@ export function Settings({
       <Row label={t("settings.changePassword")} hint={t("settings.changePasswordHint")} onClick={() => setOpen((v) => !v)} value={open ? "▾" : "›"} />
       {open && (
         <div style={{ display: "flex", flexDirection: "column", gap: 9, padding: "12px 0" }}>
-          <Field label="MOT DE PASSE ACTUEL" value={ancien} onChange={setAncien} />
-          <Field label="NOUVEAU MOT DE PASSE" value={nouveau} onChange={setNouveau} />
-          <Field label="CONFIRMER" value={confirme} onChange={setConfirme} />
+          <Field label={t("settings.pwCurrentLabel")} value={ancien} onChange={setAncien} />
+          <Field label={t("settings.pwNewLabel")} value={nouveau} onChange={setNouveau} />
+          <Field label={t("settings.pwConfirmLabel")} value={confirme} onChange={setConfirme} />
           <div style={{ display: "flex", gap: 8, fontSize: 9.5, color: strong ? T.ok : T.mut }}>
-            <span>{nouveau.length >= 8 ? "✓" : "○"} 8+ car.</span>
-            <span>{/[A-Z]/.test(nouveau) ? "✓" : "○"} majuscule</span>
-            <span>{/[0-9]/.test(nouveau) ? "✓" : "○"} chiffre</span>
+            <span>{nouveau.length >= 8 ? "✓" : "○"} {t("settings.pwLen")}</span>
+            <span>{/[A-Z]/.test(nouveau) ? "✓" : "○"} {t("settings.pwUpper")}</span>
+            <span>{/[0-9]/.test(nouveau) ? "✓" : "○"} {t("settings.pwDigit")}</span>
           </div>
           <div onClick={() => void save()} className="tap" style={{ height: 44, background: T.b600, color: "#fff", borderRadius: 11, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 13, opacity: busy ? 0.7 : 1 }}>
-            {busy ? "Enregistrement..." : "Valider le nouveau mot de passe"}
+            {busy ? t("settings.saving") : t("settings.pwSubmit")}
           </div>
         </div>
       )}
-      <Row label={t("settings.2fa")} hint={t("settings.2faHint")} value={t("settings.recommended")} />
+      <MfaSection token={token} />
 
       <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "16px 0 4px" }}>{t("settings.preferences")}</p>
       <LangueRow token={token} initial={profile?.langue === "en" ? "en" : "fr"} onLang={onLang} />
+      <ThemeRow token={token} initial={profile?.theme ?? "light"} />
 
       <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "16px 0 4px" }}>{t("settings.notifications")}</p>
       {prefs ? (
@@ -196,12 +201,25 @@ export function Settings({
         <Row label={t("settings.notifications")} hint={t("common.loading")} />
       )}
 
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 0", borderBottom: `1px solid ${T.line}` }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 600 }}>{t("settings.mandatoryTitle")}</div>
+          <div style={{ fontSize: 10, color: T.mut, lineHeight: 1.5 }}>{t("settings.mandatoryBody")}</div>
+        </div>
+        <span style={{ fontSize: 10, fontWeight: 700, color: T.mut, background: T.bg, border: `1px solid ${T.line}`, borderRadius: 8, padding: "3px 8px", whiteSpace: "nowrap" }}>
+          {t("settings.alwaysOn")}
+        </span>
+      </div>
+
       <p style={{ fontFamily: T.fm, fontSize: 9, color: T.mut, margin: "16px 0 4px" }}>{t("settings.calendar")}</p>
       {prefs ? (
         <>
           <Toggle label={t("settings.calVip")} hint={t("settings.calVipHint")} on={prefs.cal_vip} onChange={(v) => togglePref("cal_vip", v)} />
           <Toggle label={t("settings.calResponsables")} hint={t("settings.calResponsablesHint")} on={prefs.cal_responsables} onChange={(v) => togglePref("cal_responsables", v)} />
           <Toggle label={t("settings.calCommission")} hint={t("settings.calCommissionHint")} on={prefs.cal_commission} onChange={(v) => togglePref("cal_commission", v)} />
+          <Toggle label={t("settings.calTribu")} hint={t("settings.calTribuHint")} on={prefs.cal_tribu} onChange={(v) => togglePref("cal_tribu", v)} />
+          <Toggle label={t("settings.calCoordination")} hint={t("settings.calCoordinationHint")} on={prefs.cal_coordination} onChange={(v) => togglePref("cal_coordination", v)} />
+          <Toggle label={t("settings.calIntendance")} hint={t("settings.calIntendanceHint")} on={prefs.cal_intendance} onChange={(v) => togglePref("cal_intendance", v)} />
           <Toggle label={t("settings.annivPairs")} hint={t("settings.annivPairsHint")} on={prefs.anniv_pairs} onChange={(v) => togglePref("anniv_pairs", v)} />
         </>
       ) : (
@@ -256,6 +274,179 @@ function LangueRow({ token, initial, onLang }: { token: string; initial: "fr" | 
   );
 }
 
+type Theme = "light" | "dark" | "system";
+
+function applyTheme(theme: Theme): void {
+  const root = document.documentElement;
+  if (theme === "dark") root.setAttribute("data-theme", "dark");
+  else if (theme === "system") root.removeAttribute("data-theme");
+  else root.setAttribute("data-theme", "light");
+}
+
+function ThemeRow({ token, initial }: { token: string; initial: Theme }): JSX.Element {
+  const t = useT();
+  const [theme, setTh] = useState<Theme>(initial);
+  const options: Array<{ key: Theme; label: string }> = [
+    { key: "light", label: t("settings.themeLight") },
+    { key: "dark", label: t("settings.themeDark") },
+    { key: "system", label: t("settings.themeSystem") },
+  ];
+  function choose(v: Theme): void {
+    setTh(v);
+    applyTheme(v);
+    if (typeof localStorage !== "undefined") localStorage.setItem("adsum.theme", v);
+    void setTheme(token, v).catch(() => undefined);
+  }
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 0", borderBottom: `1px solid ${T.line}` }}>
+      <div>
+        <div style={{ fontSize: 12.5, fontWeight: 600 }}>{t("settings.appearance")}</div>
+        <div style={{ fontSize: 10, color: T.mut }}>{t("settings.appearanceHint")}</div>
+      </div>
+      <div style={{ display: "flex", gap: 6 }}>
+        {options.map((o) => (
+          <div
+            key={o.key}
+            onClick={() => choose(o.key)}
+            className="tap"
+            style={{ padding: "6px 11px", borderRadius: 9, fontSize: 11.5, fontWeight: 600, background: theme === o.key ? T.b600 : T.surf, color: theme === o.key ? "#fff" : T.mut, border: `1px solid ${theme === o.key ? T.b600 : T.line}` }}
+          >
+            {o.label}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MfaSection({ token }: { token: string }): JSX.Element {
+  const t = useT();
+  const [mfa, setMfa] = useState<MfaState | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  function reload(): void {
+    void getMfaState(token).then(setMfa).catch(() => setErr(t("settings.mfaLoadError")));
+  }
+  useEffect(() => {
+    reload();
+  }, [token]);
+
+  async function toggle(on: boolean): Promise<void> {
+    if (!mfa || busy) return;
+    setErr(null);
+    setBusy(true);
+    // Optimistic, with rollback on failure so no false "enabled" is ever shown.
+    setMfa({ ...mfa, actif: on, recommander: !on });
+    try {
+      await setDoubleFacteur(token, on);
+      reload();
+    } catch {
+      setMfa({ ...mfa, actif: !on });
+      setErr(t("settings.mfaChangeError"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function chooseCanal(canal: "auto" | "telegram" | "email"): Promise<void> {
+    if (!mfa) return;
+    const prev = mfa.canal;
+    setMfa({ ...mfa, canal });
+    try {
+      await setMfaCanal(token, canal);
+    } catch {
+      setMfa({ ...mfa, canal: prev });
+      setErr(t("settings.mfaChangeError"));
+    }
+  }
+
+  async function revoke(id: string): Promise<void> {
+    if (!mfa) return;
+    setMfa({ ...mfa, appareils: mfa.appareils.filter((a) => a.id !== id) });
+    try {
+      await revokeAppareilConfiance(token, id);
+    } catch {
+      reload();
+      setErr(t("settings.mfaRevokeError"));
+    }
+  }
+
+  if (!mfa) {
+    return <Row label={t("settings.2fa")} hint={t("common.loading")} />;
+  }
+
+  const jours = mfa.actif ? t("settings.mfa2faDays7") : t("settings.mfa2faDays30");
+  return (
+    <div style={{ padding: "6px 0" }}>
+      {/* Honest status: 2FA is active on the account (it cannot be silently
+          switched off), so this is a state, not a fake on/off toggle. */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: `1px solid ${T.line}` }}>
+        <div style={{ flex: 1, paddingRight: 10 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 600 }}>{t("settings.mfaTitle")}</div>
+          <div style={{ fontSize: 10, color: T.mut, lineHeight: 1.5 }}>{t("settings.mfaStatusBody").replace("{jours}", jours)}</div>
+        </div>
+        {mfa.verification_active && (
+          <span style={{ fontSize: 10, fontWeight: 700, color: T.ok, background: T.okbg, border: `1px solid ${T.ok}33`, borderRadius: 8, padding: "3px 9px", whiteSpace: "nowrap" }}>{t("settings.mfaActive")}</span>
+        )}
+      </div>
+
+      {/* Reinforced mode: a real, honest control (shorter re-verification window). */}
+      <Toggle
+        label={t("settings.mfaReinforced")}
+        hint={t("settings.mfaReinforcedHint")}
+        on={mfa.actif}
+        onChange={(v) => void toggle(v)}
+      />
+
+      {mfa.verification_active && (
+        <>
+          <div style={{ padding: "12px 0 6px" }}>
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: T.ink, marginBottom: 6 }}>{t("settings.mfaReceiveCode")}</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {([
+                { key: "auto", label: t("settings.mfaCanalAuto") },
+                { key: "telegram", label: t("settings.telegram") },
+                { key: "email", label: t("settings.mfaCanalEmail") },
+              ] as const).map((o) => (
+                <div
+                  key={o.key}
+                  onClick={() => void chooseCanal(o.key)}
+                  className="tap"
+                  style={{ padding: "6px 11px", borderRadius: 9, fontSize: 11.5, fontWeight: 600, background: mfa.canal === o.key ? T.b600 : T.surf, color: mfa.canal === o.key ? "#fff" : T.mut, border: `1px solid ${mfa.canal === o.key ? T.b600 : T.line}` }}
+                >
+                  {o.label}
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 10, color: T.faint, marginTop: 5 }}>{t("settings.mfaCanalNote")}</div>
+          </div>
+
+          <div style={{ padding: "6px 0" }}>
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: T.ink, marginBottom: 4 }}>{t("settings.mfaTrustedDevices")}</div>
+            {mfa.appareils.length === 0 ? (
+              <div style={{ fontSize: 11, color: T.faint }}>{t("settings.mfaNoTrustedDevices")}</div>
+            ) : (
+              mfa.appareils.map((a) => (
+                <div key={a.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${T.line}` }}>
+                  <div>
+                    <div style={{ fontSize: 12.5, fontWeight: 600 }}>{a.libelle}</div>
+                    <div style={{ fontSize: 10, color: T.mut }}>{a.expire_le ? t("settings.mfaValidUntil").replace("{date}", new Date(a.expire_le).toLocaleDateString("fr-FR")) : ""}</div>
+                  </div>
+                  <div onClick={() => void revoke(a.id)} className="tap" style={{ fontSize: 11.5, fontWeight: 600, color: T.dng, cursor: "pointer" }}>
+                    {t("settings.mfaRemove")}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      )}
+      {err && <div style={{ fontSize: 11, color: T.dng, marginTop: 4 }}>{err}</div>}
+    </div>
+  );
+}
+
 function Canaux({
   token,
   prefs,
@@ -267,6 +458,7 @@ function Canaux({
   onPref: (k: keyof NotifPreferences, v: boolean) => void;
   onMsg: (m: { kind: "ok" | "err"; text: string }) => void;
 }): JSX.Element {
+  const t = useT();
   const [deepLink, setDeepLink] = useState<string | null>(null);
   const [wa, setWa] = useState("");
   const [busy, setBusy] = useState(false);
@@ -278,7 +470,7 @@ function Canaux({
       setDeepLink(r.deep_link);
       window.open(r.deep_link, "_blank", "noopener");
     } catch {
-      onMsg({ kind: "err", text: "Telegram n'est pas encore configuré côté serveur." });
+      onMsg({ kind: "err", text: t("settings.msgTelegramNotConfigured") });
     } finally {
       setBusy(false);
     }
@@ -290,9 +482,9 @@ function Canaux({
       if (r.linked) {
         onPref("telegram", true);
         setDeepLink(null);
-        onMsg({ kind: "ok", text: "Compte Telegram lié. Vous recevrez vos notifications sur Telegram." });
+        onMsg({ kind: "ok", text: t("settings.msgTelegramLinked") });
       } else {
-        onMsg({ kind: "err", text: r.message ?? "Lien non détecté. Appuyez sur Démarrer dans Telegram puis réessayez." });
+        onMsg({ kind: "err", text: r.message ?? t("settings.msgTelegramNotDetected") });
       }
     } finally {
       setBusy(false);
@@ -304,9 +496,9 @@ function Canaux({
     try {
       await enregistrerWhatsapp(token, wa.trim());
       onPref("whatsapp", true);
-      onMsg({ kind: "ok", text: "Numéro WhatsApp enregistré." });
+      onMsg({ kind: "ok", text: t("settings.msgWhatsappSaved") });
     } catch {
-      onMsg({ kind: "err", text: "Numéro invalide." });
+      onMsg({ kind: "err", text: t("settings.msgWhatsappInvalid") });
     } finally {
       setBusy(false);
     }
@@ -317,26 +509,26 @@ function Canaux({
       <div style={{ padding: "12px 0", borderBottom: `1px solid ${T.line}` }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
           <div>
-            <div style={{ fontSize: 12.5, fontWeight: 600 }}>Telegram</div>
-            <div style={{ fontSize: 10, color: T.mut }}>Gratuit. Recevez vos notifications sur Telegram.</div>
+            <div style={{ fontSize: 12.5, fontWeight: 600 }}>{t("settings.telegram")}</div>
+            <div style={{ fontSize: 10, color: T.mut }}>{t("settings.telegramHint")}</div>
           </div>
           <div
             onClick={() => void lierTelegram()}
             className="tap"
             style={{ padding: "8px 14px", borderRadius: 10, background: prefs?.telegram ? T.okbg : T.b600, color: prefs?.telegram ? T.ok : "#fff", fontSize: 12, fontWeight: 600, opacity: busy ? 0.6 : 1 }}
           >
-            {prefs?.telegram ? "Lié ✓" : "Lier"}
+            {prefs?.telegram ? t("settings.linked") : t("settings.link")}
           </div>
         </div>
         {deepLink && (
           <div onClick={() => void verifierTelegram()} className="tap" style={{ marginTop: 8, textAlign: "center", padding: "9px", borderRadius: 10, border: `1px solid ${T.b600}`, color: T.b600, fontSize: 12, fontWeight: 600 }}>
-            J'ai appuyé sur Démarrer, vérifier la liaison
+            {t("settings.telegramVerify")}
           </div>
         )}
       </div>
 
       <div style={{ padding: "12px 0", borderBottom: `1px solid ${T.line}` }}>
-        <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>WhatsApp</div>
+        <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6 }}>{t("settings.whatsapp")}</div>
         <div style={{ display: "flex", gap: 8 }}>
           <input
             value={wa}
@@ -345,7 +537,7 @@ function Canaux({
             style={{ flex: 1, height: 40, border: `1px solid ${T.line}`, borderRadius: 10, padding: "0 12px", fontSize: 13 }}
           />
           <div onClick={() => void saveWa()} className="tap" style={{ padding: "0 16px", height: 40, display: "flex", alignItems: "center", borderRadius: 10, background: T.b600, color: "#fff", fontSize: 12, fontWeight: 600 }}>
-            {prefs?.whatsapp ? "Modifier" : "Ajouter"}
+            {prefs?.whatsapp ? t("settings.whatsappEdit") : t("settings.whatsappAdd")}
           </div>
         </div>
       </div>

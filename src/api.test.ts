@@ -20,9 +20,24 @@ describe("api client", () => {
     expect(apiBaseUrl()).toMatch(/^https?:\/\//);
   });
 
-  it("returns the access token on login", async () => {
+  it("returns the access token on login (no 2FA)", async () => {
     mockFetch(200, { access_token: "jwt-123", role: "direction" });
-    await expect(login("a@b.c", "pw")).resolves.toEqual({ token: "jwt-123", doitChangerMdp: false });
+    await expect(login("a@b.c", "pw")).resolves.toEqual({
+      otpRequired: false,
+      token: "jwt-123",
+      doitChangerMdp: false,
+      canal: null,
+    });
+  });
+
+  it("signals otp_required with no token when 2FA is on", async () => {
+    mockFetch(200, { otp_required: true, canal: "email" });
+    await expect(login("a@b.c", "pw")).resolves.toEqual({
+      otpRequired: true,
+      token: null,
+      doitChangerMdp: false,
+      canal: "email",
+    });
   });
 
   it("raises a typed error on invalid credentials", async () => {

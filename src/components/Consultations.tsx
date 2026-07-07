@@ -8,11 +8,13 @@ import {
   getMesConsultations,
   repondreConsultation,
 } from "../api.js";
+import { useT } from "../i18n.js";
 import { T } from "../proto.js";
 
 /** Member-facing consultations: answer a survey addressed to your perimeter.
  * One answer per question (the server enforces it); re-answering updates it. */
 export function Consultations({ token }: { token: string }): JSX.Element {
+  const t = useT();
   const [liste, setListe] = useState<MembreConsultation[] | null>(null);
   const [selection, setSelection] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +22,7 @@ export function Consultations({ token }: { token: string }): JSX.Element {
   const reload = useCallback(() => {
     getMesConsultations(token)
       .then(setListe)
-      .catch((e: unknown) => setError(e instanceof ApiError ? e.message : "Consultations indisponibles"));
+      .catch((e: unknown) => setError(e instanceof ApiError ? e.message : t("consult.unavailableList")));
   }, [token]);
   useEffect(() => reload(), [reload]);
 
@@ -32,18 +34,18 @@ export function Consultations({ token }: { token: string }): JSX.Element {
     <div style={{ padding: "8px 2px 16px" }}>
       {error && <p style={banner}>{error}</p>}
       {liste === null ? (
-        <p style={{ color: T.mut, fontSize: 13 }}>Chargement...</p>
+        <p style={{ color: T.mut, fontSize: 13 }}>{t("common.loading")}</p>
       ) : liste.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px 12px", color: T.mut }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>🗳</div>
-          <p style={{ fontSize: 13 }}>Aucune consultation en cours pour vous.</p>
+          <p style={{ fontSize: 13 }}>{t("consult.empty")}</p>
         </div>
       ) : (
         liste.map((c) => (
           <div key={c.id} onClick={() => setSelection(c.id)} className="tap" style={card}>
             <div style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>{c.titre}</div>
             {c.description && <div style={{ fontSize: 12, color: T.mut, marginTop: 3 }}>{c.description}</div>}
-            <div style={{ fontSize: 11, color: T.b600, marginTop: 6, fontWeight: 600 }}>Répondre ›</div>
+            <div style={{ fontSize: 11, color: T.b600, marginTop: 6, fontWeight: 600 }}>{t("consult.answer")}</div>
           </div>
         ))
       )}
@@ -52,6 +54,7 @@ export function Consultations({ token }: { token: string }): JSX.Element {
 }
 
 function Repondre({ token, id, onBack }: { token: string; id: string; onBack: () => void }): JSX.Element {
+  const t = useT();
   const [detail, setDetail] = useState<ConsultationDetail | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +64,7 @@ function Repondre({ token, id, onBack }: { token: string; id: string; onBack: ()
   useEffect(() => {
     getConsultationDetail(token, id)
       .then(setDetail)
-      .catch((e: unknown) => setError(e instanceof ApiError ? e.message : "Consultation indisponible"));
+      .catch((e: unknown) => setError(e instanceof ApiError ? e.message : t("consult.unavailableDetail")));
   }, [token, id]);
 
   const set = (qid: string, v: string) => setAnswers((a) => ({ ...a, [qid]: v }));
@@ -75,15 +78,15 @@ function Repondre({ token, id, onBack }: { token: string; id: string; onBack: ()
       .map((q) => ({ question_id: q.id, valeur: String(answers[q.id] ?? "") }));
     repondreConsultation(token, id, reponses)
       .then(() => setDone(true))
-      .catch((e: unknown) => setError(e instanceof ApiError ? e.message : "Envoi impossible"))
+      .catch((e: unknown) => setError(e instanceof ApiError ? e.message : t("consult.sendError")))
       .finally(() => setBusy(false));
   }, [detail, answers, token, id]);
 
   if (!detail) {
     return (
       <div style={{ padding: 16 }}>
-        {error ? <p style={banner}>{error}</p> : <p style={{ color: T.mut }}>Chargement...</p>}
-        <button type="button" className="btn btn-ghost btn-block" onClick={onBack} style={{ marginTop: 12 }}>Retour</button>
+        {error ? <p style={banner}>{error}</p> : <p style={{ color: T.mut }}>{t("common.loading")}</p>}
+        <button type="button" className="btn btn-ghost btn-block" onClick={onBack} style={{ marginTop: 12 }}>{t("common.back")}</button>
       </div>
     );
   }
@@ -92,8 +95,8 @@ function Repondre({ token, id, onBack }: { token: string; id: string; onBack: ()
     return (
       <div style={{ padding: "40px 16px", textAlign: "center" }}>
         <div style={{ fontSize: 40, marginBottom: 10 }}>✅</div>
-        <p style={{ fontSize: 15, fontWeight: 700, color: T.ink }}>Merci, votre réponse est enregistrée.</p>
-        <button type="button" className="btn btn-block" onClick={onBack} style={{ marginTop: 16 }}>Terminer</button>
+        <p style={{ fontSize: 15, fontWeight: 700, color: T.ink }}>{t("consult.thanks")}</p>
+        <button type="button" className="btn btn-block" onClick={onBack} style={{ marginTop: 16 }}>{t("consult.finish")}</button>
       </div>
     );
   }
@@ -108,7 +111,7 @@ function Repondre({ token, id, onBack }: { token: string; id: string; onBack: ()
           <div style={{ fontSize: 13.5, fontWeight: 600, color: T.ink, marginBottom: 8 }}>{q.libelle}</div>
           {q.type === "oui_non" ? (
             <div style={{ display: "flex", gap: 8 }}>
-              {([["oui", "Oui"], ["non", "Non"]] as [string, string][]).map(([v, label]) => (
+              {([["oui", t("common.yes")], ["non", t("common.no")]] as [string, string][]).map(([v, label]) => (
                 <button key={v} type="button" onClick={() => set(q.id, v)} style={choice(answers[q.id] === v)}>{label}</button>
               ))}
             </div>
@@ -125,14 +128,14 @@ function Repondre({ token, id, onBack }: { token: string; id: string; onBack: ()
               ))}
             </div>
           ) : (
-            <input style={inputStyle} placeholder="Votre réponse" value={answers[q.id] ?? ""} onChange={(e) => set(q.id, e.target.value)} />
+            <input style={inputStyle} placeholder={t("consult.answerPlaceholder")} value={answers[q.id] ?? ""} onChange={(e) => set(q.id, e.target.value)} />
           )}
         </div>
       ))}
       <button type="button" className="btn btn-block" onClick={submit} disabled={busy} style={{ marginTop: 8 }}>
-        {busy ? "Envoi..." : "Envoyer ma réponse"}
+        {busy ? t("common.sending") : t("consult.submit")}
       </button>
-      <button type="button" className="btn btn-ghost btn-block" onClick={onBack} style={{ marginTop: 8 }}>Retour</button>
+      <button type="button" className="btn btn-ghost btn-block" onClick={onBack} style={{ marginTop: 8 }}>{t("common.back")}</button>
     </div>
   );
 }
@@ -146,12 +149,12 @@ const card: React.CSSProperties = {
 };
 
 const banner: React.CSSProperties = {
-  background: "#fae9e7",
-  border: "1px solid #e0a59c",
+  background: T.tintr,
+  border: `1px solid ${T.tintrl}`,
   borderRadius: 11,
   padding: 10,
   fontSize: 12.5,
-  color: "#922b21",
+  color: T.tintrf,
 };
 
 const inputStyle: React.CSSProperties = {
@@ -167,7 +170,7 @@ function choice(active: boolean): React.CSSProperties {
     padding: "8px 14px",
     borderRadius: 10,
     border: `1px solid ${active ? T.b600 : T.line}`,
-    background: active ? "#eef2fb" : T.surf,
+    background: active ? T.tintb : T.surf,
     color: active ? T.b600 : T.ink,
     fontWeight: 600,
     fontSize: 13,

@@ -1,10 +1,12 @@
 import { useRef, useState } from "react";
 
 import { submitDocument } from "../api.js";
+import { useT } from "../i18n.js";
 import { T } from "../proto.js";
 import { PrimaryButton } from "./ui.js";
 
 export function Document({ token, onSent }: { token: string; onSent: () => void }): JSX.Element {
+  const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
@@ -18,7 +20,7 @@ export function Document({ token, onSent }: { token: string; onSent: () => void 
       await submitDocument(token, "justificatif", file.name);
       onSent();
     } catch {
-      setError("Envoi impossible. Réessayez.");
+      setError(t("common.sendError"));
     } finally {
       setBusy(false);
     }
@@ -27,7 +29,7 @@ export function Document({ token, onSent }: { token: string; onSent: () => void 
   return (
     <div className="scr" style={{ padding: "6px 18px 14px", display: "flex", flexDirection: "column" }}>
       <div style={{ background: T.warnbg, border: `1px solid ${T.warn}`, borderRadius: 12, padding: 12, fontSize: 11.5, color: T.ink, lineHeight: 1.5, marginBottom: 14 }}>
-        L'administration vous demande un <strong>justificatif de domicile</strong> pour finaliser votre dossier.
+        {t("doc.requestBodyA")}<strong>{t("doc.requestBold")}</strong>{t("doc.requestBodyB")}
       </div>
 
       <input
@@ -43,8 +45,8 @@ export function Document({ token, onSent }: { token: string; onSent: () => void 
         style={{ border: `1.5px dashed ${T.b400}`, borderRadius: 14, padding: 22, textAlign: "center", marginBottom: 12 }}
       >
         <div style={{ fontSize: 26, marginBottom: 7 }}>⬆</div>
-        <div style={{ fontSize: 12.5, fontWeight: 600 }}>Téléverser le document</div>
-        <div style={{ fontSize: 10, color: T.mut, marginTop: 3 }}>PDF, JPG ou PNG · chiffré</div>
+        <div style={{ fontSize: 12.5, fontWeight: 600 }}>{t("doc.upload")}</div>
+        <div style={{ fontSize: 10, color: T.mut, marginTop: 3 }}>{t("attest.uploadHint")}</div>
       </div>
 
       {file && (
@@ -52,7 +54,7 @@ export function Document({ token, onSent }: { token: string; onSent: () => void 
           <div style={{ width: 32, height: 32, borderRadius: 8, background: T.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>📄</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 11.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.name}</div>
-            <div style={{ fontSize: 10, color: T.ok }}>Prêt à envoyer</div>
+            <div style={{ fontSize: 10, color: T.ok }}>{t("attest.ready")}</div>
           </div>
           <span onClick={() => setFile(null)} className="tap" style={{ color: T.mut }}>✕</span>
         </div>
@@ -60,7 +62,7 @@ export function Document({ token, onSent }: { token: string; onSent: () => void 
 
       {error && <p style={{ color: T.dng, fontSize: 12 }}>{error}</p>}
 
-      <PrimaryButton label={busy ? "Envoi..." : "Envoyer à l'administration"} onClick={() => void send()} disabled={!file || busy} />
+      <PrimaryButton label={busy ? t("common.sending") : t("attest.send")} onClick={() => void send()} disabled={!file || busy} />
     </div>
   );
 }

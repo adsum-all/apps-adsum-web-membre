@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { type AnniversaireOut, type EvenementOut } from "../api.js";
 import { useT } from "../i18n.js";
 import { civilName } from "../name.js";
@@ -7,6 +9,14 @@ import { T } from "../proto.js";
 function isFormation(e: EvenementOut): boolean {
   const kind = `${e.type ?? ""} ${e.volet}`.toLowerCase();
   return kind.includes("formation");
+}
+
+function modeLabelKey(mode: string | null | undefined): string {
+  return mode === "en_ligne" ? "part.modEnLigne" : mode === "hybride" ? "caljour.modeHybride" : "caljour.modePresentiel";
+}
+
+function phaseLabelKey(phase: string): string {
+  return phase === "en_cours" ? "act.enCours" : phase === "bientot" ? "act.phaseBientot" : phase === "termine" ? "act.phaseTermine" : "act.aVenir";
 }
 
 /** The agenda list for the selected day: events first (primary), then a subtle
@@ -21,6 +31,7 @@ export function CalendrierJour({
   onJoin?: (evenement: EvenementOut) => void;
 }): JSX.Element {
   const t = useT();
+  const [ouvert, setOuvert] = useState<string | null>(null);
 
   if (events.length === 0 && anniversaires.length === 0) {
     return <p style={{ fontSize: 12.5, color: T.mut, padding: "14px 2px" }}>{t("calendar.empty")}</p>;
@@ -31,7 +42,7 @@ export function CalendrierJour({
       {events.map((e) => {
         const formation = isFormation(e);
         const color = formation ? T.warn : T.b600;
-        const bg = formation ? T.warnbg : "#eaeefb";
+        const bg = formation ? T.warnbg : T.tintb;
         return (
           <div
             key={e.id}
@@ -43,8 +54,33 @@ export function CalendrierJour({
               </span>
               {formatTime(e.debut) && <span style={{ fontFamily: T.fm, fontSize: 10, color: T.mut }}>{formatTime(e.debut)}</span>}
             </div>
-            <div style={{ fontSize: 13.5, fontWeight: 600, color: T.ink }}>{e.titre}</div>
+            <div
+              onClick={() => setOuvert((o) => (o === e.id ? null : e.id))}
+              className="tap"
+              style={{ fontSize: 13.5, fontWeight: 600, color: T.ink, cursor: "pointer", display: "flex", justifyContent: "space-between", gap: 8 }}
+            >
+              <span>{e.titre}</span>
+              <span style={{ color: T.faint, fontSize: 12 }}>{ouvert === e.id ? "▴" : "▾"}</span>
+            </div>
             {e.lieu && <div style={{ fontSize: 11, color: T.mut, marginTop: 2 }}>{e.lieu}</div>}
+            {(e.tags ?? []).length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
+                {(e.tags ?? []).map((tg) => (
+                  <span key={tg.id} style={{ fontSize: 9.5, fontWeight: 600, color: T.warn, background: T.warnbg, borderRadius: 7, padding: "2px 7px" }}>
+                    {tg.libelle}
+                  </span>
+                ))}
+              </div>
+            )}
+            {ouvert === e.id && (
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${T.line}`, display: "flex", flexDirection: "column", gap: 4 }}>
+                <DetailRow label={t("caljour.horaires")} value={`${formatTime(e.debut)}${e.fin ? ` - ${formatTime(e.fin)}` : ""}`} />
+                <DetailRow label={t("detail.mode")} value={t(modeLabelKey(e.mode))} />
+                {e.lieu && <DetailRow label={t("caljour.lieu")} value={e.lieu} />}
+                <DetailRow label={t("caljour.etat")} value={t(phaseLabelKey(e.phase))} />
+                {e.cible_libelle && <DetailRow label={t("caljour.concerne")} value={e.cible_libelle} />}
+              </div>
+            )}
             {e.session_ouverte && (
               <button
                 type="button"
@@ -80,6 +116,15 @@ export function CalendrierJour({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }): JSX.Element {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 11.5 }}>
+      <span style={{ color: T.mut }}>{label}</span>
+      <span style={{ color: T.ink, fontWeight: 600, textAlign: "right" }}>{value}</span>
     </div>
   );
 }
