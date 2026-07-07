@@ -85,6 +85,9 @@ export function AttestationManuelle({ token }: { token: string }): JSX.Element |
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<AttestationInfo | null>(null);
+  // The full attestation flow opens in a modal so the card and its QR stay in
+  // the fold: only a compact one-line banner sits above the card.
+  const [open, setOpen] = useState(false);
   const t = useT();
 
   // The administration decides on its own side: refresh the task periodically
@@ -121,20 +124,78 @@ export function AttestationManuelle({ token }: { token: string }): JSX.Element |
     }
   }
 
+  const badge = <StatusBadge info={current} t={t} />;
+  // Closed: a compact one-line banner, so the card and its QR stay in the fold.
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="tap"
+        onClick={() => setOpen(true)}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+          background: T.surf,
+          border: `1px solid ${rejected ? T.dng : T.warn}`,
+          borderRadius: 14,
+          padding: "11px 13px",
+          marginBottom: 14,
+          textAlign: "left",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: T.fd,
+            fontWeight: 700,
+            fontSize: 13.5,
+            color: T.ink,
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {t("attest.title")}
+        </span>
+        <span style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          {badge}
+          <span style={{ fontSize: 12, fontWeight: 600, color: T.b600 }}>{t("attest.open")}</span>
+        </span>
+      </button>
+    );
+  }
+
+  // Open: the full flow in a modal, scrollable on its own, over the card.
   return (
     <div
-      style={{
-        background: T.surf,
-        border: `1px solid ${rejected ? T.dng : T.warn}`,
-        borderRadius: 14,
-        padding: 14,
-        marginBottom: 14,
-        textAlign: "left",
-      }}
+      role="dialog"
+      aria-modal="true"
+      onClick={() => setOpen(false)}
+      style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(9,12,20,0.45)", display: "flex", alignItems: "flex-end", justifyContent: "center" }}
     >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: T.surf,
+          width: "min(480px, 100%)",
+          maxHeight: "92dvh",
+          overflowY: "auto",
+          borderRadius: "18px 18px 0 0",
+          padding: 14,
+          textAlign: "left",
+        }}
+      >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         <div style={{ fontFamily: T.fd, fontWeight: 700, fontSize: 14, color: T.ink }}>{t("attest.title")}</div>
-        <StatusBadge info={current} t={t} />
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {badge}
+          <button type="button" className="tap" onClick={() => setOpen(false)} aria-label={t("common.close")} style={{ fontSize: 18, color: T.mut, lineHeight: 1, background: "none", border: "none" }}>
+            ✕
+          </button>
+        </div>
       </div>
 
       {!sent && <Echeance echeance={current.echeance} t={t} />}
@@ -339,6 +400,7 @@ export function AttestationManuelle({ token }: { token: string }): JSX.Element |
       </div>
       </>
       )}
+      </div>
     </div>
   );
 }
