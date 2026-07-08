@@ -67,13 +67,26 @@ export const FAMILLES_ANNIV: { key: AnniversaireCategorie; label: string }[] = [
 // Quick activity filters (client-side, combinable). `group` structures them in
 // the sheet (type / format / scope) without changing the filtering logic. label
 // holds an i18n key.
+// Activity type (evenement.type) and targeting scope (evenement.cible_type) filters,
+// aligned with what the back office / API actually produce: types rassemblement /
+// formation / priere, and the eight targeting scopes.
 export const FILTRES_ACTIVITE: { key: string; label: string; group: "type" | "format" | "perimetre" }[] = [
+  { key: "rassemblement", label: "calendar.actRassemblement", group: "type" },
   { key: "formation", label: "calendar.actFormation", group: "type" },
+  { key: "priere", label: "calendar.actPriere", group: "type" },
   { key: "en_ligne", label: "calendar.actEnLigne", group: "format" },
   { key: "presentiel", label: "calendar.actPresentiel", group: "format" },
   { key: "coordination", label: "calendar.actMaCoordination", group: "perimetre" },
   { key: "commission", label: "calendar.actMaCommission", group: "perimetre" },
+  { key: "intendance", label: "calendar.actMonIntendance", group: "perimetre" },
+  { key: "tribu", label: "calendar.actMaTribu", group: "perimetre" },
+  { key: "bergers", label: "calendar.actBergers", group: "perimetre" },
+  { key: "responsables", label: "calendar.actResponsables", group: "perimetre" },
+  { key: "liste", label: "calendar.actListe", group: "perimetre" },
 ];
+
+const TYPES_ACTIVITE = ["rassemblement", "formation", "priere"];
+const PERIMETRES_ACTIVITE = ["coordination", "commission", "intendance", "tribu", "bergers", "responsables", "liste"];
 
 function eventDayKey(iso: string): string {
   const d = new Date(iso);
@@ -192,9 +205,10 @@ export function Calendrier({
         if (validTags.length > 0 && !(e.tags ?? []).some((t) => validTags.includes(t.id))) return false;
         const formats = ["en_ligne", "presentiel"].filter((f) => filtres.has(f));
         if (formats.length > 0 && !formats.some((f) => e.mode === f || e.mode === "hybride")) return false;
-        const perims = ["coordination", "commission"].filter((p) => filtres.has(p));
+        const types = TYPES_ACTIVITE.filter((tk) => filtres.has(tk));
+        if (types.length > 0 && !types.includes(e.type ?? "")) return false;
+        const perims = PERIMETRES_ACTIVITE.filter((p) => filtres.has(p));
         if (perims.length > 0 && !perims.includes(e.cible_type ?? "")) return false;
-        if (filtres.has("formation") && (e.type ?? "") !== "formation") return false;
         return true;
       }),
     [events, tagFiltre, filtres, tousTags],
